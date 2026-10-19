@@ -1,0 +1,7 @@
+# Copy this file to db.properties in the same directory and fill in your local values.
+# db.properties is gitignored - never commit real credentials.
+# Precedence: -D system property > environment variable > this file > built-in default.
+DTAQ_DB_URL=jdbc:postgresql://localhost:5432/dtaq_retail
+DTAQ_DB_USER=postgres
+DTAQ_DB_PASSWORD=
+DTAQ_DB_POOL_SIZE=5
