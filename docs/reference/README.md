@@ -1,0 +1,84 @@
+# Tài liệu tham chiếu DTAQ
+
+Đây là bộ tài liệu dẫn xuất từ báo cáo phân tích và thiết kế của dự án **Hệ thống quản lý siêu thị Điện máy DTAQ**. Tài liệu dùng để tra cứu phạm vi, yêu cầu và use case khi triển khai; **không thay thế** tệp DOCX gốc.
+
+## 1. Nguồn và phương pháp
+
+| Hạng mục | Nội dung |
+|---|---|
+| Tệp nguồn | [`docs/source/v12_Nhom04_9_REPORT_ApplicationDevelopment.docx`](../source/v12_Nhom04_9_REPORT_ApplicationDevelopment.docx) |
+| Tên báo cáo | Báo cáo môn học Phát triển ứng dụng – Hệ thống quản lý siêu thị Điện máy DTAQ |
+| Nhóm thực hiện | Nhóm 04 – Lớp DHKTPM20A_KSTN |
+| Phiên bản | v12 (theo tên tệp nguồn) |
+| Ngày trên bìa | 10/1/2026; Học kỳ 01, năm học 2025–2026 |
+| Metadata DOCX | `docProps/core.xml`: `dcterms:created = 2026-10-18T16:41:00Z` |
+| Cách ghi nhận nội dung | Đọc trực tiếp DOCX; ghi lại nội dung bảng và heading nguồn, đối chiếu chéo giữa các mục; không hiệu đính câu chữ nguồn |
+| Ngày cập nhật tài liệu | 2026-10-19 |
+| Phạm vi tài liệu | Chương 1 mục II–V: phạm vi, tác nhân, FR001–FR016, NFR001–NFR017, 08 Q&A. Chương 3 mục II–IV: 02 tác nhân, UC001–UC019. Chương 4 mục I–IV: 14 đặc tả thực thể, **06 kiểu liệt kê**, 66 ràng buộc `RB01`–`RB66` trong 09 nhóm, quy tắc liên tính năng, screen flow và 37 asset byte-identical (23 diagrams, 14 screens; xem `assets/manifest.md`). 37 tệp đã được **xem/kiểm tra hiển thị** ngày 2026-10-19; **chuyển ngữ nghĩa chi tiết chờ rà soát**. Chương 4 mục V (kiểm thử): heading tồn tại nhưng **không chuyển nội dung kiểm thử** và không tạo tài liệu kiểm thử. |
+| Định vị | Theo tên chương/mục và tiêu đề use case |
+| Số trang | Số trang cho **chương/mục/UC** là **unverified**: DOCX có `TOC` field instruction nhưng không có nội dung mục lục đã lưu trong body. Ngoại lệ: các giá trị trang trong **danh mục hình vẽ** (List of Figures) đã có trong DOCX, được ghi là **cached/unverified** (xem `ui/screen-flow-and-screens.md`) và vẫn cần rà soát. |
+
+## 2. Cấu trúc tài liệu
+
+| Tệp | Nội dung | Dùng khi |
+|---|---|---|
+| [requirements/scope-and-requirements.md](requirements/scope-and-requirements.md) | Phạm vi, tác nhân, FR001–FR016, NFR001–NFR017, quy tắc nghiệp vụ, xung đột nguồn | Cần xác định một chức năng có thuộc phạm vi hay không; cần nguyên văn yêu cầu |
+| [use-cases/catalog.md](use-cases/catalog.md) | Danh mục 19 use case, tên/tác nhân/mô tả ngắn theo nguồn, đặc tả bổ sung, khác biệt tên gọi | Cần tra cứu nhanh một UC hoặc đối chiếu danh mục với đặc tả |
+| [traceability.md](traceability.md) | Ánh xạ tường minh **UC → tác nhân và UC → thực thể**; quan hệ **FR ↔ UC chỉ là ứng viên/chưa xác nhận**; khoảng trống và câu hỏi được ghi lại | Cần kiểm tra độ phủ hoặc lập kế hoạch truy vết |
+| [business-rules/rules-and-exceptions.md](business-rules/rules-and-exceptions.md) | Quy tắc nghiệp vụ, ngoại lệ và điều kiện phê duyệt | Cần đối chiếu hành vi với quy tắc nghiệp vụ |
+| [ui/screen-flow-and-screens.md](ui/screen-flow-and-screens.md) | Luồng màn hình và thiết kế màn hình; liên kết ảnh đã sao chép; trang List of Figures ghi cached/unverified | Cần tra cứu luồng điều hướng, bố cục màn hình |
+| [assets/manifest.md](assets/manifest.md) | Manifest 37 tệp hình byte-identical: part nguồn, đích, chú thích/mục, SHA-256 | Cần kiểm tra nguồn gốc, toàn vẹn hoặc liên kết ảnh |
+| [domain/class-model-and-entities.md](domain/class-model-and-entities.md) | Mô hình lớp, thực thể và kiểu liệt kê (Chương 4, mục I) | Cần tra cứu thuộc tính, kiểu dữ liệu, quan hệ |
+| [database/schema-and-integrity.md](database/schema-and-integrity.md) | Thiết kế CSDL, ràng buộc toàn vẹn, khóa, miền giá trị (Chương 4, mục II) | Cần tra cứu bảng, ràng buộc, quy tắc lưu trữ |
+| [use-cases/UC0xx-*.md](use-cases/) | Đặc tả chi tiết từng use case (một tệp cho mỗi UC) | Cần luồng chính/phụ, tiền/hậu điều kiện ở mức chi tiết |
+
+**Tài liệu kiểm thử:** các heading kiểm thử ở **Chương 4 mục V** đã được xem xét; **không chuyển nội dung kiểm thử** và không tạo tệp kiểm thử vì nội dung kiểm thử khả dụng chưa được xác nhận. Đây là **bỏ qua có điều kiện** (conditional/omitted), không phải khẳng định nguồn không có nội dung kiểm thử.
+
+**Sơ đồ và hình màn hình:** 37 part (`word/media/<name>`) đã được sao chép **byte-identical** vào `assets/diagrams/` (23) và `assets/screens/` (14); xem [assets/manifest.md](assets/manifest.md). 37 tệp đã được **mở/kiểm tra hiển thị** ngày 2026-10-19; tài liệu **không vẽ lại** và **chưa chuyển ngữ nghĩa chi tiết** — diễn giải ngữ nghĩa còn **chờ rà soát**.
+
+Thứ tự đọc đề nghị: **phạm vi và yêu cầu → danh mục use case → truy vết**; tra cứu thêm quy tắc nghiệp vụ, luồng màn hình, tệp use case, mô hình lớp hoặc CSDL khi cần chi tiết.
+
+## 3. Quy ước trạng thái
+
+- **Xác nhận**: nội dung có câu chữ trực tiếp trong nguồn; kèm định vị chương/mục.
+- **Chưa xác nhận**: nguồn không nêu ánh xạ hoặc không đủ dữ kiện; không suy diễn thành yêu cầu.
+- **Mâu thuẫn**: hai vị trí trong nguồn nói khác nhau; cả hai được ghi lại, không tự chọn một bên.
+- **Trích nguyên văn**: nội dung trong dấu ngoặc kép hoặc khối trích dẫn giữ nguyên cách viết của nguồn, kể cả lỗi chính tả.
+- **Định vị trang**: dùng chương/mục/tiêu đề UC; số trang cho chương/mục/UC là **unverified** vì body không có nội dung mục lục đã lưu. Giá trị trang trong **danh mục hình vẽ** (List of Figures) là **cached/unverified**, đã ghi trong `ui/screen-flow-and-screens.md`; vẫn cần rà soát lại.
+
+## 4. Tóm tắt độ phủ nguồn
+
+- **02 tác nhân**: Nhân viên bán hàng; Nhân viên quản lý (Chương 3, mục II).
+- **16 yêu cầu chức năng**: FR001–FR016 (Chương 1, mục IV).
+- **17 yêu cầu phi chức năng**: NFR001–NFR017 (Chương 1, mục V).
+- **19 use case**: UC001–UC019 (Chương 3, mục III–IV).
+- **14 đặc tả thực thể** (Chương 4, mục I.3) và **06 kiểu liệt kê** (Chương 4, mục I.4).
+- **66 ràng buộc toàn vẹn** `RB01`–`RB66` trong **09 nhóm** (Chương 4, mục II.3).
+- **12 hình màn hình** Hình 3–14 (Chương 4, mục IV): ảnh gốc vẫn trong DOCX và bản sao byte-identical nằm tại `assets/screens/`; đã **xem hình (visual viewing) hoàn tất** ngày 2026-10-19, **chuyển ngữ nghĩa (semantic transcription) còn chờ rà soát**.
+- **08 câu hỏi làm rõ yêu cầu** (Chương 1, mục III) là nguồn cho các quy tắc thanh toán tiền mặt, tra cứu khách hàng, phê duyệt đổi/trả, giá/thuế, hủy giao dịch, hàng tồn lâu ngày, khóa tài khoản và ngừng kinh doanh sản phẩm.
+
+## 5. Cảnh báo chính
+
+Các điểm dưới đây đã được kiểm chứng trong nguồn và được ghi chi tiết tại [mục 6 của tài liệu yêu cầu](requirements/scope-and-requirements.md#6-xung-đột-và-điểm-chưa-xác-nhận):
+
+1. UC014 có tên danh mục “Báo cáo sản phẩm tồn kho **hằng ngày**”, nhưng tiêu đề đặc tả chi tiết và FR014 dùng “**lâu ngày**”. Không có mục lục đã lưu để đối chiếu thêm.
+2. UC007–UC013 mang tên “Quản lý …” trong danh mục nhưng đặc tả chỉ là “Thêm …”.
+3. UC008–UC011 có tác nhân danh mục là “Quản lý” nhưng đặc tả ghi “Nhân viên bán hàng”.
+4. Phạm vi Chương 1 loại trừ phân hệ khuyến mãi, trong khi UC012 và luồng UC003 vẫn mô tả khuyến mãi.
+5. FR015/FR016/NFR011 yêu cầu sao lưu – phục hồi nhưng danh mục 19 UC không có use case tương ứng.
+6. Không có bảng ánh xạ tường minh FR ↔ UC trong nguồn; 16 FR và 19 UC không tương ứng một-một.
+
+## 6. Giới hạn
+
+- Không chứa mã nguồn, kế hoạch kiểm thử hoặc nội dung kiểm thử. Hình ảnh (sơ đồ, màn hình) đã được sao chép byte-identical vào `assets/` và đã mở/kiểm tra hiển thị ngày 2026-10-19, nhưng **chưa chuyển ngữ nghĩa chi tiết**; tài liệu kiểm thử được bỏ qua có điều kiện vì chưa xác nhận nội dung.
+- DOCX gốc không bị chỉnh sửa; mã nguồn ứng dụng không bị thay đổi. `AGENTS.md` có chứa con trỏ điều hướng/điểm rủi ro tới bộ tài liệu tham chiếu này (đã được cập nhật theo nhiệm vụ được duyệt), nên không được hiểu là `AGENTS.md` nguyên trạng.
+- Không có page locator đáng tin cho chương/mục/UC; số trang là **unverified** (trang trong danh mục hình vẽ là **cached/unverified**), không thay thế việc đọc lại DOCX khi có tranh chấp.
+- Khi nguồn mâu thuẫn, tài liệu giữ nguyên mâu thuẫn và yêu cầu xác nhận, không tự ra quyết định nghiệp vụ.
+
+## 7. Cập nhật tài liệu
+
+1. Chỉ cập nhật khi DOCX nguồn thay đổi hoặc có quyết định nghiệp vụ được duyệt.
+2. Ghi lại phiên bản/ngày nguồn và ngày cập nhật tài liệu mới.
+3. Giữ nguyên ID FR/NFR/UC; không đánh số lại.
+4. Nếu xung đột được giải quyết, ghi rõ quyết định và người/nhóm phê duyệt; không âm thầm sửa theo một bên.
+5. Cập nhật đồng thời các liên kết và bảng truy vết liên quan.

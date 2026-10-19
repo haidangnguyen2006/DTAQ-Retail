@@ -2,6 +2,10 @@
 
 Ứng dụng desktop DTAQ Retail.
 
+## Tài liệu
+
+Bộ tài liệu tham chiếu dẫn xuất từ báo cáo phân tích và thiết kế (phạm vi, yêu cầu, use case, mô hình lớp, CSDL, quy tắc nghiệp vụ, màn hình) nằm tại [`docs/reference/README.md`](docs/reference/README.md).
+
 ## Build
 
 Yêu cầu: JDK 21 và Maven 3.9+.
