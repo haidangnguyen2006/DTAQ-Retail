@@ -57,3 +57,15 @@ Sau đó mở `db.properties` và điền các giá trị phù hợp với máy 
 - `DTAQ_DB_PASSWORD` trong file này là văn bản thuần (plaintext) trên đĩa, nhưng vì file không bao giờ được commit và cũng không được đóng gói vào fat jar, nên mật khẩu không bị lộ qua Git hay qua file jar phát hành.
 
 Xem `db.properties.example` để biết danh sách đầy đủ các khóa cấu hình.
+
+## Flyway migrations
+
+Ứng dụng dùng **Flyway OSS 13.10.2** để chạy migration PostgreSQL lúc khởi động:
+
+- Flyway dùng lại `DataSource` PostgreSQL hiện có, với cấu hình từ các biến `DTAQ_DB_*` và `db.properties` theo cơ chế cấu hình hiện hành.
+- Vị trí migration: `classpath:db/migration`.
+- Các script versioned đang chờ sẽ chạy **trước khi giao diện Swing được khởi tạo**.
+- Nếu migration thất bại, ứng dụng dừng khởi động và không mở giao diện.
+- Không bật baseline tự động.
+
+> **Chưa có migration SQL ban đầu.** Hiện chưa có script migration nào được đóng gói, nên một CSDL mới tinh sẽ **không có schema `products`**. Các truy vấn sản phẩm của DAO sẽ không hoạt động cho đến khi một migration schema được phê duyệt và bổ sung riêng. Tài liệu này không khẳng định Flyway tự tạo bảng và không quy định DDL.

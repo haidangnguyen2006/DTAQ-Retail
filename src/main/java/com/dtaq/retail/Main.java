@@ -1,6 +1,7 @@
 package com.dtaq.retail;
 
 import com.dtaq.retail.config.ConnectDB;
+import com.dtaq.retail.config.DbMigration;
 import com.dtaq.retail.controller.MainController;
 import com.dtaq.retail.dao.impl.ProductDaoImpl;
 import com.dtaq.retail.ui.MainFrame;
@@ -25,6 +26,17 @@ public final class Main {
 
     DataSource dataSource = ConnectDB.getDataSource();
     Runtime.getRuntime().addShutdownHook(new Thread(ConnectDB::close, "dtaq-retail-shutdown"));
+
+    try {
+      DbMigration.migrate(dataSource);
+    } catch (RuntimeException e) {
+      Throwable cause = e.getCause();
+      String causeType = (cause == null) ? "none" : cause.getClass().getName();
+      log.error("Database migration failed; application startup aborted (exception={}, cause={})",
+          e.getClass().getName(), causeType);
+      ConnectDB.close();
+      return;
+    }
 
     SwingUtilities.invokeLater(() -> {
       MainFrame frame = new MainFrame();
