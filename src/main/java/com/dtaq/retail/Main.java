@@ -2,8 +2,6 @@ package com.dtaq.retail;
 
 import com.dtaq.retail.config.ConnectDB;
 import com.dtaq.retail.config.DbMigration;
-import com.dtaq.retail.controller.MainController;
-import com.dtaq.retail.dao.impl.ProductDaoImpl;
 import com.dtaq.retail.ui.MainFrame;
 import com.dtaq.retail.util.AppInfo;
 import com.formdev.flatlaf.FlatLightLaf;
@@ -40,7 +38,6 @@ public final class Main {
 
     SwingUtilities.invokeLater(() -> {
       MainFrame frame = new MainFrame();
-      new MainController(frame, new ProductDaoImpl(dataSource)).refresh();
       frame.setVisible(true);
     });
   }

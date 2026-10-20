@@ -11,8 +11,6 @@ import net.miginfocom.swing.MigLayout;
 /** Main application window. */
 public class MainFrame extends JFrame {
 
-  private final JLabel statusLabel = new JLabel(" ");
-
   public MainFrame() {
     super(AppInfo.APP_NAME);
     setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -25,14 +23,8 @@ public class MainFrame extends JFrame {
     center.add(new JLabel("Chào mừng đến DTAQ Retail", SwingConstants.CENTER), "center");
     add(center, "grow, push");
 
-    add(statusLabel, "growx");
-
     pack();
     setMinimumSize(new Dimension(800, 520));
     AppInfo.centerOnScreen(this);
-  }
-
-  public void setStatus(String text) {
-    statusLabel.setText(text);
   }
 }
