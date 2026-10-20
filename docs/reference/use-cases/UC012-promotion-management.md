@@ -31,11 +31,11 @@ page: "Chưa xác minh"
 | Số trang | Chưa xác minh |
 | Danh mục use case | [catalog.md — Đăng ký use case](catalog.md#1-đăng-ký-use-case) |
 
-## Cảnh báo chưa được giải quyết
+## Cảnh báo nguồn và quyết định implementation
 
 > **C-04 — Phạm vi khuyến mãi chưa thống nhất:** Ch.1 §II.6 ghi hệ thống không xây dựng phân hệ quản lý chương trình khuyến mãi hoàn chỉnh và Ch.1 §II.8 loại trừ quản lý chương trình khuyến mãi chuyên sâu; trong khi Ch.3 §III có UC012 – Quản lý khuyến mãi, Ch.3 §IV đặc tả “Thêm khuyến mãi”, luồng UC003 kiểm tra và áp dụng khuyến mãi, và danh mục nêu thực thể `KhuyenMai`. Tài liệu này giữ nguyên cả hai phía và **không quyết định** phạm vi khuyến mãi. Xem [C-04 — Khuyến mãi vừa ngoài phạm vi vừa có use case](../requirements/scope-and-requirements.md#c-04--khuyến-mãi-vừa-ngoài-phạm-vi-vừa-có-use-case).
 
-> **C-12 — Mã định danh nhập tay hay tự sinh:** Bước 3 của luồng chính yêu cầu “Nhập mã, tên và mô tả chương trình.”, trong khi Quy ước chung Ch.4 §I.3, `RB02`, `RB03` và XBR-14 quy định mã định danh **tự sinh** dạng `TIỀN_TỐ-YYYY-NNNNNN`. Hai nguồn chưa thống nhất; tài liệu này giữ nguyên bước nguồn và **không chọn** cơ chế cấp mã. Xem [C-12 — Nhập mã định danh so với mã tự sinh bất biến](../requirements/scope-and-requirements.md#c-12--nhập-mã-định-danh-so-với-mã-tự-sinh-bất-biến).
+> **C-12 — Mã định danh (đã giải quyết cho implementation hiện tại):** Bước 3 của luồng chính giữ nguyên văn “Nhập mã, tên và mô tả chương trình.” như bằng chứng nguồn. Quyết định implementation (đã duyệt 2026-10-20): mã định danh do **ứng dụng sinh** khi lưu mới thành công, giữ đúng định dạng `TIỀN_TỐ-YYYY-NNNNNN`; V1/PostgreSQL không dùng sequence, identity hay default. Xung đột với quy ước mã tự sinh tại Ch.4 §I.3, `RB02`, `RB03`, XBR-14 **vẫn tồn tại trong nguồn** và không bị sửa. Xem [C-12 — Nhập mã định danh so với mã tự sinh bất biến](../requirements/scope-and-requirements.md#c-12--nhập-mã-định-danh-so-với-mã-tự-sinh-bất-biến).
 
 ## Thông tin chung
 

@@ -127,18 +127,22 @@ Phần đặc tả use case (CHƯƠNG 3 › IV) có nêu tên màn hình ở c�
 
 ---
 
-## 6. Ảnh chụp mã nguồn ngày 2026-10-19 (không dùng để bổ sung dữ kiện DOCX)
+## 6. Ảnh chụp mã nguồn ngày 2026-10-20 (không dùng để bổ sung dữ kiện DOCX)
 
-> Ảnh chụp tại ngày **2026-10-19**. Chỉ ghi nhận những gì đọc được từ đúng tệp/dòng được dẫn; không suy diễn màn hình từ mã nguồn.
+> Ảnh chụp tại ngày **2026-10-20**. Chỉ ghi nhận những gì đọc được từ đúng tệp/dòng được dẫn; không suy diễn màn hình từ mã nguồn.
 
 | Quan sát trong ảnh chụp | Bằng chứng |
 |---|---|
-| `MainFrame` khởi tạo cửa sổ với tiêu đề lấy từ `AppInfo.APP_NAME`, dùng `MigLayout`, thêm nhãn header (tên + phiên bản), nhãn giữa “Chào mừng đến DTAQ Retail”, nhãn trạng thái, `pack()`, kích thước tối thiểu 800×520 và căn giữa màn hình. | `src/main/java/com/dtaq/retail/ui/MainFrame.java:16-32` |
-| `Main` tạo `MainFrame`, tạo `MainController` với `ProductDaoImpl`, gọi `refresh()` và hiển thị cửa sổ bên trong `SwingUtilities.invokeLater`. | `src/main/java/com/dtaq/retail/Main.java:29-32` |
+| `Main` lấy shared `DataSource` từ `ConnectDB.getDataSource()`, đăng ký shutdown hook, chạy `DbMigration.migrate(dataSource)` trên main thread trước EDT. Nếu migration lỗi, ứng dụng ghi log loại exception/cause, đóng pool và `return` mà không mở UI. Thành công thì `SwingUtilities.invokeLater` tạo `MainFrame` và gọi `setVisible(true)`. Không còn `MainController` hay `ProductDaoImpl`. | `src/main/java/com/dtaq/retail/Main.java:21-43` |
+| `DbMigration` cấu hình Flyway với chính `DataSource` được truyền vào và location `classpath:db/migration`, rồi gọi `load().migrate()`. | `src/main/java/com/dtaq/retail/config/DbMigration.java:30-49` |
+| `MainFrame` khởi tạo cửa sổ với tiêu đề lấy từ `AppInfo.APP_NAME`, dùng `MigLayout`, thêm nhãn header (tên + phiên bản), nhãn giữa “Chào mừng đến DTAQ Retail”, `pack()`, kích thước tối thiểu 800×520 và căn giữa màn hình. Không còn nhãn trạng thái hay `setStatus`. | `src/main/java/com/dtaq/retail/ui/MainFrame.java:12-30` |
+| V1 initial schema nằm trong resource `classpath:db/migration` và tạo 14 bảng nghiệp vụ; không có bảng demo `products`. | `src/main/resources/db/migration/V1__initial_schema.sql` |
 
 Hệ quả trong phạm vi ảnh chụp:
 
-- Trong `src/main/java/com/dtaq/retail/ui/` tại ngày 2026-10-19, không thấy mã tương ứng các màn hình Hình 3–Hình 14 (Đăng nhập, Quên mật khẩu, Trang chủ, Lập hóa đơn bán lẻ, In hóa đơn, Quản lý khách hàng, Thống kê, Quản lý hàng trong kho,…).
+- `src/main/java/com/dtaq/retail/ui/` chỉ có `MainFrame` dạng cửa sổ chào mừng chung; **không có** màn hình nghiệp vụ tương ứng Hình 3–Hình 14 (Đăng nhập, Quên mật khẩu, Trang chủ, Lập hóa đơn bán lẻ, In hóa đơn, Quản lý khách hàng, Thống kê, Quản lý hàng trong kho,…).
+- Không còn DAO/entity/controller cho Product; chưa có DAO/entity hay màn hình nghiệp vụ nào được hiện thực cho 14 bảng của V1.
+- V1 đã được kiểm chứng runtime trên PostgreSQL **16.13 disposable** theo bằng chứng tại [schema-and-integrity.md §6.6](../database/schema-and-integrity.md#66-kiểm-chứng-v1): Flyway lần đầu áp dụng 1 migration, lần hai không còn migration chờ; không dùng CSDL thật. `DbMigrationTest` vẫn chỉ kiểm tra cấu hình, không mở kết nối.
 - Vì vậy chưa thể đối chiếu trực quan giữa hình chụp màn hình trong DOCX với mã nguồn.
 
 ---

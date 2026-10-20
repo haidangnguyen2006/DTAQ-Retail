@@ -6,6 +6,7 @@
 > **Phân biệt:** Tài liệu này mô tả **thiết kế đã được ghi trong báo cáo**. Phần "Đối chiếu mã nguồn" ở cuối ghi nhận trạng thái **mã nguồn hiện tại**; mã nguồn **không** được dùng để suy diễn hay bổ sung dữ kiện còn thiếu trong DOCX.
 > **Số trang:** Không nêu số trang vì chưa xác minh được; chỉ dẫn theo tiêu đề mục.
 > **Hình vẽ:** Tài liệu này **không vẽ lại** sơ đồ. Bản sao byte-identical của sơ đồ lớp đã được **rà soát trực quan ngày 2026-10-19**; xem mục "Tài sản hình ảnh (bản sao byte-identical và nguồn DOCX)".
+> **Bổ sung V1 (đã phê duyệt, 2026-10-19):** Mục 8 ghi bản đồ DDL V1 và các sửa đổi được phê duyệt cho `ChiTietHoaDon`, chi tiết đổi/trả và `SanPhamLoi`. Sơ đồ lớp gốc vẫn là nguồn tham chiếu; V1 bổ sung liên kết serial và snapshot, không tuyên bố các trường này đã có trong DOCX. Các bảng trích từ nguồn tại mục 3–4 và các xung đột tại mục 7 được giữ nguyên.
 
 ---
 
@@ -24,7 +25,7 @@ Chỉ các mục 3 và 4 có nội dung văn bản có thể trích xuất. Mụ
 
 - **CHƯƠNG 4 › I › 1. Class Diagram:** sơ đồ lớp được chèn dưới dạng một hình duy nhất (`word/media/image17.png`, kích thước hiển thị ≈ 6.10 in × 4.57 in trong bản DOCX). Bản sao byte-identical: [`../assets/diagrams/image17.png`](../assets/diagrams/image17.png).
 - **Hình ảnh gốc vẫn nằm trong file DOCX nguồn**; bản sao byte-identical đặt trong `docs/reference/assets/diagrams/`.
-- **Toàn bộ 37 ảnh sao đã được rà soát trực quan ngày 2026-10-19** (bao gồm sơ đồ lớp `image17`, EER `image6`, sơ đồ trên HQT CSDL `image8`; các bản sao byte-identical dẫn trên). Quan sát cho `ChiTietHoaDon`: sơ đồ lớp thể hiện `hoaDon`, `sanPham: DongSanPham`, `soLuong`, `/tienTruocKhuyenMai`, `/tienSauKhuyenMai` và **không thấy trường serial/snapshot nào được vẽ trực tiếp**; EER thể hiện `maHD`, `maDongSP`, `soLuong`, `tienTruocKhuyenMai`, `tienSauKhuyenMai` và **không có cột serial/giá thực tế/thuế/khuyến mãi snapshot tường minh**. Đây là **xung đột thiết kế nguồn cần quyết định**; không suy đoán thêm cột/quan hệ ngoài phần thấy được.
+- **Toàn bộ 37 ảnh sao đã được rà soát trực quan ngày 2026-10-19** (bao gồm sơ đồ lớp `image17`, EER `image6`, sơ đồ trên HQT CSDL `image8`; các bản sao byte-identical dẫn trên). Quan sát cho `ChiTietHoaDon`: sơ đồ lớp thể hiện `hoaDon`, `sanPham: DongSanPham`, `soLuong`, `/tienTruocKhuyenMai`, `/tienSauKhuyenMai` và **không thấy trường serial/snapshot nào được vẽ trực tiếp**; EER thể hiện `maHD`, `maDongSP`, `soLuong`, `tienTruocKhuyenMai`, `tienSauKhuyenMai` và **không có cột serial/giá thực tế/thuế/khuyến mãi snapshot tường minh**. Đây là **xung đột thiết kế nguồn được giữ làm bằng chứng lịch sử**; V1 đã quyết định mô hình theo amendment được phê duyệt tại mục 8.2. Không suy đoán thêm cột/quan hệ ngoài phần thấy được.
 - Không tái tạo hoặc vẽ lại sơ đồ trong tài liệu này.
 
 ---
@@ -245,7 +246,7 @@ Chỉ các mục 3 và 4 có nội dung văn bản có thể trích xuất. Mụ
 
 > **Ghi chú xung đột thiết kế nguồn (G-11 / BR-C12):** Phần văn bản dưới đây mô tả `ChiTietHoaDon` với `sanPham: DongSanPham`; `soLuong` bằng 1 theo quan hệ một chi tiết–một máy hiện tại; `tienTruocKhuyenMai` và `tienSauKhuyenMai` là thuộc tính dẫn xuất. Bản văn bản **không hiển thị** trường giá/thuế/khuyến mãi đã chốt hay tham chiếu trực tiếp tới máy vật lý, trong khi `RB22` yêu cầu xác định **máy thực tế được bán** và `RB46` yêu cầu **lưu đơn giá, thuế suất và khuyến mãi tại thời điểm giao dịch**.
 >
-> **Bằng chứng trực quan ngày 2026-10-19** (các bản sao byte-identical của sơ đồ lớp và EER): sơ đồ lớp thể hiện `ChiTietHoaDon` với `hoaDon`, `sanPham: DongSanPham`, `soLuong`, `/tienTruocKhuyenMai`, `/tienSauKhuyenMai`, **không thấy trường serial/snapshot nào được vẽ trực tiếp**; EER thể hiện `maHD`, `maDongSP`, `soLuong`, `tienTruocKhuyenMai`, `tienSauKhuyenMai`, **không có cột serial/giá thực tế/thuế/khuyến mãi snapshot tường minh**. Đây là **xung đột thiết kế nguồn cần quyết định** với `RB22`/`RB46`; **không suy đoán thêm cột/quan hệ ngoài phần thấy được, không khẳng định sơ đồ lớp gốc thiếu liên kết gián tiếp nào khác, không thêm trường, không tự thiết kế lược đồ**. Liên kết: [G-11](../traceability.md), [BR-C12](../business-rules/rules-and-exceptions.md), [RB22/RB46](../database/schema-and-integrity.md).
+> **Bằng chứng trực quan ngày 2026-10-19** (các bản sao byte-identical của sơ đồ lớp và EER): sơ đồ lớp thể hiện `ChiTietHoaDon` với `hoaDon`, `sanPham: DongSanPham`, `soLuong`, `/tienTruocKhuyenMai`, `/tienSauKhuyenMai`, **không thấy trường serial/snapshot nào được vẽ trực tiếp**; EER thể hiện `maHD`, `maDongSP`, `soLuong`, `tienTruocKhuyenMai`, `tienSauKhuyenMai`, **không có cột serial/giá thực tế/thuế/khuyến mãi snapshot tường minh**. Đây là **xung đột thiết kế nguồn được giữ làm bằng chứng lịch sử** với `RB22`/`RB46`; phần trích DOCX không thêm cột/quan hệ ngoài phần thấy được. **V1 đã quyết định mô hình theo amendment được phê duyệt** (liên kết serial và snapshot tại §8.2), không suy đoán thêm quan hệ khác. Liên kết: [G-11](../traceability.md), [BR-C12](../business-rules/rules-and-exceptions.md), [RB22/RB46](../database/schema-and-integrity.md).
 
 | STT | Công việc | Kiểu dữ liệu | Ràng buộc | Ghi chú |
 |---|---|---|---|---|
@@ -476,31 +477,96 @@ Các giá trị đã chốt phải được lưu theo giao dịch đổi để k
 ## 6. Đối chiếu mã nguồn hiện tại (KHÔNG dùng để bổ sung dữ kiện DOCX)
 
 > Phần này chỉ ghi nhận khoảng cách giữa **thiết kế đã ghi trong báo cáo** và **mã nguồn hiện tại**, phục vụ đánh giá. Không có dữ kiện nào của DOCX được suy diễn từ mã nguồn.
+>
+> **Ảnh chụp cập nhật ngày 2026-10-20.** Các mục 3–4 vẫn là **yêu cầu/thiết kế nguồn**; mục này chỉ mô tả **implementation hiện tại**. V1 là migration đã được phê duyệt, không phải nội dung sửa lại của DOCX.
 
-Trạng thái mã nguồn tại thời điểm lập tài liệu (nhánh hiện tại):
+Trạng thái mã nguồn tại ngày 2026-10-20 (nhánh hiện tại):
 
-- Package `com.dtaq.retail.entity` chỉ có một kiểu: `Product` là `record` gồm `long id, String name, BigDecimal price, int quantity`.
-- Chưa thấy các thực thể trùng tên với thiết kế báo cáo như `NhanVien`, `KhachHang`, `DongSanPham`, `SanPham`, `HoaDon`, `ChiTietHoaDon`, `PhieuTra`, `PhieuDoi`, `SanPhamLoi`, `DanhMucSanPham`, `NhaCungCap`, `KhuyenMai`.
-- Chưa thấy các kiểu liệt kê `LoaiQuyen`, `TrangThaiSanPham`, `TrangThaiXuLyPhieu`, `TrangThaiDuyet`, `TinhTrangHangTra`, `TrangThaiXuLyLoi` trong mã nguồn.
-- Các nhóm package hiện có: `config`, `controller`, `dao`, `dao.impl`, `entity`, `exception`, `ui`, `util` — khác với tên nhóm `gui`, `entity`, `dao`, `connect` được mô tả trong Ch.1 §II.9 của báo cáo.
+- `Main` khởi tạo FlatLaf, lấy `DataSource` dùng chung từ `ConnectDB`, đăng ký shutdown hook, gọi `DbMigration.migrate(dataSource)` trước khi mở giao diện; nếu migration ném `RuntimeException`, ứng dụng ghi log, đóng pool và **dừng khởi động**, không mở cửa sổ.
+- Sau migration thành công, `Main` mở `MainFrame` trên EDT. `MainFrame` hiện là màn hình chào chung dùng FlatLaf/MigLayout; không còn trạng thái tải hoặc danh sách `Product`.
+- `pom.xml` khai báo Flyway **13.10.2** (`flyway-core`, `flyway-database-postgresql`). `DbMigration` dùng `classpath:db/migration` và `DataSource` dùng chung, không tạo pool mới.
+- Đã có migration [`V1__initial_schema.sql`](../../../src/main/resources/db/migration/V1__initial_schema.sql), tạo **14 bảng** DTAQ và liên kết `KhuyenMai.maDongSP` → `DongSanPham` (RB20).
+- Các lớp demo `Product` và `ProductDao`/`ProductDaoImpl`/`MainController` đã bị xóa; không còn Java class trong các thư mục `entity`, `dao`, `dao.impl`, `controller` (các thư mục rỗng có thể còn trên đĩa).
+- Chưa có Java entity/enum cho 14 thực thể và 6 kiểu liệt kê của thiết kế; các nhóm package hiện có class là `config`, `exception`, `ui`, `util`, cộng `Main`.
+- Ghi chú implementation: Javadoc hiện tại của `DbMigration` vẫn còn câu “no migration scripts are bundled yet”; câu này đã lỗi thời so với V1 đang có. Đây là nhận xét mã nguồn, không phải yêu cầu thiết kế.
 
-Kết luận: mã nguồn hiện tại **chưa** hiện thực hóa mô hình lớp đã thiết kế; mọi phát biểu thuộc tính/phương thức/ràng buộc trong tài liệu này đều lấy từ DOCX.
+Kết luận: mã nguồn hiện tại **chưa** hiện thực hóa mô hình lớp Java của DOCX; phần đã hiện thực là khung ứng dụng, Flyway và schema V1. Mọi phát biểu thuộc tính/phương thức/ràng buộc trong mục 3–4 vẫn lấy từ DOCX.
 
 ---
 
 ## 7. Điểm xung đột và nội dung cần làm rõ
 
-1. **Kiểu của `SanPhamLoi.sanPham`:** ghi là `DongSanPham` nhưng ghi chú yêu cầu xử lý lỗi theo serial cần xác định máy qua `SanPham`. Nguồn nêu "cần thống nhất lại kiểu thuộc tính hoặc cách thể hiện quan hệ".
+1. **`SanPhamLoi.sanPham` — xung đột nguồn (bằng chứng lịch sử; V1 đã quyết định):** DOCX ghi kiểu `DongSanPham` trong khi ghi chú yêu cầu xử lý lỗi theo serial cần xác định máy qua `SanPham`; nguồn nêu "cần thống nhất lại kiểu thuộc tính hoặc cách thể hiện quan hệ". Đây vẫn là **xung đột của DOCX, không sửa DOCX**. V1 dùng `soSerial` bắt buộc, FK tới `SanPham` và `maPhieuTra`/`maPhieuDoi` tùy chọn, kèm trigger kiểm tra chi tiết nguồn (xem §8.4).
 2. **`PhieuTra.tienKhachDua`:** nguồn nêu "Cần làm rõ mục đích sử dụng trước khi triển khai".
 3. **Các công thức `soNgayTonKho` (dòng), `doMoi`, `giaBan`:** được đánh dấu "đề xuất"/"chưa quy định", chưa phải quy tắc chính thức.
 4. **Các hệ số `kNgay`, `kSua`, `kDoiTra`:** chưa có giá trị; phải được cửa hàng phê duyệt.
 5. **Mục CHƯƠNG 4 › I › 2 "Đặc tả Class Diagram":** rỗng trong bản trích xuất.
 6. **Sơ đồ lớp:** đã rà soát trực quan ngày 2026-10-19 qua bản sao byte-identical; tài liệu vẫn không vẽ lại sơ đồ.
-7. **`ChiTietHoaDon` — xung đột thiết kế nguồn cần quyết định:** phần văn bản ghi `sanPham: DongSanPham`, `soLuong` = 1 và các khoản dẫn xuất, không hiển thị trường giá/thuế/khuyến mãi đã chốt hay tham chiếu trực tiếp tới máy vật lý; `RB22` cần xác định máy thực tế và `RB46` cần lưu giá/thuế/khuyến mãi tại thời điểm giao dịch. Bằng chứng trực quan ngày 2026-10-19: sơ đồ lớp thể hiện `hoaDon`, `sanPham: DongSanPham`, `soLuong`, `/tienTruocKhuyenMai`, `/tienSauKhuyenMai` và **không thấy trường serial/snapshot nào được vẽ trực tiếp**; EER thể hiện `maHD`, `maDongSP`, `soLuong`, `tienTruocKhuyenMai`, `tienSauKhuyenMai` và **không có cột serial/giá thực tế/thuế/khuyến mãi snapshot tường minh**. **Không suy đoán thêm cột/quan hệ ngoài phần thấy được, không khẳng định sơ đồ lớp gốc thiếu liên kết gián tiếp nào khác, không thêm trường, không tự thiết kế lược đồ**. Xem ghi chú tại [§3.9](#39-thực-thể-chitiethoadon) và sổ đăng ký [G-11](../traceability.md), [BR-C12](../business-rules/rules-and-exceptions.md).
+7. **`ChiTietHoaDon` — xung đột thiết kế nguồn (bằng chứng lịch sử; V1 đã quyết định):** phần văn bản ghi `sanPham: DongSanPham`, `soLuong` = 1 và các khoản dẫn xuất, không hiển thị trường giá/thuế/khuyến mãi đã chốt hay tham chiếu trực tiếp tới máy vật lý; `RB22` cần xác định máy thực tế và `RB46` cần lưu giá/thuế/khuyến mãi tại thời điểm giao dịch. Bằng chứng trực quan ngày 2026-10-19: sơ đồ lớp thể hiện `hoaDon`, `sanPham: DongSanPham`, `soLuong`, `/tienTruocKhuyenMai`, `/tienSauKhuyenMai` và **không thấy trường serial/snapshot nào được vẽ trực tiếp**; EER thể hiện `maHD`, `maDongSP`, `soLuong`, `tienTruocKhuyenMai`, `tienSauKhuyenMai` và **không có cột serial/giá thực tế/thuế/khuyến mãi snapshot tường minh**. Phần trích DOCX không thêm cột/quan hệ ngoài phần thấy được; **V1 đã quyết định mô hình theo amendment được phê duyệt** tại §8.2. Xem ghi chú tại [§3.9](#39-thực-thể-chitiethoadon) và sổ đăng ký [G-11](../traceability.md), [BR-C12](../business-rules/rules-and-exceptions.md).
 
 ---
 
-## 8. Checklist hoàn thành (file này)
+## 8. Bản đồ V1 (đã phê duyệt)
+
+> **Vị trí DDL:** `src/main/resources/db/migration/V1__initial_schema.sql`. Đây là **bản sửa đổi V1 đã được phê duyệt ngày 2026-10-19**, không phải nội dung gốc của DOCX.
+>
+> **Quan hệ với nguồn:** sơ đồ lớp gốc (`word/media/image17.png`, bản sao `../assets/diagrams/image17.png`) và EER gốc vẫn là **nguồn tham chiếu**. V1 bổ sung liên kết serial và snapshot giá/thuế/khuyến mãi theo quyết định đã duyệt; không tuyên bố DOCX đã có các trường này. Các mục 3–4 giữ nguyên nội dung trích từ nguồn; mục 7 giữ nguyên các xung đột nguồn.
+
+### 8.1. Mười bốn bảng và khóa chính
+
+| Bảng | Khóa chính | Ghi chú V1 |
+|---|---|---|
+| `NhanVien` | `maNV` | ID chuỗi do ứng dụng cấp; `tenDangNhap` duy nhất. |
+| `KhachHang` | `maKH` | ID chuỗi do ứng dụng cấp. |
+| `DanhMucSanPham` | `maDanhMuc` | Tên duy nhất sau chuẩn hóa khoảng trắng và chữ hoa/thường. |
+| `NhaCungCap` | `maNCC` | ID chuỗi do ứng dụng cấp. |
+| `DongSanPham` | `maDongSP` | FK tới `DanhMucSanPham`; giữ `soLuongTon`, `thue`, `donGiaBanTruocThue`. |
+| `SanPham` | `soSerial` | FK tới `NhaCungCap`, `DongSanPham`; có UQ `(soSerial, maDongSP)` để làm đích cho FK ghép. |
+| `KhuyenMai` | `maKM` | ID chuỗi do ứng dụng cấp; FK bắt buộc `maDongSP` → `DongSanPham` (RB20); khoảng ngày và tỷ lệ giảm có CHECK. |
+| `HoaDon` | `maHD` | FK tới `NhanVien`, `KhachHang`. |
+| `ChiTietHoaDon` | `(maHD, soSerial)` | Khóa ghép theo hóa đơn và máy thực tế; xem 8.2. |
+| `PhieuTra` | `maPhieuTra` | FK tới `NhanVien`, `HoaDon`, nhân viên duyệt. |
+| `ChiTietPhieuTra` | `(maPhieuTra, maHD, soSerial)` | FK ghép tới `ChiTietHoaDon(maHD, soSerial)`. |
+| `PhieuDoi` | `maPhieuDoi` | FK tới `NhanVien`, `HoaDon`, nhân viên duyệt. |
+| `ChiTietPhieuDoi` | `(maPhieuDoi, maHD, soSerial)` | FK ghép tới `ChiTietHoaDon`; máy thay thế tham chiếu `SanPham`. |
+| `SanPhamLoi` | `maLoi` | `soSerial` bắt buộc; `maPhieuTra`/`maPhieuDoi` tùy chọn; xem 8.4. |
+
+Tất cả ID là `VARCHAR` do ứng dụng cấp, không có identity/sequence/default. Tên bảng và cột dùng identifier được quote để giữ đúng camelCase nguồn. Khóa ngoại dùng `ON DELETE RESTRICT`; không có cascade.
+
+### 8.2. `ChiTietHoaDon` — sửa đổi V1 được phê duyệt
+
+- PK `(maHD, soSerial)`; FK `maHD` tới `HoaDon`, FK ghép `(soSerial, maDongSP)` tới `SanPham(soSerial, maDongSP)`.
+- Giữ `maDongSP` theo sơ đồ nguồn để bảo đảm dòng sản phẩm của chi tiết khớp dòng của máy.
+- `soLuong` có CHECK bằng `1` (RB12, quan hệ một chi tiết–một máy).
+- Snapshot tại thời điểm bán: `donGiaBanTaiLucBan`, `thueSuatTaiLucBan`, `maKM` (nullable), `tyLeGiamTaiLucBan` (nullable), `tienKhuyenMaiThucTe`, `tienTruocKhuyenMai`, `tienSauKhuyenMai`, `tienThue`.
+- CHECK: `donGiaBanTaiLucBan >= 0`; `thueSuatTaiLucBan` trong `0..100`; `tyLeGiamTaiLucBan` nullable nhưng nếu có thì trong `0..100`; các khoản tiền `>= 0`; `tienSauKhuyenMai <= tienTruocKhuyenMai`.
+- Không tính lại từ giá/thuế/khuyến mãi hiện tại; giá trị đã lưu là dữ liệu lịch sử (RB42–RB46). Việc tính toán và đối soát thuộc lớp ứng dụng.
+
+### 8.3. Chi tiết trả và chi tiết đổi
+
+- `ChiTietPhieuTra` tham chiếu chi tiết hóa đơn gốc bằng `(maHD, soSerial)`; PK `(maPhieuTra, maHD, soSerial)`; FK tới `PhieuTra` và `ChiTietHoaDon`.
+- `ChiTietPhieuDoi` tham chiếu chi tiết hóa đơn gốc bằng `(maHD, soSerial)`; PK `(maPhieuDoi, maHD, soSerial)`; FK tới `PhieuDoi` và `ChiTietHoaDon`.
+- Máy thay thế dùng cột nguồn `chiTietSanPhamDoi`, FK tới `SanPham(soSerial)`.
+- UQ `(maPhieuDoi, chiTietSanPhamDoi)` không cho một máy thay thế lặp trong cùng phiếu; CHECK `chiTietSanPhamDoi <> soSerial` không cho thay thế chính máy khách mang đổi (RB25).
+
+### 8.4. `SanPhamLoi` — liên kết nguồn và trigger
+
+- `maLoi` là ID ứng dụng cấp; `soSerial` bắt buộc và FK tới `SanPham`.
+- `maPhieuTra` và `maPhieuDoi` là FK tùy chọn tới header phiếu trả/phiếu đổi; cả hai có thể NULL khi lỗi không phát sinh từ đổi/trả. Không thêm quy tắc loại trừ lẫn nhau.
+- Trigger `trg_sanphamloi_nguon_hop_le` kiểm tra: nếu có `maPhieuTra` thì phải tồn tại `ChiTietPhieuTra` cùng phiếu chứa `soSerial`; nếu có `maPhieuDoi` thì phải tồn tại `ChiTietPhieuDoi` cùng phiếu chứa serial đó ở máy trả hoặc máy thay thế. Đây là diễn giải được phê duyệt cho RB27.
+- `tinhTrangXuLy` dùng đúng tập `TrangThaiXuLyLoi`; `ngayCapNhap` nếu có không trước `ngayGhiNhan`.
+
+### 8.5. Phạm vi và giới hạn của V1
+
+- V1 tạo đúng **14 bảng** nêu trên; không có bảng `products`, không có dữ liệu mẫu, không có baseline tự động.
+- Không thêm trigger cho tồn kho, phê duyệt hoặc quy trình giao dịch; các quy tắc liên bảng đó vẫn thuộc lớp ứng dụng.
+- Các tổng tiền dẫn xuất của `HoaDon`, `PhieuTra`, `PhieuDoi` và các thuộc tính dẫn xuất của `SanPham`/`DongSanPham` không được lưu trong V1; ứng dụng tính theo công thức nguồn.
+- Quan hệ `KhuyenMai.maDongSP` → `DongSanPham` là quan hệ cấu trúc theo EER `image8`/sơ đồ lớp `image17` và RB20; V1 không suy ra phạm vi khuyến mãi từ quan hệ này, `C-04` vẫn mở.
+- V1 đã quyết định `G-11`/`BR-C12` theo amendment được phê duyệt; xung đột DOCX vẫn được giữ làm bằng chứng lịch sử. Các xung đột `C-04` (phạm vi khuyến mãi), `C-07` (đơn vị tồn kho serial hay số lượng) và `C-11` (quy tắc làm tròn) vẫn giữ nguyên. Xem [bản đồ DDL V1](../database/schema-and-integrity.md#6-bản-đồ-ddl-v1-đã-phê-duyệt).
+
+---
+
+## 9. Checklist hoàn thành (file này)
 
 - [x] Trích 14 thực thể (NhanVien → SanPhamLoi) với ràng buộc và ghi chú.
 - [x] Trích 6 kiểu liệt kê (LoaiQuyen, TrangThaiSanPham, TrangThaiXuLyPhieu, TrangThaiDuyet, TinhTrangHangTra, TrangThaiXuLyLoi).
@@ -508,6 +574,6 @@ Kết luận: mã nguồn hiện tại **chưa** hiện thực hóa mô hình l�
 - [x] Giữ nguyên mã lỗi/định dạng mã `TIỀN_TỐ-YYYY-NNNNNN` và ví dụ.
 - [x] Ghi công thức tính tiền, thuế, hoàn tiền, chênh lệch, tồn kho, độ mới.
 - [x] Chỉ tham chiếu hình sơ đồ lớp, không vẽ lại; nêu bản sao byte-identical, hình gốc còn ở nguồn, và toàn bộ 37 ảnh sao đã rà soát trực quan ngày 2026-10-19.
-- [x] G-11/BR-C12 ghi bằng chứng trực quan hẹp (trường sơ đồ lớp và cột EER của `ChiTietHoaDon`), đánh dấu xung đột thiết kế nguồn cần quyết định, không suy đoán thêm cột/quan hệ.
+- [x] G-11/BR-C12 ghi bằng chứng trực quan hẹp (trường sơ đồ lớp và cột EER của `ChiTietHoaDon`), giữ xung đột DOCX làm bằng chứng lịch sử; V1 đã quyết định mô hình theo amendment được phê duyệt.
 - [x] Phân biệt thiết kế báo cáo với mã nguồn hiện tại.
 - [x] Không nêu số trang chưa xác minh.

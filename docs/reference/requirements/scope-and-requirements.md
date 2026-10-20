@@ -263,7 +263,9 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - Ch.3 §IV có các bước yêu cầu người dùng **nhập mã định danh**: UC009 “Nhập mã và tên dòng sản phẩm”; UC010 “Nhập mã danh mục”; UC012 “Nhập mã, tên và mô tả chương trình”; UC013 “Nhập mã, họ tên và thông tin liên hệ”.
 - Ch.4 §I.3 quy định mã định danh do hệ thống **tự sinh**: `DongSanPham` constructor “Không nhận mã tự sinh”; `DanhMucSanPham` constructor “Mã được hệ thống cấp khi lưu”; `KhuyenMai` constructor “Mã chương trình được hệ thống cấp khi lưu mới thành công”; `NhanVien` constructor “không yêu cầu nhập `maNV`. Mã được cấp khi lưu mới thành công”.
 - Ch.4 §I.3 “Quy ước chung” và các ràng buộc `RB02`, `RB03`: mã tự sinh theo dạng `TIỀN_TỐ-YYYY-NNNNNN`, được cấp khi lưu mới thành công, không trùng, không tái sử dụng và không thay đổi sau khi đã cấp.
-- **Trạng thái:** cần xác nhận; **không chọn bên nào**. Liên kết sổ đăng ký: [G-10](../traceability.md) · [BR-C11](../business-rules/rules-and-exceptions.md).
+- **Trạng thái nguồn:** xung đột giữa các bước **nhập mã** trong DOCX và quy ước mã **tự sinh** tại Ch.4 §I.3 vẫn tồn tại trong nguồn; DOCX không bị sửa.
+- **Quyết định implementation hiện tại (đã duyệt 2026-10-20):** mã định danh do **ứng dụng sinh** khi lưu mới thành công, giữ đúng các định dạng đã tài liệu hóa (`TIỀN_TỐ-YYYY-NNNNNN`, ví dụ `NVQUANLY-YYYY-NNNNNN`, `NVBANHANG-YYYY-NNNNNN`); V1/PostgreSQL **không** dùng sequence, identity hay default để cấp ID. Đây là quyết định implementation, không phải chỉnh sửa DOCX.
+- Liên kết sổ đăng ký: [G-10](../traceability.md#6-khoảng-trống-và-câu-hỏi-cần-xác-nhận) · [BR-C11](../business-rules/rules-and-exceptions.md#6-xung-đột-nguồn-và-nội-dung-bị-cắt).
 
 ## 7. Điều hướng sổ đăng ký: `C-xx` ↔ `G-xx` ↔ `BR-Cxx`
 
@@ -298,7 +300,8 @@ Ghi chú điều hướng:
 - `BR-C01`–`BR-C03` là khác biệt công thức/ngưỡng giữa Ch.1 và Ch.4, chưa lập `C-xx` tương ứng.
 - `BR-C05`–`BR-C07` là lỗi trình bày/văn bản nguồn, không phải xung đột nghiệp vụ.
 - `G-03`, `G-04` là khoảng trống phủ use case, chưa lập `C-xx` tương ứng.
-- `G-11`/`BR-C12` là ghi chú mô hình chưa xác định cho `ChiTietHoaDon`, chưa lập `C-xx` tương ứng; xem [ghi chú mô hình](../domain/class-model-and-entities.md).
+- `C-12`/`G-10`/`BR-C11`: các bước nhập mã trong DOCX được giữ nguyên làm bằng chứng nguồn; xung đột nguồn vẫn tồn tại, còn implementation hiện tại do ứng dụng sinh mã (không có DB generator).
+- `G-11`/`BR-C12`: xung đột mô hình `ChiTietHoaDon` trong DOCX được giữ làm bằng chứng lịch sử; implementation hiện tại theo V1 amendment đã duyệt — xem [domain §8](../domain/class-model-and-entities.md#8-bản-đồ-v1-đã-phê-duyệt) và [database §6](../database/schema-and-integrity.md#6-bản-đồ-ddl-v1-đã-phê-duyệt).
 
 ## 8. Liên kết
 

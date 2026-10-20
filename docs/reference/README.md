@@ -68,12 +68,19 @@ Các điểm dưới đây đã được kiểm chứng trong nguồn và đư�
 5. FR015/FR016/NFR011 yêu cầu sao lưu – phục hồi nhưng danh mục 19 UC không có use case tương ứng.
 6. Không có bảng ánh xạ tường minh FR ↔ UC trong nguồn; 16 FR và 19 UC không tương ứng một-một.
 
+### 5.1. Quyết định implementation đã duyệt (2026-10-20)
+
+- **Mã định danh:** do **ứng dụng** sinh khi lưu mới thành công; giữ đúng định dạng đã tài liệu hóa (`TIỀN_TỐ-YYYY-NNNNNN`, ví dụ `NVQUANLY-YYYY-NNNNNN`, `NVBANHANG-YYYY-NNNNNN`); V1/PostgreSQL không có sequence, identity hay default. Các bước nhập mã trong DOCX vẫn giữ nguyên; xung đột nguồn C-12/G-10/BR-C11 được lưu làm bằng chứng lịch sử, không bị sửa.
+- **Mô hình hóa đơn/đổi trả:** V1 amendment đã duyệt (`ChiTietHoaDon` theo serial + snapshot tại thời điểm bán; `SanPhamLoi` theo serial và nguồn phiếu trả/đổi) là implementation hiện tại; xung đột thiết kế DOCX G-11/BR-C12 vẫn được giữ làm bằng chứng lịch sử. Xem [domain §8](domain/class-model-and-entities.md#8-bản-đồ-v1-đã-phê-duyệt) và [database §6](database/schema-and-integrity.md#6-bản-đồ-ddl-v1-đã-phê-duyệt).
+
+Các xung đột **chưa được quyết định** như C-04, C-07, C-11 vẫn giữ nguyên trạng thái và không bị coi là đã giải quyết.
+
 ## 6. Giới hạn
 
 - Không chứa mã nguồn, kế hoạch kiểm thử hoặc nội dung kiểm thử. Hình ảnh (sơ đồ, màn hình) đã được sao chép byte-identical vào `assets/` và đã mở/kiểm tra hiển thị ngày 2026-10-19, nhưng **chưa chuyển ngữ nghĩa chi tiết**; tài liệu kiểm thử được bỏ qua có điều kiện vì chưa xác nhận nội dung.
 - DOCX gốc không bị chỉnh sửa; mã nguồn ứng dụng không bị thay đổi. `AGENTS.md` có chứa con trỏ điều hướng/điểm rủi ro tới bộ tài liệu tham chiếu này (đã được cập nhật theo nhiệm vụ được duyệt), nên không được hiểu là `AGENTS.md` nguyên trạng.
 - Không có page locator đáng tin cho chương/mục/UC; số trang là **unverified** (trang trong danh mục hình vẽ là **cached/unverified**), không thay thế việc đọc lại DOCX khi có tranh chấp.
-- Khi nguồn mâu thuẫn, tài liệu giữ nguyên mâu thuẫn và yêu cầu xác nhận, không tự ra quyết định nghiệp vụ.
+- Khi nguồn mâu thuẫn, tài liệu giữ nguyên mâu thuẫn và yêu cầu xác nhận, không tự ra quyết định nghiệp vụ. Các quyết định implementation đã được người dùng phê duyệt được ghi riêng tại mục 5.1 và không sửa câu chữ DOCX.
 
 ## 7. Cập nhật tài liệu
 
