@@ -2,6 +2,10 @@
 
 Ứng dụng desktop DTAQ Retail.
 
+## Tài liệu
+
+Bộ tài liệu tham chiếu dẫn xuất từ báo cáo phân tích và thiết kế (phạm vi, yêu cầu, use case, mô hình lớp, CSDL, quy tắc nghiệp vụ, màn hình) nằm tại [`docs/reference/README.md`](docs/reference/README.md).
+
 ## Build
 
 Yêu cầu: JDK 21 và Maven 3.9+.
@@ -53,3 +57,29 @@ Sau đó mở `db.properties` và điền các giá trị phù hợp với máy 
 - `DTAQ_DB_PASSWORD` trong file này là văn bản thuần (plaintext) trên đĩa, nhưng vì file không bao giờ được commit và cũng không được đóng gói vào fat jar, nên mật khẩu không bị lộ qua Git hay qua file jar phát hành.
 
 Xem `db.properties.example` để biết danh sách đầy đủ các khóa cấu hình.
+
+## Flyway migrations
+
+Ứng dụng dùng **Flyway OSS 13.10.2** để chạy migration PostgreSQL lúc khởi động:
+
+- Flyway dùng lại `DataSource` PostgreSQL hiện có, với cấu hình từ các biến `DTAQ_DB_*` và `db.properties` theo cơ chế cấu hình hiện hành.
+- Vị trí migration: `classpath:db/migration`.
+- Migration hiện có: [`src/main/resources/db/migration/V1__initial_schema.sql`](src/main/resources/db/migration/V1__initial_schema.sql).
+- `Main` lấy shared `DataSource` từ `ConnectDB`, chạy Flyway trên main thread **trước khi giao diện Swing được khởi tạo**, rồi mới mở `MainFrame` trên EDT.
+- Nếu migration thất bại, ứng dụng ghi log chẩn đoán an toàn (không ghi credential/URL), đóng pool và dừng khởi động; giao diện không được mở.
+- Không bật baseline tự động.
+
+### V1 — initial schema
+
+`V1__initial_schema.sql` tạo **14 bảng nghiệp vụ** theo thiết kế đã ghi trong báo cáo:
+
+`NhanVien`, `KhachHang`, `DanhMucSanPham`, `NhaCungCap`, `DongSanPham`, `SanPham`, `KhuyenMai`, `HoaDon`, `ChiTietHoaDon`, `PhieuTra`, `ChiTietPhieuTra`, `PhieuDoi`, `ChiTietPhieuDoi`, `SanPhamLoi`.
+
+Các điểm đã được phê duyệt cho V1:
+
+- `ChiTietHoaDon` tham chiếu `SanPham` theo serial và lưu snapshot đơn giá, thuế suất và khuyến mãi tại thời điểm bán.
+- `SanPhamLoi` tham chiếu serial và có thể tham chiếu phiếu trả/phiếu đổi nguồn.
+- Khóa chính là chuỗi do **ứng dụng sinh**; V1 **không** tạo sequence, identity hay default cho ID.
+- Không tạo bảng demo `products`, không có seed data và không có bảng tương thích.
+
+> V1 chỉ dành cho CSDL PostgreSQL **mới/rỗng** và đã được kiểm chứng runtime trên PostgreSQL **16.13 disposable** (không phải CSDL thật): Flyway 13.10.2 lần đầu áp dụng 1 migration, lần hai không còn migration chờ. Bằng chứng đã ghi tại [`docs/reference/database/schema-and-integrity.md` §6.6](docs/reference/database/schema-and-integrity.md#66-kiểm-chứng-v1); CSDL disposable đã được dừng và xóa sau kiểm thử.
