@@ -64,8 +64,22 @@ Xem `db.properties.example` để biết danh sách đầy đủ các khóa cấ
 
 - Flyway dùng lại `DataSource` PostgreSQL hiện có, với cấu hình từ các biến `DTAQ_DB_*` và `db.properties` theo cơ chế cấu hình hiện hành.
 - Vị trí migration: `classpath:db/migration`.
-- Các script versioned đang chờ sẽ chạy **trước khi giao diện Swing được khởi tạo**.
-- Nếu migration thất bại, ứng dụng dừng khởi động và không mở giao diện.
+- Migration hiện có: [`src/main/resources/db/migration/V1__initial_schema.sql`](src/main/resources/db/migration/V1__initial_schema.sql).
+- `Main` lấy shared `DataSource` từ `ConnectDB`, chạy Flyway trên main thread **trước khi giao diện Swing được khởi tạo**, rồi mới mở `MainFrame` trên EDT.
+- Nếu migration thất bại, ứng dụng ghi log chẩn đoán an toàn (không ghi credential/URL), đóng pool và dừng khởi động; giao diện không được mở.
 - Không bật baseline tự động.
 
-> **Chưa có migration SQL ban đầu.** Hiện chưa có script migration nào được đóng gói, nên một CSDL mới tinh sẽ **không có schema `products`**. Các truy vấn sản phẩm của DAO sẽ không hoạt động cho đến khi một migration schema được phê duyệt và bổ sung riêng. Tài liệu này không khẳng định Flyway tự tạo bảng và không quy định DDL.
+### V1 — initial schema
+
+`V1__initial_schema.sql` tạo **14 bảng nghiệp vụ** theo thiết kế đã ghi trong báo cáo:
+
+`NhanVien`, `KhachHang`, `DanhMucSanPham`, `NhaCungCap`, `DongSanPham`, `SanPham`, `KhuyenMai`, `HoaDon`, `ChiTietHoaDon`, `PhieuTra`, `ChiTietPhieuTra`, `PhieuDoi`, `ChiTietPhieuDoi`, `SanPhamLoi`.
+
+Các điểm đã được phê duyệt cho V1:
+
+- `ChiTietHoaDon` tham chiếu `SanPham` theo serial và lưu snapshot đơn giá, thuế suất và khuyến mãi tại thời điểm bán.
+- `SanPhamLoi` tham chiếu serial và có thể tham chiếu phiếu trả/phiếu đổi nguồn.
+- Khóa chính là chuỗi do **ứng dụng sinh**; V1 **không** tạo sequence, identity hay default cho ID.
+- Không tạo bảng demo `products`, không có seed data và không có bảng tương thích.
+
+> V1 chỉ dành cho CSDL PostgreSQL **mới/rỗng** và đã được kiểm chứng runtime trên PostgreSQL **16.13 disposable** (không phải CSDL thật): Flyway 13.10.2 lần đầu áp dụng 1 migration, lần hai không còn migration chờ. Bằng chứng đã ghi tại [`docs/reference/database/schema-and-integrity.md` §6.6](docs/reference/database/schema-and-integrity.md#66-kiểm-chứng-v1); CSDL disposable đã được dừng và xóa sau kiểm thử.
