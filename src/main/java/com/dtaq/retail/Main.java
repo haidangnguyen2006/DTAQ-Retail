@@ -2,8 +2,12 @@ package com.dtaq.retail;
 
 import com.dtaq.retail.config.ConnectDB;
 import com.dtaq.retail.config.DbMigration;
-import com.dtaq.retail.ui.MainFrame;
+import com.dtaq.retail.dao.impl.NhanVienDaoImpl;
+import com.dtaq.retail.dao.impl.PasswordResetDaoImpl;
+import com.dtaq.retail.ui.AppNavigator;
 import com.dtaq.retail.util.AppInfo;
+import com.dtaq.retail.util.Mailer;
+import com.dtaq.retail.util.SmtpMailer;
 import com.formdev.flatlaf.FlatLightLaf;
 import javax.sql.DataSource;
 import javax.swing.SwingUtilities;
@@ -37,8 +41,11 @@ public final class Main {
     }
 
     SwingUtilities.invokeLater(() -> {
-      MainFrame frame = new MainFrame();
-      frame.setVisible(true);
+      NhanVienDaoImpl nhanVienDao = new NhanVienDaoImpl(dataSource);
+      PasswordResetDaoImpl passwordResetDao = new PasswordResetDaoImpl(dataSource);
+      Mailer mailer = new SmtpMailer();
+      AppNavigator navigator = new AppNavigator(nhanVienDao, passwordResetDao, mailer);
+      navigator.showLogin();
     });
   }
 }
