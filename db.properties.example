@@ -5,3 +5,16 @@ DTAQ_DB_URL=jdbc:postgresql://localhost:5432/dtaq_retail
 DTAQ_DB_USER=postgres
 DTAQ_DB_PASSWORD=
 DTAQ_DB_POOL_SIZE=5
+
+# Cấu hình SMTP để gửi mã xác nhận đặt lại mật khẩu qua email.
+# Để trống nếu chưa dùng chức năng quên mật khẩu.
+# Gmail yêu cầu bật Xác minh 2 bước và dùng App Password (mật khẩu ứng dụng 16 ký tự),
+# không dùng mật khẩu đăng nhập Gmail thông thường.
+# File này chỉ chứa giá trị mẫu, không chứa thông tin đăng nhập thật.
+DTAQ_SMTP_HOST=
+DTAQ_SMTP_PORT=
+DTAQ_SMTP_USER=
+DTAQ_SMTP_PASSWORD=
+DTAQ_SMTP_FROM=
+DTAQ_SMTP_STARTTLS=
+DTAQ_SMTP_TIMEOUT_MS=

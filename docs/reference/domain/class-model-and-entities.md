@@ -57,12 +57,12 @@ Chỉ các mục 3 và 4 có nội dung văn bản có thể trích xuất. Mụ
 | STT | Công việc | Kiểu dữ liệu | Ràng buộc | Ghi chú |
 |---|---|---|---|---|
 | 1 | Khai báo thuộc tính | | | |
-| 1.1 | `maNV` | String | Không rỗng; duy nhất; không thay đổi sau khi cấp. | Tự sinh theo dạng `NVQUANLY-YYYY-NNNNNN` hoặc `NVBANHANG-YYYY-NNNNNN`. Tiền tố thể hiện vai trò khi tạo hồ sơ; `YYYY` là năm vào làm; `NNNNNN` là số thứ tự nhân viên trong năm, dùng chung cho cả hai vai trò. Ví dụ: `NVQUANLY-2024-000001` là nhân viên quản lý có số thứ tự 1 trong năm vào làm 2024. Khi đổi quyền, giữ nguyên mã; quyền hiện tại được xác định bằng `loaiQuyen`. |
+| 1.1 | `maNV` | String | Không rỗng; duy nhất; không thay đổi sau khi cấp. | Tự sinh theo dạng `NVQUANLY-YYYY-NNN` hoặc `NVBANHANG-YYYY-NNN`. Tiền tố thể hiện vai trò khi tạo hồ sơ; `YYYY` là năm vào làm; `NNN` là số thứ tự nhân viên trong năm, dùng chung cho cả hai vai trò. Ví dụ: `NVQUANLY-2024-001` là nhân viên quản lý có số thứ tự 1 trong năm vào làm 2024. Khi đổi quyền, giữ nguyên mã; quyền hiện tại được xác định bằng `loaiQuyen`. |
 | 1.2 | `hoTen` | String | Không rỗng sau khi loại bỏ khoảng trắng đầu và cuối. | Họ tên đầy đủ của nhân viên, có hỗ trợ tiếng Việt. |
 | 1.3 | `soDienThoai` | String | Không rỗng; đúng định dạng số điện thoại được hệ thống chấp nhận. | Lưu dạng chuỗi để giữ số 0 ở đầu hoặc mã quốc gia. |
 | 1.4 | `email` | String | Nếu có nhập thì phải đúng định dạng email. | Địa chỉ email liên hệ của nhân viên. |
 | 1.5 | `ngayVaoLam` | LocalDate | Không rỗng. | Ngày bắt đầu làm việc; dùng xác định phần năm khi cấp mã nhân viên. |
-| 1.6 | `tenDangNhap` | String | Không rỗng; duy nhất. | Tên tài khoản sử dụng để đăng nhập hệ thống. |
+| 1.6 | `tenDangNhap` | String | Không rỗng; duy nhất. | Tự sinh khi Quản lý thêm nhân viên theo dạng `NVQLYYYYYNNN` hoặc `NVBHYYYYNNN`. Tiền tố thể hiện vai trò khi tạo hồ sơ; `YYYY` là năm vào làm; `NNN` là số thứ tự nhân viên trong năm, dùng chung cho cả hai vai trò. Ví dụ: `NVQL2024001` là nhân viên quản lý có số thứ tự 1 trong năm vào làm 2024. Đảm bảo đồng bộ với maNV|
 | 1.7 | `matKhau` | String | Không rỗng; tuân thủ quy định mật khẩu của hệ thống. | Lưu giá trị băm của mật khẩu; không hiển thị trong danh sách, nhật ký hoặc `toString()`. |
 | 1.8 | `loaiQuyen` | LoaiQuyen | Không rỗng; thuộc tập giá trị `LoaiQuyen`. | Xác định quyền hiện tại của nhân viên quản lý hoặc nhân viên bán hàng. |
 | 1.9 | `trangThaiHoatDong` | boolean | Chỉ nhận `true` hoặc `false`. | `true`: tài khoản được hoạt động; `false`: tài khoản bị khóa hoặc nhân viên đã nghỉ việc. Hồ sơ vẫn được giữ để tra cứu giao dịch cũ. |

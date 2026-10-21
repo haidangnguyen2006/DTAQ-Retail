@@ -151,8 +151,8 @@ Consult the full Use Case specification for other eligibility conditions, status
 
 The report describes identifiers using a prefix, year and sequence convention, with examples such as:
 
-- `NVQUANLY-YYYY-NNNNNN`
-- `NVBANHANG-YYYY-NNNNNN`
+- `NVQUANLY-YYYY-NNN`
+- `NVBANHANG-YYYY-NNN`
 
 Treat these as documented examples, not as a reason to invent formats for every other entity.
 
