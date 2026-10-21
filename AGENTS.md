@@ -1,7 +1,7 @@
 # AGENTS.md
 
 # DTAQ — Project Instructions for AI Coding Agents
-
+## link figma ( Dùng figma MCP : https://www.figma.com/design/kgJEXLuNJP1tvkMljWQ6Hl/DTAQ-%E2%80%A2-Prototype-qu%E1%BA%A3n-l%C3%BD-si%C3%AAu-th%E1%BB%8B-%C4%91i%E1%BB%87n-m%C3%A1y?node-id=3-375&t=UJZGeNUlAvcRxEWY-1 )
 ## 1. Project Overview
 
 DTAQ is a desktop application for managing an electronics supermarket.
@@ -151,8 +151,8 @@ Consult the full Use Case specification for other eligibility conditions, status
 
 The report describes identifiers using a prefix, year and sequence convention, with examples such as:
 
-- `NVQUANLY-YYYY-NNNNNN`
-- `NVBANHANG-YYYY-NNNNNN`
+- `NVQUANLY-YYYY-NNN`
+- `NVBANHANG-YYYY-NNN`
 
 Treat these as documented examples, not as a reason to invent formats for every other entity.
 
