@@ -1,11 +1,20 @@
 package com.dtaq.retail.ui;
 
 import com.dtaq.retail.controller.AuthController;
+import com.dtaq.retail.ui.component.DtaqButton;
+import com.dtaq.retail.ui.theme.DtaqColors;
+import com.dtaq.retail.ui.theme.DtaqFonts;
+import com.dtaq.retail.ui.theme.DtaqIcons;
+import com.dtaq.retail.ui.theme.DtaqSpacing;
 import com.dtaq.retail.util.AppInfo;
+import com.formdev.flatlaf.FlatClientProperties;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.RoundRectangle2D;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import javax.swing.JButton;
@@ -13,19 +22,19 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JSeparator;
 import javax.swing.JTextField;
 import javax.swing.SwingWorker;
 import net.miginfocom.swing.MigLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Cửa sổ đăng nhập của ứng dụng. */
+/**
+ * Cửa sổ đăng nhập của ứng dụng DTAQ được thiết kế chuẩn theo Figma.
+ */
 public final class LoginFrame extends JFrame {
 
   private static final Logger log = LoggerFactory.getLogger(LoginFrame.class);
-
-  private static final Color BRAND_BACKGROUND = new Color(0x0F766E);
-  private static final Color ERROR_FOREGROUND = new Color(0xDC2626);
 
   private static final String MISSING_FIELDS_MESSAGE =
       "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu";
@@ -42,91 +51,159 @@ public final class LoginFrame extends JFrame {
   private final JTextField taiKhoanField = new JTextField();
   private final JPasswordField matKhauField = new JPasswordField();
   private final JLabel loiLabel = new JLabel("");
-  private final JButton dangNhapButton = new JButton("Đăng nhập");
+  private final DtaqButton dangNhapButton = DtaqButton.primary("Đăng nhập");
   private final JButton quenMatKhauButton = new JButton("Không thể đăng nhập? Quên mật khẩu!");
 
-  /**
-   * Khởi tạo cửa sổ đăng nhập.
-   *
-   * @param controller bộ điều khiển đăng nhập; không được {@code null}
-   * @param navigator bộ điều phối màn hình; không được {@code null}
-   */
   public LoginFrame(AuthController controller, AppNavigator navigator) {
     super(AppInfo.APP_NAME);
     this.controller = Objects.requireNonNull(controller, "controller");
     this.navigator = Objects.requireNonNull(navigator, "navigator");
 
     setDefaultCloseOperation(EXIT_ON_CLOSE);
-    setResizable(false);
-    setLayout(new MigLayout("fill, insets 0", "[360!][grow]", "[grow]"));
+    setResizable(true);
+    setLayout(new MigLayout("fill, insets 0", "[164!][grow]", "[grow]"));
+    getContentPane().setBackground(DtaqColors.SURFACE);
 
     add(buildBrandPanel(), "grow");
     add(buildFormPanel(), "grow");
 
+    setPreferredSize(new Dimension(1100, 720));
+    setMinimumSize(new Dimension(860, 560));
     pack();
-    setMinimumSize(new Dimension(860, 520));
     AppInfo.centerOnScreen(this);
   }
 
   private JPanel buildBrandPanel() {
-    JPanel panel = new JPanel(new MigLayout("fill, insets 40 32 40 32", "[grow]", "[]20[]push"));
-    panel.setBackground(BRAND_BACKGROUND);
+    JPanel panel = new JPanel(new MigLayout("fill, insets 0", "[center]", "[center]"));
+    panel.setBackground(DtaqColors.BRAND_DARK);
 
-    JLabel name = new JLabel("DTAQ");
-    name.setForeground(Color.WHITE);
-    name.setFont(name.getFont().deriveFont(Font.BOLD, 40f));
-    panel.add(name, "wrap");
+    JPanel brandBlock = new JPanel(new MigLayout("insets 0", "[center]", "[]12[]2[]"));
+    brandBlock.setOpaque(false);
+
+    JPanel logo = new JPanel() {
+      @Override
+      protected void paintComponent(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(Color.WHITE);
+        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), DtaqSpacing.RADIUS_CARD_SM, DtaqSpacing.RADIUS_CARD_SM));
+        g2.dispose();
+        super.paintComponent(g);
+      }
+    };
+    logo.setOpaque(false);
+    logo.setPreferredSize(new Dimension(36, 36));
+    logo.setLayout(new MigLayout("fill, insets 0", "[center]", "[center]"));
+    logo.add(new JLabel(DtaqIcons.icon("zap", 22, DtaqColors.PRIMARY)));
+    brandBlock.add(logo, "center, wrap");
+
+    JLabel brand = new JLabel("DTAQ");
+    brand.setFont(DtaqFonts.BRAND);
+    brand.setForeground(Color.WHITE);
+    brandBlock.add(brand, "center, wrap");
 
     JLabel tagline = new JLabel("ĐIỆN MÁY");
-    tagline.setForeground(Color.WHITE);
-    tagline.setFont(tagline.getFont().deriveFont(Font.PLAIN, 18f));
-    panel.add(tagline, "wrap");
+    tagline.setFont(DtaqFonts.OVERLINE);
+    tagline.setForeground(DtaqColors.BRAND_ON_DARK_MUTED);
+    brandBlock.add(tagline, "center");
 
+    panel.add(brandBlock, "center");
     return panel;
   }
 
   private JPanel buildFormPanel() {
-    JPanel panel = new JPanel(new MigLayout("fill, insets 48 56 48 56", "[grow, fill]", "[]"));
+    JPanel container = new JPanel(new MigLayout("fill, insets 48", "[center]", "[center]"));
+    container.setBackground(DtaqColors.SURFACE);
+
+    JPanel form = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]28[]20[]12[]16[]20[]"));
+    form.setOpaque(false);
+    form.setPreferredSize(new Dimension(408, 0));
+
+    // 1. Eyebrow & Title
+    JPanel greeting = new JPanel(new MigLayout("insets 0", "[]", "[]12[]"));
+    greeting.setOpaque(false);
 
     JLabel subtitle = new JLabel("CHÀO MỪNG TRỞ LẠI");
-    subtitle.setFont(subtitle.getFont().deriveFont(Font.BOLD, 12f));
-    panel.add(subtitle, "wrap");
+    subtitle.setFont(DtaqFonts.EYEBROW);
+    subtitle.setForeground(DtaqColors.PRIMARY);
+    greeting.add(subtitle, "wrap");
 
     JLabel title = new JLabel("Đăng nhập DTAQ");
-    title.setFont(title.getFont().deriveFont(Font.BOLD, 26f));
-    panel.add(title, "wrap, gaptop 4, gapbottom 24");
+    title.setFont(DtaqFonts.DISPLAY);
+    title.setForeground(DtaqColors.TEXT);
+    greeting.add(title, "wrap");
+    form.add(greeting, "growx, wrap");
 
+    // 2. Tài khoản
+    JPanel taiKhoanBlock = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]8[]"));
+    taiKhoanBlock.setOpaque(false);
     JLabel taiKhoanLabel = new JLabel("Tài khoản");
-    panel.add(taiKhoanLabel, "wrap, gapbottom 4");
+    taiKhoanLabel.setFont(DtaqFonts.LABEL);
+    taiKhoanLabel.setForeground(DtaqColors.TEXT);
+    taiKhoanBlock.add(taiKhoanLabel, "wrap");
+
     taiKhoanField.setName("taiKhoan");
+    taiKhoanField.setFont(DtaqFonts.BODY_14);
+    taiKhoanField.setPreferredSize(new Dimension(0, DtaqSpacing.CONTROL_H));
+    taiKhoanField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Nhập tài khoản");
+    taiKhoanField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, DtaqIcons.icon("user-round", 18));
+    taiKhoanField.putClientProperty(FlatClientProperties.STYLE,
+        "arc: 6; borderColor: #E2E8EC; focusedBorderColor: #087F75");
     taiKhoanField.addActionListener(event -> submit());
-    panel.add(taiKhoanField, "growx, h 36!, wrap, gapbottom 16");
+    taiKhoanBlock.add(taiKhoanField, "growx");
+    form.add(taiKhoanBlock, "growx, wrap");
 
+    // 3. Mật khẩu
+    JPanel matKhauBlock = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]8[]"));
+    matKhauBlock.setOpaque(false);
     JLabel matKhauLabel = new JLabel("Mật khẩu");
-    panel.add(matKhauLabel, "wrap, gapbottom 4");
+    matKhauLabel.setFont(DtaqFonts.LABEL);
+    matKhauLabel.setForeground(DtaqColors.TEXT);
+    matKhauBlock.add(matKhauLabel, "wrap");
+
     matKhauField.setName("matKhau");
+    matKhauField.setFont(DtaqFonts.BODY_14);
+    matKhauField.setPreferredSize(new Dimension(0, DtaqSpacing.CONTROL_H));
+    matKhauField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Nhập mật khẩu");
+    matKhauField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, DtaqIcons.icon("lock-keyhole", 18));
+    matKhauField.putClientProperty(FlatClientProperties.STYLE,
+        "arc: 6; borderColor: #E2E8EC; focusedBorderColor: #087F75");
+    matKhauField.putClientProperty(FlatClientProperties.STYLE_CLASS, "showRevealButton");
     matKhauField.addActionListener(event -> submit());
-    panel.add(matKhauField, "growx, h 36!, wrap, gapbottom 8");
+    matKhauBlock.add(matKhauField, "growx");
+    form.add(matKhauBlock, "growx, wrap");
 
-    loiLabel.setForeground(ERROR_FOREGROUND);
-    panel.add(loiLabel, "growx, wrap, gapbottom 16");
+    // 4. Lỗi
+    loiLabel.setFont(DtaqFonts.CAPTION);
+    loiLabel.setForeground(DtaqColors.DANGER);
+    form.add(loiLabel, "growx, wrap");
 
+    // 5. Nút đăng nhập
+    dangNhapButton.setPreferredSize(new Dimension(408, DtaqSpacing.BUTTON_H));
     dangNhapButton.addActionListener(event -> submit());
-    panel.add(dangNhapButton, "growx, h 40!, wrap");
+    form.add(dangNhapButton, "growx, h 42!, wrap");
 
-    panel.add(buildForgotPasswordButton(), "growx, gaptop 8");
+    // 6. Divider & Link quên mật khẩu
+    JPanel supportBlock = new JPanel(new MigLayout("fillx, insets 0", "[center]", "[]12[]"));
+    supportBlock.setOpaque(false);
 
-    return panel;
-  }
+    JSeparator sep = new JSeparator();
+    sep.setForeground(DtaqColors.BORDER);
+    supportBlock.add(sep, "growx, wrap");
 
-  private JButton buildForgotPasswordButton() {
+    quenMatKhauButton.setFont(DtaqFonts.CAPTION);
     quenMatKhauButton.setBorderPainted(false);
     quenMatKhauButton.setContentAreaFilled(false);
     quenMatKhauButton.setFocusPainted(false);
-    quenMatKhauButton.setForeground(BRAND_BACKGROUND);
+    quenMatKhauButton.setForeground(DtaqColors.TEXT_MUTED);
     quenMatKhauButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     quenMatKhauButton.addActionListener(event -> navigator.showForgotPassword());
-    return quenMatKhauButton;
+    supportBlock.add(quenMatKhauButton, "center");
+
+    form.add(supportBlock, "growx");
+
+    container.add(form, "center");
+    return container;
   }
 
   private void submit() {
