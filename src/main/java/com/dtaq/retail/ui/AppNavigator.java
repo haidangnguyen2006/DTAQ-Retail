@@ -4,14 +4,23 @@ import com.dtaq.retail.controller.AuthController;
 import com.dtaq.retail.controller.PasswordResetController;
 import com.dtaq.retail.dao.NhanVienDao;
 import com.dtaq.retail.dao.PasswordResetDao;
+import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.session.CurrentSession;
+import com.dtaq.retail.ui.page.customer.CustomerListPage;
+import com.dtaq.retail.ui.page.home.ManagerHomePage;
+import com.dtaq.retail.ui.page.home.SalesHomePage;
+import com.dtaq.retail.ui.page.invoice.RetailInvoicePage;
+import com.dtaq.retail.ui.page.report.LongStockReportPage;
+import com.dtaq.retail.ui.page.report.RevenueStatisticsPage;
+import com.dtaq.retail.ui.shell.AppShellFrame;
+import com.dtaq.retail.ui.shell.NavigationModel;
 import com.dtaq.retail.util.Mailer;
 import java.time.Clock;
 import java.util.Objects;
 import javax.swing.JFrame;
 
-/** Điều phối việc chuyển đổi giữa màn hình đăng nhập, quên mật khẩu và màn hình chính. */
+/** Điều phối việc chuyển đổi giữa màn hình đăng nhập, quên mật khẩu và khung giao diện chính AppShell. */
 public final class AppNavigator {
 
   private final NhanVienDao nhanVienDao;
@@ -57,9 +66,32 @@ public final class AppNavigator {
     Objects.requireNonNull(nhanVien, "nhanVien");
     CurrentSession.set(nhanVien);
     disposeCurrent();
-    MainFrame mainFrame = new MainFrame(nhanVien, this::logout);
-    current = mainFrame;
-    mainFrame.setVisible(true);
+
+    AppShellFrame shell = new AppShellFrame(nhanVien, this::logout);
+
+    if (nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY) {
+      ManagerHomePage managerHome = new ManagerHomePage(nhanVien);
+      RevenueStatisticsPage revenueStats = new RevenueStatisticsPage();
+      LongStockReportPage longStock = new LongStockReportPage();
+
+      revenueStats.setOnNavigate(shell::showPage);
+
+      shell.registerPage(managerHome);
+      shell.registerPage(revenueStats);
+      shell.registerPage(longStock);
+    } else {
+      SalesHomePage salesHome = new SalesHomePage(nhanVien);
+      CustomerListPage customers = new CustomerListPage();
+      RetailInvoicePage invoice = new RetailInvoicePage(nhanVien);
+
+      shell.registerPage(salesHome);
+      shell.registerPage(customers);
+      shell.registerPage(invoice);
+    }
+
+    shell.showPage(NavigationModel.getDefaultPageFor(nhanVien.loaiQuyen()));
+    current = shell;
+    shell.setVisible(true);
   }
 
   /** Xóa phiên hiện tại và quay lại màn hình đăng nhập; phải gọi trên EDT. */

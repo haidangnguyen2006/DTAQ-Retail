@@ -8,7 +8,7 @@ import com.dtaq.retail.ui.AppNavigator;
 import com.dtaq.retail.util.AppInfo;
 import com.dtaq.retail.util.Mailer;
 import com.dtaq.retail.util.SmtpMailer;
-import com.formdev.flatlaf.FlatLightLaf;
+import com.dtaq.retail.ui.theme.DtaqTheme;
 import javax.sql.DataSource;
 import javax.swing.SwingUtilities;
 import org.slf4j.Logger;
@@ -23,7 +23,7 @@ public final class Main {
   }
 
   public static void main(String[] args) {
-    FlatLightLaf.setup();
+    DtaqTheme.install();
     log.info("Starting {} version {}", AppInfo.APP_NAME, AppInfo.version());
 
     DataSource dataSource = ConnectDB.getDataSource();

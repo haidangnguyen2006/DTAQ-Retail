@@ -44,6 +44,18 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf-extras</artifactId>
+      <version>${flatlaf.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf-fonts-inter</artifactId>
+      <version>4.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
       <groupId>com.miglayout</groupId>
       <artifactId>miglayout-swing</artifactId>
       <version>${miglayout-swing.version}</version>
