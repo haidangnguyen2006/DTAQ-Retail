@@ -279,8 +279,8 @@ Trigger `trg_sanphamloi_nguon_hop_le` chạy trước `INSERT` hoặc khi cập 
 - Mọi ID là `VARCHAR` do ứng dụng cấp; không có identity, sequence hoặc default cho ID.
 - Ngày dùng `DATE`, cờ dùng `BOOLEAN`, số đếm dùng `INTEGER`; tiền và tỷ lệ dùng `NUMERIC` chính xác, không đặt precision/scale tùy ý.
 - Không lưu các tổng tiền dẫn xuất của `HoaDon`, `PhieuTra`, `PhieuDoi` hoặc các thuộc tính dẫn xuất `soNgayTonKho`/`doMoi`/`giaBan`; ứng dụng tính theo công thức nguồn.
-- Quan hệ `KhuyenMai.maDongSP` → `DongSanPham` là quan hệ cấu trúc theo EER `image8`/sơ đồ lớp `image17` và RB20; V1 không suy ra phạm vi khuyến mãi từ quan hệ này, `C-04` vẫn mở.
-- V1 đã quyết định `G-11`/`BR-C12` theo amendment được phê duyệt; xung đột DOCX vẫn được giữ làm bằng chứng lịch sử. Các xung đột `C-04` (phạm vi khuyến mãi), `C-07` (đơn vị tồn kho serial hay số lượng) và `C-11` (quy tắc làm tròn) vẫn giữ nguyên. Xem [mô hình lớp V1](../domain/class-model-and-entities.md#8-bản-đồ-v1-đã-phê-duyệt).
+- Quan hệ `KhuyenMai.maDongSP` → `DongSanPham` là quan hệ cấu trúc theo EER `image8`/sơ đồ lớp `image17` và RB20; phạm vi khuyến mãi **đã chốt là thuộc phạm vi** ngày 2026-10-24 (`C-04`), V1 giữ nguyên cấu trúc này.
+- V1 đã quyết định `G-11`/`BR-C12` theo amendment được phê duyệt; xung đột DOCX vẫn được giữ làm bằng chứng lịch sử. `C-04` (phạm vi khuyến mãi) đã giải quyết ngày 2026-10-24; các xung đột `C-07` (đơn vị tồn kho serial hay số lượng) và `C-11` (quy tắc làm tròn) vẫn giữ nguyên. Xem [mô hình lớp V1](../domain/class-model-and-entities.md#8-bản-đồ-v1-đã-phê-duyệt).
 
 ### 6.6. Kiểm chứng V1
 
