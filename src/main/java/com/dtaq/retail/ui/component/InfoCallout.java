@@ -3,45 +3,56 @@ package com.dtaq.retail.ui.component;
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqIcons;
-import com.dtaq.retail.ui.theme.DtaqSpacing;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.geom.RoundRectangle2D;
+import com.formdev.flatlaf.FlatClientProperties;
+import java.awt.Color;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import net.miginfocom.swing.MigLayout;
 
 /**
- * Hộp thông báo chỉ dẫn mềm (Info Callout) với nền xanh ngọc nhạt và icon info.
+ * Hộp thông báo chỉ dẫn (Callout) với 3 mức: thông tin, cảnh báo, lỗi.
  */
 public class InfoCallout extends JPanel {
 
+  public enum Kind {
+    INFO("info", DtaqColors.PRIMARY_SOFT, DtaqColors.PRIMARY, DtaqColors.PRIMARY_STRONG),
+    WARNING("alert-circle", DtaqColors.WARNING_SOFT, DtaqColors.WARNING, DtaqColors.WARNING),
+    DANGER("alert-circle", DtaqColors.DANGER_SOFT, DtaqColors.DANGER, DtaqColors.DANGER);
+
+    private final String icon;
+    private final Color background;
+    private final Color iconColor;
+    private final Color textColor;
+
+    Kind(String icon, Color background, Color iconColor, Color textColor) {
+      this.icon = icon;
+      this.background = background;
+      this.iconColor = iconColor;
+      this.textColor = textColor;
+    }
+  }
+
+  private final JLabel textLabel = new JLabel();
+
   public InfoCallout(String text) {
-    super(new MigLayout("fillx, insets 14", "[]10[grow]", "[]"));
-    setOpaque(false);
+    this(Kind.INFO, text);
+  }
 
-    JLabel iconLabel = new JLabel(DtaqIcons.icon("info", 17, DtaqColors.PRIMARY));
-    add(iconLabel, "top");
+  public InfoCallout(Kind kind, String text) {
+    super(new MigLayout("fillx, insets 12 14 12 14", "[]10[grow]", "[]"));
+    setOpaque(true);
+    setBackground(kind.background);
+    putClientProperty(FlatClientProperties.STYLE, "arc: 16");
 
-    JLabel textLabel = new JLabel("<html>" + text + "</html>");
+    add(new JLabel(DtaqIcons.icon(kind.icon, 17, kind.iconColor)), "top");
+
     textLabel.setFont(DtaqFonts.CAPTION);
-    textLabel.setForeground(DtaqColors.PRIMARY_STRONG);
+    textLabel.setForeground(kind.textColor);
+    setText(text);
     add(textLabel, "growx");
   }
 
-  @Override
-  protected void paintComponent(Graphics g) {
-    Graphics2D g2 = (Graphics2D) g.create();
-    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-    int w = getWidth() - 1;
-    int h = getHeight() - 1;
-
-    g2.setColor(DtaqColors.PRIMARY_SOFT);
-    g2.fill(new RoundRectangle2D.Float(0, 0, w, h, DtaqSpacing.RADIUS_M, DtaqSpacing.RADIUS_M));
-
-    g2.dispose();
-    super.paintComponent(g);
+  public void setText(String text) {
+    textLabel.setText("<html>" + (text == null ? "" : text) + "</html>");
   }
 }

@@ -41,6 +41,28 @@ public final class MoneyFormat {
     return FORMATTER.format(amount);
   }
 
+  /** Số chữ số tối đa chấp nhận khi người dùng nhập số tiền (tránh tràn {@code long}). */
+  public static final int MAX_INPUT_DIGITS = 15;
+
+  /**
+   * Đọc số tiền người dùng nhập: bỏ mọi ký tự không phải chữ số (dấu chấm phân cách, "VNĐ"…),
+   * tối đa {@value #MAX_INPUT_DIGITS} chữ số. Chuỗi rỗng hoặc không có chữ số cho kết quả 0.
+   * Chỉ phục vụ nhập liệu hiển thị; không làm tròn hay tính toán nghiệp vụ.
+   */
+  public static long parseDigits(String text) {
+    if (text == null) {
+      return 0L;
+    }
+    StringBuilder digits = new StringBuilder();
+    for (int i = 0; i < text.length() && digits.length() < MAX_INPUT_DIGITS; i++) {
+      char ch = text.charAt(i);
+      if (ch >= '0' && ch <= '9') {
+        digits.append(ch);
+      }
+    }
+    return digits.length() == 0 ? 0L : Long.parseLong(digits.toString());
+  }
+
   /**
    * Định dạng kèm hậu tố " VNĐ" (ví dụ: "8.000.000 VNĐ").
    */

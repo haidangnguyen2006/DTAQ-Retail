@@ -4,42 +4,51 @@ import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqIcons;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
-import java.awt.BorderLayout;
+import com.formdev.flatlaf.FlatClientProperties;
+import com.formdev.flatlaf.ui.FlatLineBorder;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.event.KeyAdapter;
+import java.awt.Insets;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 import net.miginfocom.swing.MigLayout;
 
 /**
- * Hộp thoại modal chuẩn (Modal Dialog) hiển thị trên lớp nền mờ (overlay).
+ * Hộp thoại modal chuẩn (Modal Dialog) hiển thị trên lớp nền mờ (overlay) phủ cửa sổ chính.
+ * Esc luôn đóng được (kể cả khi focus trong ô nhập); bấm ra ngoài chỉ đóng khi bật
+ * {@link #setCloseOnOverlayClick(boolean)} để không mất dữ liệu đang nhập.
  */
 public class ModalDialog extends JDialog {
 
-  private final JPanel contentPanel;
+  private static final int MIN_BODY_HEIGHT = 240;
+  private static final int BODY_VERTICAL_RESERVE = 280;
+
   private final JPanel bodyPanel;
   private final JPanel footerPanel;
+  private boolean closeOnOverlayClick;
 
   public ModalDialog(Frame parent, String titleText, String subtitleText, int width) {
     super(parent, true);
     setUndecorated(true);
     setBackground(new Color(0, 0, 0, 0));
 
-    // Outer root pane with semi-transparent overlay
     JPanel overlayPanel = new JPanel(new MigLayout("fill, insets 0", "[center]", "[center]")) {
       @Override
       protected void paintComponent(Graphics g) {
@@ -52,32 +61,63 @@ public class ModalDialog extends JDialog {
     overlayPanel.addMouseListener(new MouseAdapter() {
       @Override
       public void mouseClicked(MouseEvent e) {
-        // Click outside content card closes dialog
-        if (e.getSource() == overlayPanel) {
-          dispose();
+        if (closeOnOverlayClick && e.getSource() == overlayPanel) {
+          requestClose();
         }
       }
     });
 
-    // Content card with rounded corners
-    contentPanel = new JPanel(new MigLayout("fillx, insets 32", "[grow]", "[]20[]24[]")) {
+    JPanel contentPanel = new JPanel(new MigLayout("fillx, insets 28", "[grow]", "[]18[]22[]")) {
       @Override
-      protected void paintComponent(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(DtaqColors.SURFACE);
-        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), DtaqSpacing.RADIUS_DIALOG, DtaqSpacing.RADIUS_DIALOG));
-        g2.setColor(DtaqColors.BORDER);
-        g2.draw(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, DtaqSpacing.RADIUS_DIALOG, DtaqSpacing.RADIUS_DIALOG));
-        g2.dispose();
-        super.paintComponent(g);
+      public Dimension getPreferredSize() {
+        Dimension d = super.getPreferredSize();
+        d.width = width;
+        return d;
       }
     };
-    contentPanel.setOpaque(false);
-    contentPanel.setPreferredSize(new Dimension(width, contentPanel.getPreferredSize().height));
-    contentPanel.addMouseListener(new MouseAdapter() {}); // Block click from bubbling to overlay
+    contentPanel.setOpaque(true);
+    contentPanel.setBackground(DtaqColors.SURFACE);
+    contentPanel.putClientProperty(FlatClientProperties.STYLE, "arc: " + DtaqSpacing.RADIUS_DIALOG * 2);
+    contentPanel.setBorder(new FlatLineBorder(
+        new Insets(1, 1, 1, 1), DtaqColors.BORDER, 1f, DtaqSpacing.RADIUS_DIALOG * 2));
+    contentPanel.addMouseListener(new MouseAdapter() { });
 
-    // Header
+    contentPanel.add(buildHeader(titleText, subtitleText), "growx, wrap");
+
+    bodyPanel = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]"));
+    bodyPanel.setOpaque(false);
+    JScrollPane bodyScroll = new JScrollPane(new ViewportPanel(bodyPanel) {
+      { setOpaque(false); }
+    });
+    bodyScroll.setBorder(null);
+    bodyScroll.setOpaque(false);
+    bodyScroll.getViewport().setOpaque(false);
+    bodyScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+    int maxBodyHeight = parent != null
+        ? Math.max(MIN_BODY_HEIGHT, parent.getHeight() - BODY_VERTICAL_RESERVE) : 480;
+    contentPanel.add(bodyScroll, "growx, hmax " + maxBodyHeight + ", wrap");
+
+    footerPanel = new JPanel(new MigLayout("fillx, insets 0", "[grow][]8[]", "[]"));
+    footerPanel.setOpaque(false);
+    contentPanel.add(footerPanel, "growx");
+
+    overlayPanel.add(contentPanel, "center");
+    setContentPane(overlayPanel);
+
+    getRootPane().registerKeyboardAction(
+        e -> requestClose(),
+        KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+        JComponent.WHEN_IN_FOCUSED_WINDOW);
+
+    if (parent != null) {
+      setBounds(parent.getBounds());
+    } else {
+      pack();
+      setLocationRelativeTo(null);
+    }
+  }
+
+  private JPanel buildHeader(String titleText, String subtitleText) {
     JPanel header = new JPanel(new MigLayout("fillx, insets 0", "[grow][]", "[]"));
     header.setOpaque(false);
 
@@ -98,45 +138,22 @@ public class ModalDialog extends JDialog {
     header.add(titleBlock, "align left");
 
     JButton closeBtn = new JButton(DtaqIcons.icon("x", 20, DtaqColors.TEXT_MUTED));
-    closeBtn.setBorderPainted(false);
-    closeBtn.setContentAreaFilled(false);
-    closeBtn.setFocusPainted(false);
+    closeBtn.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_TOOLBAR_BUTTON);
+    closeBtn.setFocusable(false);
     closeBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-    closeBtn.addActionListener(e -> dispose());
+    closeBtn.setToolTipText("Đóng (Esc)");
+    closeBtn.addActionListener(e -> requestClose());
     header.add(closeBtn, "align right, top");
+    return header;
+  }
 
-    contentPanel.add(header, "growx, wrap");
+  /** Yêu cầu đóng hộp thoại (nút ×, phím Esc, bấm nền). Lớp con ghi đè để chặn khi đang xử lý. */
+  protected void requestClose() {
+    dispose();
+  }
 
-    // Body
-    bodyPanel = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]"));
-    bodyPanel.setOpaque(false);
-    contentPanel.add(bodyPanel, "growx, wrap");
-
-    // Footer
-    footerPanel = new JPanel(new MigLayout("fillx, insets 0", "[grow][]8[]", "[]"));
-    footerPanel.setOpaque(false);
-    contentPanel.add(footerPanel, "growx");
-
-    overlayPanel.add(contentPanel, "center");
-    setContentPane(overlayPanel);
-
-    // ESC to close
-    addKeyListener(new KeyAdapter() {
-      @Override
-      public void keyPressed(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-          dispose();
-        }
-      }
-    });
-
-    if (parent != null) {
-      setSize(parent.getWidth(), parent.getHeight());
-      setLocation(parent.getLocation());
-    } else {
-      pack();
-      setLocationRelativeTo(null);
-    }
+  public void setCloseOnOverlayClick(boolean closeOnOverlayClick) {
+    this.closeOnOverlayClick = closeOnOverlayClick;
   }
 
   public JPanel getBody() {
@@ -146,11 +163,51 @@ public class ModalDialog extends JDialog {
   public void setActions(JComponent... actions) {
     footerPanel.removeAll();
     footerPanel.add(new JSeparator(), "growx, span, wrap, gapbottom 16");
-    footerPanel.add(new JLabel(), "growx"); // push to right
+    footerPanel.add(new JLabel(), "growx");
     for (JComponent action : actions) {
       footerPanel.add(action, "align right");
     }
     footerPanel.revalidate();
     footerPanel.repaint();
+  }
+
+  /** Nút mặc định: được kích hoạt khi nhấn Enter. */
+  public void setPrimaryAction(JButton button) {
+    getRootPane().setDefaultButton(button);
+  }
+
+  @Override
+  public void setVisible(boolean visible) {
+    if (visible) {
+      Container owner = getOwner();
+      if (owner != null) {
+        setBounds(owner.getBounds());
+      }
+      SwingUtilities.invokeLater(this::focusFirstInput);
+    }
+    super.setVisible(visible);
+  }
+
+  private void focusFirstInput() {
+    Component target = findFirstInput(bodyPanel);
+    if (target != null) {
+      target.requestFocusInWindow();
+    }
+  }
+
+  private static Component findFirstInput(Container container) {
+    for (Component child : container.getComponents()) {
+      if ((child instanceof JTextComponent text && text.isEditable() && text.isEnabled())
+          || (child instanceof JComboBox<?> combo && combo.isEnabled())) {
+        return child;
+      }
+      if (child instanceof Container nested) {
+        Component found = findFirstInput(nested);
+        if (found != null) {
+          return found;
+        }
+      }
+    }
+    return null;
   }
 }
