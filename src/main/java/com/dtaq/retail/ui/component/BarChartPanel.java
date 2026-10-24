@@ -3,27 +3,57 @@ package com.dtaq.retail.ui.component;
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.event.MouseEvent;
+import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import javax.swing.JPanel;
+import javax.swing.ToolTipManager;
 
 /**
- * Biểu đồ cột tự vẽ bằng Java2D (BarChartPanel) phục vụ thống kê doanh thu theo ngày/kỳ.
+ * Biểu đồ cột tự vẽ bằng Java2D (BarChartPanel). Giá trị nhận vào theo đơn vị do trang quyết định
+ * (mặc định: triệu đồng); không có dữ liệu thì hiện thông báo rỗng thay vì trục trống.
  */
 public class BarChartPanel extends JPanel {
 
   public record BarPoint(String label, double valueMillions) {}
 
+  private static final Locale VI = Locale.of("vi", "VN");
+  private static final int AXIS_STEPS = 4;
+  private static final int LEFT_MARGIN = 56;
+  private static final int RIGHT_MARGIN = 24;
+  private static final int TOP_MARGIN = 30;
+  private static final int BOTTOM_MARGIN = 36;
+
   private final List<BarPoint> points = new ArrayList<>();
-  private double maxScale = 80.0;
+  private final List<Rectangle2D> barBounds = new ArrayList<>();
+  private double axisMax = AXIS_STEPS;
+  private String unitLabel = "Triệu ₫";
+  private String valueSuffix = "tr";
+  private String emptyText = "Chưa có dữ liệu thống kê";
 
   public BarChartPanel() {
     setOpaque(false);
     setPreferredSize(new Dimension(800, 250));
+    ToolTipManager.sharedInstance().registerComponent(this);
+  }
+
+  /** Đặt nhãn đơn vị của trục tung và hậu tố hiển thị trên đầu mỗi cột (ví dụ "Triệu ₫", "tr"). */
+  public void setUnit(String unitLabel, String valueSuffix) {
+    this.unitLabel = unitLabel;
+    this.valueSuffix = valueSuffix;
+    repaint();
+  }
+
+  public void setEmptyText(String emptyText) {
+    this.emptyText = emptyText;
+    repaint();
   }
 
   public void setData(List<BarPoint> newPoints) {
@@ -31,15 +61,40 @@ public class BarChartPanel extends JPanel {
     if (newPoints != null) {
       points.addAll(newPoints);
     }
-    double maxVal = 10.0;
+    double maxVal = 0;
     for (BarPoint p : points) {
-      if (p.valueMillions() > maxVal) {
-        maxVal = p.valueMillions();
+      maxVal = Math.max(maxVal, p.valueMillions());
+    }
+    axisMax = niceAxisMax(maxVal);
+    repaint();
+  }
+
+  /** Giá trị lớn nhất của trục, làm tròn lên bậc "đẹp" (1, 2, 2,5, 5 × 10^n) chia đều cho 4 khoảng. */
+  static double niceAxisMax(double maxValue) {
+    if (maxValue <= 0) {
+      return AXIS_STEPS;
+    }
+    double rawStep = maxValue / AXIS_STEPS;
+    double magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    double normalized = rawStep / magnitude;
+    double step = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 2.5 ? 2.5 : normalized <= 5 ? 5 : 10)
+        * magnitude;
+    return step * AXIS_STEPS;
+  }
+
+  private static String formatValue(double v) {
+    return v == Math.rint(v) ? String.valueOf((long) v) : String.format(VI, "%.1f", v);
+  }
+
+  @Override
+  public String getToolTipText(MouseEvent event) {
+    for (int i = 0; i < barBounds.size(); i++) {
+      if (barBounds.get(i).contains(event.getPoint())) {
+        BarPoint p = points.get(i);
+        return p.label() + ": " + formatValue(p.valueMillions()) + " " + valueSuffix;
       }
     }
-    // Round maxScale up to next multiple of 20
-    maxScale = Math.ceil(maxVal / 20.0) * 20.0;
-    repaint();
+    return null;
   }
 
   @Override
@@ -48,67 +103,62 @@ public class BarChartPanel extends JPanel {
     Graphics2D g2 = (Graphics2D) g.create();
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+    barBounds.clear();
 
     int width = getWidth();
     int height = getHeight();
 
-    // Unit label at top-left
-    g2.setFont(DtaqFonts.HINT);
-    g2.setColor(DtaqColors.TEXT_SUBTLE);
-    g2.drawString("Triệu ₫", 16, 20);
-
-    int leftMargin = 56;
-    int bottomMargin = 36;
-    int topMargin = 30;
-    int chartHeight = height - topMargin - bottomMargin;
-    int chartWidth = width - leftMargin - 24;
-
-    // Y Axis labels (5 steps)
-    int steps = 4;
-    for (int i = 0; i <= steps; i++) {
-      double stepVal = (maxScale / steps) * i;
-      int y = topMargin + chartHeight - (int) ((stepVal / maxScale) * chartHeight);
-      String label = String.valueOf((int) stepVal);
-      int labelW = g2.getFontMetrics().stringWidth(label);
-      g2.drawString(label, leftMargin - labelW - 12, y + 4);
-    }
-
     if (points.isEmpty()) {
       g2.setFont(DtaqFonts.BODY_13);
       g2.setColor(DtaqColors.TEXT_MUTED);
-      g2.drawString("Chưa có dữ liệu thống kê", leftMargin + 20, topMargin + chartHeight / 2);
+      FontMetrics fm = g2.getFontMetrics();
+      g2.drawString(emptyText, (width - fm.stringWidth(emptyText)) / 2, height / 2);
       g2.dispose();
       return;
     }
 
-    // Draw bars
+    g2.setFont(DtaqFonts.HINT);
+    g2.setColor(DtaqColors.TEXT_SUBTLE);
+    g2.drawString(unitLabel, 16, 20);
+
+    int chartHeight = height - TOP_MARGIN - BOTTOM_MARGIN;
+    int chartWidth = width - LEFT_MARGIN - RIGHT_MARGIN;
+
+    // Trục tung + đường lưới
+    for (int i = 0; i <= AXIS_STEPS; i++) {
+      double stepVal = (axisMax / AXIS_STEPS) * i;
+      int y = TOP_MARGIN + chartHeight - (int) ((stepVal / axisMax) * chartHeight);
+      g2.setColor(DtaqColors.BORDER);
+      g2.drawLine(LEFT_MARGIN, y, LEFT_MARGIN + chartWidth, y);
+      g2.setFont(DtaqFonts.HINT);
+      g2.setColor(DtaqColors.TEXT_SUBTLE);
+      String label = formatValue(stepVal);
+      g2.drawString(label, LEFT_MARGIN - g2.getFontMetrics().stringWidth(label) - 12, y + 4);
+    }
+
     int n = points.size();
     int slotWidth = chartWidth / n;
     int barWidth = Math.min(72, (int) (slotWidth * 0.55));
 
     for (int i = 0; i < n; i++) {
       BarPoint pt = points.get(i);
-      int slotCenterX = leftMargin + i * slotWidth + slotWidth / 2;
+      int slotCenterX = LEFT_MARGIN + i * slotWidth + slotWidth / 2;
       int barX = slotCenterX - barWidth / 2;
+      int barH = (int) ((pt.valueMillions() / axisMax) * chartHeight);
+      int barY = TOP_MARGIN + chartHeight - barH;
 
-      int barH = (int) ((pt.valueMillions() / maxScale) * chartHeight);
-      int barY = topMargin + chartHeight - barH;
-
-      // Bar
       g2.setColor(DtaqColors.PRIMARY);
-      g2.fill(new RoundRectangle2D.Float(barX, barY, barWidth, barH, 6, 6));
+      g2.fill(new RoundRectangle2D.Float(barX, barY, barWidth, Math.max(barH, 2), 6, 6));
+      barBounds.add(new Rectangle2D.Double(barX, barY, barWidth, Math.max(barH, 2)));
 
-      // Value label on top
-      String valStr = ((int) pt.valueMillions()) + " tr";
+      String valStr = formatValue(pt.valueMillions()) + " " + valueSuffix;
       g2.setFont(DtaqFonts.CAPTION);
-      int valW = g2.getFontMetrics().stringWidth(valStr);
-      g2.drawString(valStr, slotCenterX - valW / 2, barY - 6);
+      g2.setColor(DtaqColors.PRIMARY);
+      g2.drawString(valStr, slotCenterX - g2.getFontMetrics().stringWidth(valStr) / 2, barY - 6);
 
-      // X Axis label
       g2.setFont(DtaqFonts.HINT);
       g2.setColor(DtaqColors.TEXT_MUTED);
-      int lblW = g2.getFontMetrics().stringWidth(pt.label());
-      g2.drawString(pt.label(), slotCenterX - lblW / 2, height - 12);
+      g2.drawString(pt.label(), slotCenterX - g2.getFontMetrics().stringWidth(pt.label()) / 2, height - 12);
     }
 
     g2.dispose();

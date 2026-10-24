@@ -1,7 +1,7 @@
 package com.dtaq.retail.ui.page.invoice;
 
 /**
- * Các trạng thái hiển thị của màn hình Lập hóa đơn bán lẻ theo 5 frame prototype Figma.
+ * Các trạng thái hiển thị của màn hình Lập hóa đơn bán lẻ (theo prototype Figma, thêm trạng thái xử lý).
  */
 public enum InvoiceViewState {
   /** Chưa chọn khách hàng (Figma frame 1:1054). */
@@ -15,6 +15,9 @@ public enum InvoiceViewState {
 
   /** Đã có sản phẩm trong giỏ, sẵn sàng thanh toán (Figma frame 1:716). */
   READY_TO_PAY,
+
+  /** Đã gửi yêu cầu thanh toán, đang chờ kết quả từ controller; khóa toàn bộ thao tác. */
+  PROCESSING,
 
   /** Đã thanh toán thành công (Figma frame 1:523). */
   PAID

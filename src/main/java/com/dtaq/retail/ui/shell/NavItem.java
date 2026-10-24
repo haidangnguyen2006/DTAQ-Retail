@@ -4,65 +4,46 @@ import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqIcons;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
+import com.dtaq.retail.ui.theme.DtaqStyles;
+import com.formdev.flatlaf.FlatClientProperties;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.geom.RoundRectangle2D;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import net.miginfocom.swing.MigLayout;
+import javax.swing.AbstractAction;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
+import javax.swing.SwingConstants;
 
 /**
- * Mục điều hướng trên thanh Sidebar (NavItem).
+ * Mục điều hướng trên thanh Sidebar. Là nút thật nên chọn được bằng Tab và kích hoạt bằng Enter/Space.
  */
-public class NavItem extends JPanel {
+public class NavItem extends JButton {
+
+  private static final int ICON_SIZE = 19;
+  private static final int ACCENT_WIDTH = 3;
 
   private final String iconName;
-  private final String labelText;
-  private final JLabel iconLabel = new JLabel();
-  private final JLabel textLabel = new JLabel();
-
-  private boolean active = false;
-  private boolean hovered = false;
-  private Runnable onClick;
+  private boolean active;
 
   public NavItem(String iconName, String labelText) {
-    super(new MigLayout("fillx, insets 0 12 0 12", "[]10[grow]", "[center]"));
+    super(labelText);
     this.iconName = iconName;
-    this.labelText = labelText;
-    setOpaque(false);
+    setHorizontalAlignment(SwingConstants.LEFT);
+    setIconTextGap(12);
+    setFocusPainted(false);
     setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-    boolean multiline = labelText.length() > 20 || labelText.contains("\n");
-    int h = multiline ? 64 : DtaqSpacing.NAV_ITEM_H;
-    setPreferredSize(new Dimension(192, h));
-
-    textLabel.setText("<html>" + labelText.replace("\n", "<br>") + "</html>");
-    add(iconLabel, "align left, aligny center");
-    add(textLabel, "growx, aligny center");
-
-    addMouseListener(new MouseAdapter() {
+    getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "dtaq.activate");
+    getActionMap().put("dtaq.activate", new AbstractAction() {
       @Override
-      public void mouseEntered(MouseEvent e) {
-        hovered = true;
-        repaint();
-      }
-
-      @Override
-      public void mouseExited(MouseEvent e) {
-        hovered = false;
-        repaint();
-      }
-
-      @Override
-      public void mouseClicked(MouseEvent e) {
-        if (onClick != null) {
-          onClick.run();
-        }
+      public void actionPerformed(ActionEvent e) {
+        doClick();
       }
     });
 
@@ -80,30 +61,32 @@ public class NavItem extends JPanel {
   }
 
   public void setOnClick(Runnable onClick) {
-    this.onClick = onClick;
+    addActionListener(e -> onClick.run());
   }
 
   private void updateState() {
-    if (active) {
-      iconLabel.setIcon(DtaqIcons.icon(iconName, 19, DtaqColors.PRIMARY));
-      textLabel.setFont(DtaqFonts.BODY_13_MEDIUM);
-      textLabel.setForeground(DtaqColors.PRIMARY_STRONG);
-    } else {
-      iconLabel.setIcon(DtaqIcons.icon(iconName, 19, DtaqColors.TEXT_MUTED));
-      textLabel.setFont(DtaqFonts.BODY_13);
-      textLabel.setForeground(DtaqColors.TEXT_MUTED);
-    }
+    setFont(active ? DtaqFonts.BODY_13_MEDIUM : DtaqFonts.BODY_13);
+    setIcon(DtaqIcons.icon(iconName, ICON_SIZE, active ? DtaqColors.PRIMARY : DtaqColors.TEXT_MUTED));
+    putClientProperty(FlatClientProperties.STYLE, DtaqStyles.navItem(active));
+  }
+
+  @Override
+  public Dimension getPreferredSize() {
+    Dimension d = super.getPreferredSize();
+    d.height = Math.max(d.height, DtaqSpacing.NAV_ITEM_H);
+    return d;
   }
 
   @Override
   protected void paintComponent(Graphics g) {
-    if (active || hovered) {
+    super.paintComponent(g);
+    if (active) {
       Graphics2D g2 = (Graphics2D) g.create();
       g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-      g2.setColor(active ? DtaqColors.PRIMARY_SOFT : DtaqColors.BG_APP);
-      g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), DtaqSpacing.RADIUS_M, DtaqSpacing.RADIUS_M));
+      g2.setColor(DtaqColors.PRIMARY);
+      int barHeight = getHeight() - 16;
+      g2.fill(new RoundRectangle2D.Float(0, 8, ACCENT_WIDTH, barHeight, ACCENT_WIDTH, ACCENT_WIDTH));
       g2.dispose();
     }
-    super.paintComponent(g);
   }
 }

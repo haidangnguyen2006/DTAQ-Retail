@@ -55,4 +55,16 @@ class DtaqColorsTest {
     assertEquals("#ABD1C9", toHex(DtaqColors.CHART_4));
     assertEquals("#D4E7E2", toHex(DtaqColors.CHART_5));
   }
+
+  @Test
+  @DisplayName("Các token trạng thái và tương tác bổ sung phải đúng mã màu")
+  void testStatusAndInteractionColors() {
+    assertEquals("#076F66", toHex(DtaqColors.PRIMARY_HOVER));
+    assertEquals("#FCD0CC", toHex(DtaqColors.DANGER_SOFT_HOVER));
+    assertEquals("#B54708", toHex(DtaqColors.WARNING));
+    assertEquals("#FEF0C7", toHex(DtaqColors.WARNING_SOFT));
+    assertEquals("#F8FAFB", toHex(DtaqColors.ROW_HOVER));
+    assertEquals(DtaqColors.PRIMARY, DtaqColors.SUCCESS);
+    assertEquals(DtaqColors.PRIMARY_SOFT, DtaqColors.SUCCESS_SOFT);
+  }
 }

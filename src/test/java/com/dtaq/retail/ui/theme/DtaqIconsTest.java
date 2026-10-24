@@ -17,11 +17,11 @@ class DtaqIconsTest {
       "users", "receipt-text", "log-out", "download", "search", "chevron-down",
       "plus", "x", "info", "phone", "circle-check", "tv", "package",
       "shopping-cart", "calendar-days", "clock", "alert-circle", "user-round",
-      "lock-keyhole"
+      "lock-keyhole", "chevron-left", "chevron-right", "check"
   );
 
   @Test
-  @DisplayName("Tất cả 23 icon SVG phải nạp thành công từ classpath và tìm thấy tài nguyên")
+  @DisplayName("Tất cả 26 icon SVG phải nạp thành công từ classpath và tìm thấy tài nguyên")
   void testAllIconsFound() {
     for (String name : ALL_ICONS) {
       Icon icon = DtaqIcons.icon(name, 20, DtaqColors.PRIMARY);

@@ -56,4 +56,24 @@ public final class DtaqIcons {
   public static Icon icon(String name) {
     return icon(name, 18, DtaqColors.TEXT_MUTED);
   }
+
+  /** Bọc icon với lề trái, dùng làm icon đầu ô nhập để icon không dính sát viền. */
+  public static Icon paddedLeft(Icon icon, int leftPadding) {
+    return new Icon() {
+      @Override
+      public void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y) {
+        icon.paintIcon(c, g, x + leftPadding, y);
+      }
+
+      @Override
+      public int getIconWidth() {
+        return icon.getIconWidth() + leftPadding;
+      }
+
+      @Override
+      public int getIconHeight() {
+        return icon.getIconHeight();
+      }
+    };
+  }
 }
