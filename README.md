@@ -157,6 +157,7 @@ App Password **không** phải mật khẩu đăng nhập Gmail thông thường
   - [`V1__initial_schema.sql`](src/main/resources/db/migration/V1__initial_schema.sql) — tạo 14 bảng nghiệp vụ.
   - [`V2__seed_demo_accounts.sql`](src/main/resources/db/migration/V2__seed_demo_accounts.sql) — tạo hai tài khoản demo, xem [Tài khoản demo (V2)](#tài-khoản-demo-v2).
   - [`V3__password_reset.sql`](src/main/resources/db/migration/V3__password_reset.sql) — tạo bảng `DatLaiMatKhau` lưu mã băm của mã đặt lại mật khẩu theo từng nhân viên.
+  - [`V4__seed_full_data.sql`](src/main/resources/db/migration/V4__seed_full_data.sql) — nạp dữ liệu demo đầy đủ cho 14 bảng nghiệp vụ (`NhanVien`, `KhachHang`, `DanhMucSanPham`, `NhaCungCap`, `DongSanPham`, `SanPham`, `KhuyenMai`, `HoaDon`, `ChiTietHoaDon`, `PhieuTra`, `ChiTietPhieuTra`, `PhieuDoi`, `ChiTietPhieuDoi`, `SanPhamLoi`); **không** seed bảng `DatLaiMatKhau`; dùng lại hash BCrypt demo của V2 (mật khẩu demo `12345678`) và chỉ chứa SĐT/email hư cấu; tự động áp dụng khi khởi động trên CSDL đã ở V1–V3; kết thúc bằng khối `DO $$` tự kiểm và hủy migration nếu vi phạm các quy tắc toàn vẹn RB23/RB24/RB26/RB30/RB37/RB38/RB54/RB56.
 - `Main` lấy shared `DataSource` từ `ConnectDB`, chạy Flyway trên main thread **trước khi giao diện Swing được khởi tạo**, rồi mới mở `MainFrame` trên EDT.
 - Nếu migration thất bại, ứng dụng ghi log chẩn đoán an toàn (không ghi credential/URL), đóng pool và dừng khởi động; giao diện không được mở.
 - Không bật baseline tự động.
