@@ -186,11 +186,11 @@ Chi tiết phạm vi/module mở rộng/verify ở §3.1 (đặt cạnh luồng 
 
 | Wave | Thời gian | Đăng | Quý | Tuấn Anh | Tài | Mốc |
 |---|---|---|---|---|---|---|
-| **W0** | 26/10–01/11 | `MaGenerator`, `TienUtil`, entity/DAO lõi HĐ, thêm `NavItem` còn thiếu | Entity/DAO `SanPham`, `DongSanPham` | Entity/DAO `KhachHang`, `NhanVien` mở rộng | Entity/DAO `DanhMucSanPham`, `KhuyenMai`, `SanPhamLoi` | Build xanh, chạy được với seed V4 |
-| **W1** | 02–08/11 | Khung UC003 (chọn khách/máy + tính tiền) | UC004 + `SanPhamPicker`; UC008 | UC010 (**sớm nhất**), UC007 + `KhachHangPicker` | UC011; `KhuyenMaiDao.findHieuLuc` | Chốt hợp đồng §4 |
-| **W2** | 09–15/11 | UC003 hoàn tất (gồm KM) + preview; UC017 + `ExcelExporter` | UC009; UC019 | UC013; UC005 | UC012 + panel; UC018 | Demo UC003 end-to-end |
-| **W3** | 16–22/11 | UC006; UC014 | Rà soát + test | Hoàn thiện UC005 | UC018 hoàn tất; test UC012 | Demo đổi/trả + duyệt |
-| **W4** | 23–29/11 | UC015, UC016; backup/restore; tích hợp; `mvn test` | Review chéo | Review chéo UC001/002 | Review chéo | Đủ 19 UC + 2 FR phụ trợ |
+| **W0** | 24/10–26/10 | `MaGenerator`, `TienUtil`, entity/DAO lõi HĐ, thêm `NavItem` còn thiếu | Entity/DAO `SanPham`, `DongSanPham` | Entity/DAO `KhachHang`, `NhanVien` mở rộng | Entity/DAO `DanhMucSanPham`, `KhuyenMai`, `SanPhamLoi` | Build xanh, chạy được với seed V4 |
+| **W1** | 27–29/10 | Khung UC003 (chọn khách/máy + tính tiền) | UC004 + `SanPhamPicker`; UC008 | UC010 (**sớm nhất**), UC007 + `KhachHangPicker` | UC011; `KhuyenMaiDao.findHieuLuc` | Chốt hợp đồng §4 |
+| **W2** | 30–02/11 | UC003 hoàn tất (gồm KM) + preview; UC017 + `ExcelExporter` | UC009; UC019 | UC013; UC005 | UC012 + panel; UC018 | Demo UC003 end-to-end |
+| **W3** | 03–05/11 | UC006; UC014 | Rà soát + test | Hoàn thiện UC005 | UC018 hoàn tất; test UC012 | Demo đổi/trả + duyệt |
+| **W4** | 06-08/11 | UC015, UC016; backup/restore; tích hợp; `mvn test` | Review chéo | Review chéo UC001/002 | Review chéo | Đủ 19 UC + 2 FR phụ trợ |
 
 **Một UC chỉ được coi là xong khi:** panel mở được từ sidebar đúng quyền; có test; `mvn test` xanh; không sửa file người khác; `git diff` chỉ chứa file đã đăng ký.
 
