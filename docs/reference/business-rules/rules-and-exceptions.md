@@ -92,6 +92,8 @@ Hai nhóm công thức cùng tồn tại; **Ch.4 mở rộng Ch.1 bằng khuyế
 
 > Ch.1 không nêu khuyến mãi trong công thức; Ch.4 đưa khuyến mãi vào `tienSauKhuyenMai`. Xem mục 6.
 
+> **Quy ước `làmTròn` (đã chốt 2026-10-24, xem `C-11`):** đơn vị đồng, **0 chữ số thập phân**, chế độ `HALF_UP`, dùng `BigDecimal`; làm tròn ở cấp chi tiết rồi cộng thành tổng; DB lưu giá trị đã tròn; hiển thị dạng `1.250.000 VND`.
+
 ## 4. Trạng thái và chuyển trạng thái
 
 | Kiểu | Giá trị hợp lệ | Ảnh hưởng liên tính năng |
@@ -128,14 +130,14 @@ Không tự dung hòa. Các xung đột phạm vi/vai trò đã được lập m
 
 | Mã | Nội dung | Định vị | Trạng thái |
 |---|---|---|---|
-| BR-C01 | Công thức Ch.1 không có khuyến mãi; Ch.4 tính `tienSauKhuyenMai` trước thuế. | Ch.1 §I.2.b vs Ch.4 §I.3 | Khác phạm vi, cần xác nhận công thức chuẩn cho hóa đơn có khuyến mãi |
+| BR-C01 | Công thức Ch.1 không có khuyến mãi; Ch.4 tính `tienSauKhuyenMai` trước thuế. | Ch.1 §I.2.b vs Ch.4 §I.3 | **Đã chọn công thức Ch.4 cho hóa đơn có khuyến mãi (2026-10-24, theo quyết định `C-04`)** — khớp `RB42`–`RB46` và V1 `ChiTietHoaDon`; `làmTròn` theo `C-11` (VND, 0 chữ số thập phân, `HALF_UP`) |
 | BR-C02 | Ch.1 nói “mỗi sản phẩm có một mức thuế suất”; Ch.4 đặt `thue` trên `DongSanPham`. | Ch.1 §II.3 vs Ch.4 §I.3 | Khác mức hạt dữ liệu; cần xác nhận cấp lưu thuế suất |
 | BR-C03 | Ngưỡng duyệt tính trên “số tiền hoàn”; `RB54` quy định với phiếu đổi kiểm tra sau bù trừ toàn phiếu. | Ch.1 §I.2.c vs Ch.4 §II.3.7 | Cần xác nhận cách tính khi có nhiều chi tiết âm/dương |
-| BR-C04 | Không có quy tắc làm tròn cụ thể (đơn vị, thứ tự) dù yêu cầu thống nhất. | NFR017; `RB51` vs toàn bộ công thức | Chưa xác nhận; xem `C-11` |
+| BR-C04 | Không có quy tắc làm tròn cụ thể (đơn vị, thứ tự) dù yêu cầu thống nhất. | NFR017; `RB51` vs toàn bộ công thức | **Đã chốt 2026-10-24:** VND, 0 chữ số thập phân, `HALF_UP`, một điểm làm tròn (`TienUtil`), tròn ở cấp chi tiết rồi cộng; DB lưu giá trị đã tròn; hiển thị dạng `1.250.000 VND`. Xem `C-11`. |
 | BR-C05 | UC007, luồng 8.a.1 bị cắt giữa câu: “Phát hiện số điện thoạ”. | Ch.3 §IV UC007 | Văn bản nguồn không đầy đủ; không suy đoán |
 | BR-C06 | UC017 bỏ qua bước `10.a.4` trong luồng xuất Excel. | Ch.3 §IV UC017 | Thiếu số bước; nội dung 10.a.3 → 10.a.5 vẫn đọc được |
 | BR-C07 | Luồng chính nguồn của UC002 có các dòng **không được đánh số bước**, và UC003 có một dòng **thiếu nhãn số bước**; **không phải** các bước bị trùng số. Giữ nguyên luồng nguồn, không đánh số lại. Xem [UC002](../use-cases/UC002-logout.md) và [UC003](../use-cases/UC003-retail-invoice.md). | Ch.3 §IV UC002, UC003 | Lỗi trình bày/văn bản nguồn; không đổi nghĩa |
-| BR-C08 | Khuyến mãi vừa bị loại khỏi phạm vi vừa có UC012 và được áp dụng ở UC003. | Ch.1 §II.6, §II.8 vs Ch.3 §III–IV | Mâu thuẫn phạm vi; xem `C-04` |
+| BR-C08 | Khuyến mãi vừa bị loại khỏi phạm vi vừa có UC012 và được áp dụng ở UC003. | Ch.1 §II.6, §II.8 vs Ch.3 §III–IV | **Đã giải quyết phạm vi (2026-10-24):** khuyến mãi cơ bản thuộc phạm vi (UC012 quản lý + UC003 bước 7–8 áp dụng trên từng dòng sản phẩm); voucher/tích điểm/khuyến mãi chuyên sâu vẫn ngoài phạm vi; DOCX không sửa. Xem `C-04`. |
 | BR-C09 | Tác nhân UC008–UC011 khác nhau giữa danh mục, đặc tả và mô tả tác nhân. | Ch.3 §II, §III, §IV; Ch.1 §II.1 | Mâu thuẫn ba chiều; xem `C-03`, `G-09` |
 | BR-C10 | Ai được cập nhật giá/thuế: nhân viên bán hàng theo Ch.1/FR006 hay Quản lý theo UC019. | Ch.1 §II.1.b; FR006; Ch.3 §IV UC019 | Mâu thuẫn vai trò; xem `C-08`, `G-08` |
 | BR-C11 | Ch.3 §IV UC009/UC010/UC012/UC013 yêu cầu **nhập mã định danh**; Ch.4 §I.3 và `RB02`/`RB03` quy định mã **tự sinh, bất biến, không tái sử dụng**. | Ch.3 §IV UC009, UC010, UC012, UC013 vs Ch.4 §I.3; Ch.4 §II.3.1 (`RB02`, `RB03`) | **Đã giải quyết cho implementation hiện tại (2026-10-20):** mã do ứng dụng sinh, giữ đúng định dạng tài liệu hóa; không dùng DB sequence/identity/default. Xung đột nguồn (bước nhập tay trong DOCX) vẫn được giữ làm bằng chứng; xem `C-12`, `G-10`. |
