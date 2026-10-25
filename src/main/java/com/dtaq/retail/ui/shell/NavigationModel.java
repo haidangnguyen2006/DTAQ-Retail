@@ -27,7 +27,7 @@ public final class NavigationModel {
       return List.of(
           new NavEntry("home", "Trang chủ", "layout-dashboard", PageId.MANAGER_HOME),
           new NavEntry("revenue", "Thống kê doanh thu", "chart-no-axes-combined", PageId.REVENUE_STATS),
-          new NavEntry("long_stock", "Báo cáo tồn kho", "package-search", PageId.LONG_STOCK_REPORT)
+          new NavEntry("long_stock", "Báo cáo tồn kho lâu ngày", "package-search", PageId.LONG_STOCK_REPORT),
           new NavEntry("product_lines", "Quản lý dòng sản phẩm", "shopping-cart", PageId.PRODUCT_LINES),
           new NavEntry("defective_products", "Quản lý sản phẩm lỗi", "alert-circle", PageId.DEFECTIVE_PRODUCTS),
           new NavEntry("promotions", "Quản lý khuyến mãi", "zap", PageId.PROMOTIONS),

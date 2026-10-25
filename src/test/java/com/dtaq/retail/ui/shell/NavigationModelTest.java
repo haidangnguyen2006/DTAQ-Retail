@@ -77,6 +77,7 @@ class NavigationModelTest {
     );
 
     assertEquals("Quản lý khuyến mãi", byId(entries, "promotions").label());
+    assertEquals("Báo cáo tồn kho lâu ngày", byId(entries, "long_stock").label());
   }
 
   @Test
