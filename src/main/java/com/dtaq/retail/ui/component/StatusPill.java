@@ -18,9 +18,11 @@ import javax.swing.SwingConstants;
 public class StatusPill extends JLabel {
 
   public enum Type {
-    NEUTRAL(DtaqColors.BG_APP, DtaqColors.TEXT_MUTED),
-    SUCCESS(DtaqColors.PRIMARY_SOFT, DtaqColors.PRIMARY_STRONG),
-    DANGER(DtaqColors.DANGER_SOFT, DtaqColors.DANGER);
+    NEUTRAL(DtaqColors.DISABLED_BG, DtaqColors.TEXT_MUTED),
+    SUCCESS(DtaqColors.SUCCESS_SOFT, DtaqColors.PRIMARY_STRONG),
+    WARNING(DtaqColors.WARNING_SOFT, DtaqColors.WARNING),
+    DANGER(DtaqColors.DANGER_SOFT, DtaqColors.DANGER),
+    INFO(DtaqColors.PRIMARY_SOFT_2, DtaqColors.PRIMARY_STRONG);
 
     final Color background;
     final Color foreground;
@@ -49,8 +51,16 @@ public class StatusPill extends JLabel {
     return new StatusPill(text, Type.SUCCESS);
   }
 
+  public static StatusPill warning(String text) {
+    return new StatusPill(text, Type.WARNING);
+  }
+
   public static StatusPill danger(String text) {
     return new StatusPill(text, Type.DANGER);
+  }
+
+  public static StatusPill info(String text) {
+    return new StatusPill(text, Type.INFO);
   }
 
   public void setType(Type type) {
@@ -62,7 +72,7 @@ public class StatusPill extends JLabel {
   @Override
   public Dimension getPreferredSize() {
     Dimension d = super.getPreferredSize();
-    return new Dimension(d.width + 18, DtaqSpacing.PILL_H);
+    return new Dimension(Math.max(d.width + 18, 40), DtaqSpacing.PILL_H);
   }
 
   @Override

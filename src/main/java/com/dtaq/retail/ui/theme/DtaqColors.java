@@ -14,6 +14,7 @@ public final class DtaqColors {
   // --- Brand & Primary ---
   public static final Color PRIMARY = new Color(0x087F75);
   public static final Color PRIMARY_STRONG = new Color(0x075E57);
+  public static final Color PRIMARY_HOVER = new Color(0x076F66);
   public static final Color PRIMARY_SOFT = new Color(0xE8F5F2);
   public static final Color PRIMARY_SOFT_2 = new Color(0xD6EEEA);
   public static final Color PRIMARY_BORDER_SOFT = new Color(0xB5DCD6);
@@ -36,6 +37,17 @@ public final class DtaqColors {
   public static final Color DANGER_SOFT = new Color(0xFEE4E2);
   public static final Color DANGER_STRONG = new Color(0x7F0808);
   public static final Color DANGER_SOFT_2 = new Color(0xF5E8E8);
+  public static final Color DANGER_SOFT_HOVER = new Color(0xFCD0CC);
+
+  // --- Status (success dùng lại màu thương hiệu; warning cho cảnh báo không nghiêm trọng) ---
+  public static final Color SUCCESS = PRIMARY;
+  public static final Color SUCCESS_SOFT = PRIMARY_SOFT;
+  public static final Color WARNING = new Color(0xB54708);
+  public static final Color WARNING_SOFT = new Color(0xFEF0C7);
+
+  // --- Interaction ---
+  public static final Color ROW_HOVER = new Color(0xF8FAFB);
+  public static final Color FOCUS_RING = new Color(0x08, 0x7F, 0x75, (int) (255 * 0.35f));
 
   // --- Overlay & Shadow ---
   public static final Color OVERLAY = new Color(0x15, 0x2A, 0x3D, (int) (255 * 0.40f));

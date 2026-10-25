@@ -55,4 +55,17 @@ class FormattersTest {
     assertEquals("Mai Linh", PersonNames.shortName("Trần Mai Linh"));
     assertEquals("Admin", PersonNames.shortName("Admin"));
   }
+
+  @Test
+  @DisplayName("MoneyFormat.parseDigits: đọc số tiền nhập, bỏ ký tự không phải chữ số")
+  void testParseDigits() {
+    assertEquals(0L, MoneyFormat.parseDigits(null));
+    assertEquals(0L, MoneyFormat.parseDigits(""));
+    assertEquals(0L, MoneyFormat.parseDigits("abc"));
+    assertEquals(9_000_000L, MoneyFormat.parseDigits("9.000.000"));
+    assertEquals(8_800_000L, MoneyFormat.parseDigits("8.800.000 VNĐ"));
+    assertEquals(12L, MoneyFormat.parseDigits("0012"));
+    // Giới hạn 15 chữ số để không tràn long
+    assertEquals(123_456_789_012_345L, MoneyFormat.parseDigits("1234567890123456789"));
+  }
 }

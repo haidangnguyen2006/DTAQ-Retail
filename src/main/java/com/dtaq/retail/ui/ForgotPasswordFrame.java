@@ -1,37 +1,30 @@
 package com.dtaq.retail.ui;
 
 import com.dtaq.retail.controller.PasswordResetController;
+import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DtaqButton;
+import com.dtaq.retail.ui.component.FormField;
+import com.dtaq.retail.ui.component.InfoCallout;
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
-import com.dtaq.retail.ui.theme.DtaqIcons;
-import com.dtaq.retail.ui.theme.DtaqSpacing;
 import com.dtaq.retail.util.AppInfo;
-import com.formdev.flatlaf.FlatClientProperties;
-import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.geom.RoundRectangle2D;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JSeparator;
-import javax.swing.JTextField;
 import javax.swing.SwingWorker;
 import net.miginfocom.swing.MigLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Cửa sổ quên mật khẩu: gửi mã xác nhận qua email rồi đặt mật khẩu mới theo chuẩn Figma.
+ * Cửa sổ quên mật khẩu theo 2 bước trong cùng một khung: (1) nhập tài khoản và gửi mã xác nhận qua
+ * email, (2) nhập mã và mật khẩu mới.
  */
 public final class ForgotPasswordFrame extends JFrame {
 
@@ -52,15 +45,29 @@ public final class ForgotPasswordFrame extends JFrame {
   private static final String DATA_ERROR_MESSAGE =
       "Không thể đặt lại mật khẩu lúc này. Vui lòng thử lại sau";
 
+  private static final int FORM_WIDTH = 400;
+
   private final PasswordResetController controller;
   private final AppNavigator navigator;
 
-  private final JTextField taiKhoanField = new JTextField();
-  private final JTextField maXacNhanField = new JTextField();
-  private final JPasswordField matKhauMoiField = new JPasswordField();
-  private final JLabel trangThaiLabel = new JLabel("");
-  private final DtaqButton guiMaButton = DtaqButton.secondary("Gửi mã xác nhận");
+  private final FormField taiKhoanField =
+      FormField.text("Tài khoản", "Nhập tài khoản đã đăng ký", "user-round");
+  private final FormField maXacNhanField =
+      FormField.text("Mã xác nhận", "Nhập 6 ký tự mã xác nhận", "lock-keyhole");
+  private final FormField matKhauMoiField = FormField.password("Mật khẩu mới", "Nhập mật khẩu mới");
+  private final JPasswordField matKhauMoiInput = (JPasswordField) matKhauMoiField.getInputComponent();
+
+  private final InfoCallout infoCallout = new InfoCallout(InfoCallout.Kind.INFO, "");
+  private final InfoCallout errorCallout = new InfoCallout(InfoCallout.Kind.DANGER, "");
+
+  private final DtaqButton guiMaButton = DtaqButton.primary("Gửi mã xác nhận");
   private final DtaqButton xacNhanButton = DtaqButton.primary("Xác nhận");
+  private final DtaqButton guiLaiButton = DtaqButton.link("Gửi lại mã");
+  private final DtaqButton doiTaiKhoanButton = DtaqButton.link("Đổi tài khoản");
+
+  private final JPanel step1Panel = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]"));
+  private final JPanel step2Panel =
+      new JPanel(new MigLayout("fillx, insets 0, hidemode 3", "[grow]", "[]14[]16[]"));
 
   public ForgotPasswordFrame(PasswordResetController controller, AppNavigator navigator) {
     super("Quên mật khẩu - DTAQ");
@@ -69,11 +76,13 @@ public final class ForgotPasswordFrame extends JFrame {
 
     setDefaultCloseOperation(DISPOSE_ON_CLOSE);
     setResizable(true);
-    setLayout(new MigLayout("fill, insets 0", "[164!][grow]", "[grow]"));
+    setLayout(new MigLayout("fill, insets 0", "[40%,fill][60%,fill]", "[grow,fill]"));
     getContentPane().setBackground(DtaqColors.SURFACE);
 
-    add(buildBrandPanel(), "grow");
-    add(buildFormPanel(), "grow");
+    add(new AuthBrandPanel());
+    add(buildFormPanel());
+
+    showStep(1);
 
     setPreferredSize(new Dimension(1100, 720));
     setMinimumSize(new Dimension(860, 560));
@@ -81,164 +90,102 @@ public final class ForgotPasswordFrame extends JFrame {
     AppInfo.centerOnScreen(this);
   }
 
-  private JPanel buildBrandPanel() {
-    JPanel panel = new JPanel(new MigLayout("fill, insets 0", "[center]", "[center]"));
-    panel.setBackground(DtaqColors.BRAND_DARK);
-
-    JPanel brandBlock = new JPanel(new MigLayout("insets 0", "[center]", "[]12[]2[]"));
-    brandBlock.setOpaque(false);
-
-    JPanel logo = new JPanel() {
-      @Override
-      protected void paintComponent(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(Color.WHITE);
-        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), DtaqSpacing.RADIUS_CARD_SM, DtaqSpacing.RADIUS_CARD_SM));
-        g2.dispose();
-        super.paintComponent(g);
-      }
-    };
-    logo.setOpaque(false);
-    logo.setPreferredSize(new Dimension(36, 36));
-    logo.setLayout(new MigLayout("fill, insets 0", "[center]", "[center]"));
-    logo.add(new JLabel(DtaqIcons.icon("zap", 22, DtaqColors.PRIMARY)));
-    brandBlock.add(logo, "center, wrap");
-
-    JLabel brand = new JLabel("DTAQ");
-    brand.setFont(DtaqFonts.BRAND);
-    brand.setForeground(Color.WHITE);
-    brandBlock.add(brand, "center, wrap");
-
-    JLabel tagline = new JLabel("ĐIỆN MÁY");
-    tagline.setFont(DtaqFonts.OVERLINE);
-    tagline.setForeground(DtaqColors.BRAND_ON_DARK_MUTED);
-    brandBlock.add(tagline, "center");
-
-    panel.add(brandBlock, "center");
-    return panel;
-  }
-
   private JPanel buildFormPanel() {
     JPanel container = new JPanel(new MigLayout("fill, insets 40 48 40 48", "[center]", "[center]"));
     container.setBackground(DtaqColors.SURFACE);
 
-    JPanel form = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]20[]8[]14[]14[]10[]18[]"));
+    JPanel form = new JPanel(new MigLayout("fillx, insets 0, hidemode 3", "[grow]", "[]24[]16[]14[]16[]"));
     form.setOpaque(false);
-    form.setPreferredSize(new Dimension(408, 0));
 
-    // 1. Eyebrow & Title
-    JPanel greeting = new JPanel(new MigLayout("insets 0", "[]", "[]8[]"));
+    JPanel greeting = new JPanel(new MigLayout("insets 0", "[]", "[]10[]"));
     greeting.setOpaque(false);
-
-    JLabel subtitle = new JLabel("QUÊN MẬT KHẨU");
-    subtitle.setFont(DtaqFonts.EYEBROW);
-    subtitle.setForeground(DtaqColors.PRIMARY);
-    greeting.add(subtitle, "wrap");
-
+    JLabel eyebrow = new JLabel("QUÊN MẬT KHẨU");
+    eyebrow.setFont(DtaqFonts.EYEBROW);
+    eyebrow.setForeground(DtaqColors.PRIMARY);
+    greeting.add(eyebrow, "wrap");
     JLabel title = new JLabel("Cập nhật mật khẩu");
     title.setFont(DtaqFonts.DISPLAY);
     title.setForeground(DtaqColors.TEXT);
-    greeting.add(title, "wrap");
+    greeting.add(title);
     form.add(greeting, "growx, wrap");
 
-    // 2. Tài khoản
-    JPanel taiKhoanBlock = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]6[]"));
-    taiKhoanBlock.setOpaque(false);
-    JLabel taiKhoanLabel = new JLabel("Tài khoản");
-    taiKhoanLabel.setFont(DtaqFonts.LABEL);
-    taiKhoanLabel.setForeground(DtaqColors.TEXT);
-    taiKhoanBlock.add(taiKhoanLabel, "wrap");
+    taiKhoanField.getTextField().setName("taiKhoan");
+    taiKhoanField.getTextField().addActionListener(event -> guiMa());
+    form.add(taiKhoanField, "growx, wrap");
 
-    taiKhoanField.setName("taiKhoan");
-    taiKhoanField.setFont(DtaqFonts.BODY_14);
-    taiKhoanField.setPreferredSize(new Dimension(0, DtaqSpacing.CONTROL_H));
-    taiKhoanField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Nhập tài khoản đã đăng ký");
-    taiKhoanField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, DtaqIcons.icon("user-round", 18));
-    taiKhoanField.putClientProperty(FlatClientProperties.STYLE,
-        "arc: 6; borderColor: #E2E8EC; focusedBorderColor: #087F75");
-    taiKhoanBlock.add(taiKhoanField, "growx");
-    form.add(taiKhoanBlock, "growx, wrap");
+    infoCallout.setVisible(false);
+    errorCallout.setVisible(false);
+    form.add(infoCallout, "growx, wrap");
+    form.add(errorCallout, "growx, wrap");
 
-    // 3. Nút Gửi mã xác nhận
+    // Bước 1: gửi mã
     guiMaButton.addActionListener(event -> guiMa());
-    form.add(guiMaButton, "growx, h 42!, wrap");
+    step1Panel.setOpaque(false);
+    step1Panel.add(guiMaButton, "growx, h 42!");
+    form.add(step1Panel, "growx, wrap");
 
-    // 4. Mã xác nhận
-    JPanel maBlock = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]6[]"));
-    maBlock.setOpaque(false);
-    JLabel maLabel = new JLabel("Mã xác nhận");
-    maLabel.setFont(DtaqFonts.LABEL);
-    maLabel.setForeground(DtaqColors.TEXT);
-    maBlock.add(maLabel, "wrap");
-
-    maXacNhanField.setName("maXacNhan");
-    maXacNhanField.setFont(DtaqFonts.BODY_14);
-    maXacNhanField.setPreferredSize(new Dimension(0, DtaqSpacing.CONTROL_H));
-    maXacNhanField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Nhập 6 ký tự mã xác nhận");
-    maXacNhanField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, DtaqIcons.icon("lock-keyhole", 18));
-    maXacNhanField.putClientProperty(FlatClientProperties.STYLE,
-        "arc: 6; borderColor: #E2E8EC; focusedBorderColor: #087F75");
-    maBlock.add(maXacNhanField, "growx");
-    form.add(maBlock, "growx, wrap");
-
-    // 5. Mật khẩu mới
-    JPanel mkMoiBlock = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]6[]"));
-    mkMoiBlock.setOpaque(false);
-    JLabel mkMoiLabel = new JLabel("Mật khẩu mới");
-    mkMoiLabel.setFont(DtaqFonts.LABEL);
-    mkMoiLabel.setForeground(DtaqColors.TEXT);
-    mkMoiBlock.add(mkMoiLabel, "wrap");
-
-    matKhauMoiField.setName("matKhauMoi");
-    matKhauMoiField.setFont(DtaqFonts.BODY_14);
-    matKhauMoiField.setPreferredSize(new Dimension(0, DtaqSpacing.CONTROL_H));
-    matKhauMoiField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Nhập mật khẩu mới");
-    matKhauMoiField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, DtaqIcons.icon("lock-keyhole", 18));
-    matKhauMoiField.putClientProperty(FlatClientProperties.STYLE,
-        "arc: 6; borderColor: #E2E8EC; focusedBorderColor: #087F75");
-    matKhauMoiField.putClientProperty(FlatClientProperties.STYLE_CLASS, "showRevealButton");
-    mkMoiBlock.add(matKhauMoiField, "growx");
-    form.add(mkMoiBlock, "growx, wrap");
-
-    // 6. Nhãn trạng thái
-    trangThaiLabel.setFont(DtaqFonts.CAPTION);
-    form.add(trangThaiLabel, "growx, wrap");
-
-    // 7. Nút Xác nhận
-    xacNhanButton.setPreferredSize(new Dimension(408, DtaqSpacing.BUTTON_H));
+    // Bước 2: nhập mã + mật khẩu mới
+    maXacNhanField.getTextField().setName("maXacNhan");
+    matKhauMoiInput.setName("matKhauMoi");
+    matKhauMoiInput.addActionListener(event -> xacNhan());
+    maXacNhanField.getTextField().addActionListener(event -> matKhauMoiInput.requestFocusInWindow());
     xacNhanButton.addActionListener(event -> xacNhan());
-    form.add(xacNhanButton, "growx, h 42!, wrap");
+    guiLaiButton.setForeground(DtaqColors.PRIMARY);
+    guiLaiButton.addActionListener(event -> guiMa());
+    doiTaiKhoanButton.setForeground(DtaqColors.TEXT_MUTED);
+    doiTaiKhoanButton.addActionListener(event -> showStep(1));
 
-    // 8. Divider & Link quay lại đăng nhập
-    JPanel supportBlock = new JPanel(new MigLayout("fillx, insets 0", "[center]", "[]12[]"));
-    supportBlock.setOpaque(false);
+    step2Panel.setOpaque(false);
+    step2Panel.add(maXacNhanField, "growx, wrap");
+    step2Panel.add(matKhauMoiField, "growx, wrap");
+    step2Panel.add(xacNhanButton, "growx, h 42!, wrap");
+    JPanel resendRow = new JPanel(new MigLayout("insets 0", "[]push[]", "[]"));
+    resendRow.setOpaque(false);
+    resendRow.add(guiLaiButton);
+    resendRow.add(doiTaiKhoanButton);
+    step2Panel.add(resendRow, "growx");
+    form.add(step2Panel, "growx, wrap");
 
-    JSeparator sep = new JSeparator();
-    sep.setForeground(DtaqColors.BORDER);
-    supportBlock.add(sep, "growx, wrap");
-
-    JButton backBtn = new JButton("Đổi tài khoản khác? Đăng nhập!");
-    backBtn.setFont(DtaqFonts.CAPTION);
-    backBtn.setBorderPainted(false);
-    backBtn.setContentAreaFilled(false);
-    backBtn.setFocusPainted(false);
+    JPanel support = new JPanel(new MigLayout("fillx, insets 0", "[center]", "[]12[]"));
+    support.setOpaque(false);
+    support.add(new JSeparator(), "growx, wrap");
+    DtaqButton backBtn = DtaqButton.link("Đổi tài khoản khác? Đăng nhập!");
     backBtn.setForeground(DtaqColors.TEXT_MUTED);
-    backBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     backBtn.addActionListener(event -> {
       dispose();
       navigator.showLogin();
     });
-    supportBlock.add(backBtn, "center");
+    support.add(backBtn, "center");
+    form.add(support, "growx");
 
-    form.add(supportBlock, "growx");
-
-    container.add(form, "center");
+    container.add(form, "center, w " + FORM_WIDTH + "!");
     return container;
   }
 
+  private void showStep(int step) {
+    boolean second = step == 2;
+    step1Panel.setVisible(!second);
+    step2Panel.setVisible(second);
+    taiKhoanField.getTextField().setEditable(!second);
+    if (!second) {
+      maXacNhanField.setText("");
+      matKhauMoiInput.setText("");
+      clearBanners();
+      taiKhoanField.getTextField().requestFocusInWindow();
+    } else {
+      maXacNhanField.getTextField().requestFocusInWindow();
+    }
+    revalidate();
+    repaint();
+  }
+
+  private void clearBanners() {
+    infoCallout.setVisible(false);
+    errorCallout.setVisible(false);
+  }
+
   private void guiMa() {
-    if (!guiMaButton.isEnabled()) {
+    if (isBusy()) {
       return;
     }
     String tenDangNhap = taiKhoanField.getText();
@@ -247,8 +194,9 @@ public final class ForgotPasswordFrame extends JFrame {
       return;
     }
 
-    trangThaiLabel.setText("");
-    setBusy(true);
+    clearBanners();
+    DtaqButton active = step2Panel.isVisible() ? guiLaiButton : guiMaButton;
+    setBusy(true, active);
 
     SwingWorker<Void, Void> worker =
         new SwingWorker<>() {
@@ -269,7 +217,9 @@ public final class ForgotPasswordFrame extends JFrame {
               log.warn("Gửi mã xác nhận thất bại do lỗi không mong đợi (exception={})",
                   cause == null ? "none" : cause.getClass().getName());
             } finally {
-              setBusy(false);
+              setBusy(false, active);
+              // Luôn hiện thông điệp chung và sang bước 2 để không tiết lộ tài khoản có tồn tại hay không
+              showStep(2);
               showInfo(SENT_MESSAGE);
             }
           }
@@ -278,7 +228,7 @@ public final class ForgotPasswordFrame extends JFrame {
   }
 
   private void xacNhan() {
-    if (!xacNhanButton.isEnabled()) {
+    if (isBusy()) {
       return;
     }
     String tenDangNhap = taiKhoanField.getText();
@@ -287,10 +237,10 @@ public final class ForgotPasswordFrame extends JFrame {
       return;
     }
     String maXacNhan = maXacNhanField.getText();
-    String matKhauMoi = new String(matKhauMoiField.getPassword());
+    String matKhauMoi = new String(matKhauMoiInput.getPassword());
 
-    trangThaiLabel.setText("");
-    setBusy(true);
+    clearBanners();
+    setBusy(true, xacNhanButton);
 
     SwingWorker<PasswordResetController.KetQua, Void> worker =
         new SwingWorker<>() {
@@ -304,49 +254,62 @@ public final class ForgotPasswordFrame extends JFrame {
             try {
               PasswordResetController.KetQua ketQua = get();
               if (ketQua.thanhCong()) {
-                JOptionPane.showMessageDialog(
-                    ForgotPasswordFrame.this,
-                    SUCCESS_MESSAGE,
-                    AppInfo.APP_NAME,
-                    JOptionPane.INFORMATION_MESSAGE);
-                navigator.showLogin();
+                setBusy(false, xacNhanButton);
+                ConfirmDialog.info(
+                    ForgotPasswordFrame.this, "Đặt lại mật khẩu", SUCCESS_MESSAGE, navigator::showLogin);
                 return;
               }
               showError(messageFor(ketQua.trangThai()));
-              matKhauMoiField.setText("");
+              matKhauMoiInput.setText("");
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
               showError(DATA_ERROR_MESSAGE);
-              matKhauMoiField.setText("");
+              matKhauMoiInput.setText("");
             } catch (ExecutionException e) {
               Throwable cause = e.getCause();
               log.warn("Đặt lại mật khẩu thất bại do lỗi không mong đợi (exception={})",
                   cause == null ? "none" : cause.getClass().getName());
               showError(DATA_ERROR_MESSAGE);
-              matKhauMoiField.setText("");
+              matKhauMoiInput.setText("");
             } finally {
-              setBusy(false);
+              setBusy(false, xacNhanButton);
             }
           }
         };
     worker.execute();
   }
 
-  private void setBusy(boolean busy) {
-    guiMaButton.setEnabled(!busy);
-    xacNhanButton.setEnabled(!busy);
-    getRootPane().setCursor(
-        busy ? Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR) : null);
+  private boolean isBusy() {
+    return guiMaButton.isBusy() || xacNhanButton.isBusy() || !guiLaiButton.isEnabled();
+  }
+
+  /** Khóa mọi nút khi đang xử lý; nút đang thực hiện hiện "Đang xử lý…" (nút liên kết chỉ bị tắt). */
+  private void setBusy(boolean busy, DtaqButton active) {
+    if (active.getVariant() == DtaqButton.Variant.LINK) {
+      active.setEnabled(!busy);
+    } else {
+      active.setBusy(busy);
+    }
+    for (DtaqButton other : new DtaqButton[] {guiMaButton, xacNhanButton}) {
+      if (other != active) {
+        other.setEnabled(!busy);
+      }
+    }
+    getRootPane().setCursor(busy ? Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR) : null);
   }
 
   private void showInfo(String message) {
-    trangThaiLabel.setForeground(DtaqColors.TEXT_MUTED);
-    trangThaiLabel.setText(message);
+    errorCallout.setVisible(false);
+    infoCallout.setText(message);
+    infoCallout.setVisible(true);
+    revalidate();
   }
 
   private void showError(String message) {
-    trangThaiLabel.setForeground(DtaqColors.DANGER);
-    trangThaiLabel.setText(message);
+    infoCallout.setVisible(false);
+    errorCallout.setText(message);
+    errorCallout.setVisible(true);
+    revalidate();
   }
 
   private String messageFor(PasswordResetController.KetQuaDatLai trangThai) {

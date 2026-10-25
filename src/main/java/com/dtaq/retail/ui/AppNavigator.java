@@ -90,6 +90,8 @@ public final class AppNavigator {
       CustomerListPage customers = new CustomerListPage();
       RetailInvoicePage invoice = new RetailInvoicePage(nhanVien);
 
+      salesHome.setOnNavigate(shell::showPage);
+
       shell.registerPage(salesHome);
       shell.registerPage(customers);
       shell.registerPage(invoice);

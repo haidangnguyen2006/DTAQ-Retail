@@ -1,17 +1,13 @@
 package com.dtaq.retail.ui.shell;
 
 import com.dtaq.retail.entity.NhanVien;
+import com.dtaq.retail.ui.component.Tile;
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqIcons;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
 import com.dtaq.retail.util.AppInfo;
-import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.geom.RoundRectangle2D;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +27,7 @@ public class Sidebar extends JPanel {
   private Consumer<PageId> onNavigateListener;
 
   public Sidebar(NhanVien nhanVien) {
-    super(new MigLayout("fill, insets 24 16 22 16", "[grow]", "[]28[]10[]push[]16[]"));
+    super(new MigLayout("fill, insets 20 16 16 16", "[grow]", "[]24[]8[]push[]12[]"));
     Objects.requireNonNull(nhanVien, "nhanVien");
 
     setBackground(DtaqColors.SURFACE);
@@ -39,19 +35,15 @@ public class Sidebar extends JPanel {
     setMinimumSize(new Dimension(DtaqSpacing.SIDEBAR_W, 0));
     setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, DtaqColors.BORDER));
 
-    // 1. Logo Brand
     add(buildBrandBlock(), "growx, wrap");
 
-    // 2. Overline
     JLabel overline = new JLabel("KHÔNG GIAN LÀM VIỆC");
     overline.setFont(DtaqFonts.OVERLINE);
     overline.setForeground(DtaqColors.TEXT_SUBTLE);
     add(overline, "growx, wrap");
 
-    // 3. Navigation items
-    JPanel navList = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]4[]"));
+    JPanel navList = new JPanel(new MigLayout("fillx, insets 0, gapy 4", "[grow]", "[]"));
     navList.setOpaque(false);
-
     List<NavigationModel.NavEntry> entries = NavigationModel.getEntriesFor(nhanVien.loaiQuyen());
     for (NavigationModel.NavEntry entry : entries) {
       NavItem item = new NavItem(entry.iconName(), entry.label());
@@ -65,10 +57,8 @@ public class Sidebar extends JPanel {
     }
     add(navList, "growx, wrap");
 
-    // 4. Info Card
-    add(buildStationCard(nhanVien), "growx, wrap");
+    add(buildSessionCard(nhanVien), "growx, wrap");
 
-    // 5. Version
     JLabel versionLabel = new JLabel("Nội bộ DTAQ · Phiên bản " + AppInfo.version());
     versionLabel.setFont(DtaqFonts.MICRO);
     versionLabel.setForeground(DtaqColors.TEXT_SUBTLE);
@@ -89,25 +79,9 @@ public class Sidebar extends JPanel {
     JPanel panel = new JPanel(new MigLayout("insets 0 4 0 0", "[]10[grow]", "[center]"));
     panel.setOpaque(false);
 
-    JPanel logo = new JPanel() {
-      @Override
-      protected void paintComponent(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(DtaqColors.PRIMARY);
-        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), DtaqSpacing.RADIUS_CARD_SM, DtaqSpacing.RADIUS_CARD_SM));
-        g2.dispose();
-        super.paintComponent(g);
-      }
-    };
-    logo.setOpaque(false);
-    logo.setPreferredSize(new Dimension(36, 36));
-    logo.setLayout(new MigLayout("fill, insets 0", "[center]", "[center]"));
-    logo.add(new JLabel(DtaqIcons.icon("zap", 22, Color.WHITE)));
+    panel.add(Tile.icon("zap", 22, DtaqColors.SURFACE, DtaqColors.PRIMARY, 36, DtaqSpacing.RADIUS_CARD_SM), "align left");
 
-    panel.add(logo, "align left");
-
-    JPanel textBlock = new JPanel(new MigLayout("insets 0", "[]", "[]0[]"));
+    JPanel textBlock = new JPanel(new MigLayout("insets 0, gapy 0", "[]", "[]0[]"));
     textBlock.setOpaque(false);
 
     JLabel brand = new JLabel("DTAQ");
@@ -124,53 +98,22 @@ public class Sidebar extends JPanel {
     return panel;
   }
 
-  private JPanel buildStationCard(NhanVien nhanVien) {
-    JPanel card = new JPanel(new MigLayout("fillx, insets 14", "[grow]", "[]4[]8[]")) {
-      @Override
-      protected void paintComponent(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(DtaqColors.BG_APP);
-        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), DtaqSpacing.RADIUS_CARD_SM, DtaqSpacing.RADIUS_CARD_SM));
-        g2.dispose();
-        super.paintComponent(g);
-      }
-    };
-    card.setOpaque(false);
+  /** Thẻ thông tin phiên: tên hệ thống và vai trò của người đăng nhập (chỉ dữ liệu thật). */
+  private JPanel buildSessionCard(NhanVien nhanVien) {
+    Tile card = new Tile(DtaqColors.BG_APP, DtaqSpacing.RADIUS_CARD_SM);
+    card.setLayout(new MigLayout("fillx, insets 12 14 12 14, gapy 3", "[grow]", "[]"));
 
     JLabel title = new JLabel("DTAQ • Siêu thị điện máy");
     title.setFont(DtaqFonts.TABLE_HEADER);
     title.setForeground(DtaqColors.TEXT);
     card.add(title, "wrap");
 
-    JLabel spaceRole = new JLabel(nhanVien.moTaQuyen());
-    spaceRole.setFont(DtaqFonts.CAPTION);
-    spaceRole.setForeground(DtaqColors.TEXT_MUTED);
-    card.add(spaceRole, "wrap");
-
-    JPanel statusRow = new JPanel(new MigLayout("insets 0", "[]6[]", "[center]"));
-    statusRow.setOpaque(false);
-
-    JPanel dot = new JPanel() {
-      @Override
-      protected void paintComponent(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(DtaqColors.PRIMARY);
-        g2.fillOval(0, 0, 6, 6);
-        g2.dispose();
-      }
-    };
-    dot.setOpaque(false);
-    dot.setPreferredSize(new Dimension(6, 6));
-    statusRow.add(dot);
-
-    JLabel ready = new JLabel("Hệ thống sẵn sàng");
-    ready.setFont(DtaqFonts.HINT);
-    ready.setForeground(DtaqColors.PRIMARY);
-    statusRow.add(ready);
-
-    card.add(statusRow);
+    JLabel role = new JLabel(DtaqIcons.icon("user-round", 14, DtaqColors.TEXT_MUTED));
+    role.setText(nhanVien.moTaQuyen());
+    role.setIconTextGap(6);
+    role.setFont(DtaqFonts.CAPTION);
+    role.setForeground(DtaqColors.TEXT_MUTED);
+    card.add(role);
     return card;
   }
 }
