@@ -32,6 +32,7 @@
 | [database/schema-and-integrity.md](database/schema-and-integrity.md) | Thiết kế CSDL, ràng buộc toàn vẹn, khóa, miền giá trị (Chương 4, mục II) | Cần tra cứu bảng, ràng buộc, quy tắc lưu trữ |
 | [use-cases/UC0xx-*.md](use-cases/) | Đặc tả chi tiết từng use case (một tệp cho mỗi UC) | Cần luồng chính/phụ, tiền/hậu điều kiện ở mức chi tiết |
 | [plans/work-assignment-4-members.md](plans/work-assignment-4-members.md) | Phân công 4 thành viên: UC, module mở rộng, hợp đồng DAO, sở hữu file, lộ trình, DoD | Cần biết ai làm gì, thứ tự tích hợp, điểm chặn còn lại |
+| [plans/guide-quy.md](plans/guide-quy.md) · [guide-tuan-anh.md](plans/guide-tuan-anh.md) · [guide-tai.md](plans/guide-tai.md) | Hướng dẫn code theo từng UC: kỹ thuật nền, các bước code, test, lỗi thường gặp | Thành viên cần biết **cách làm** một UC cụ thể |
 
 **Tài liệu kiểm thử:** các heading kiểm thử ở **Chương 4 mục V** đã được xem xét; **không chuyển nội dung kiểm thử** và không tạo tệp kiểm thử vì nội dung kiểm thử khả dụng chưa được xác nhận. Đây là **bỏ qua có điều kiện** (conditional/omitted), không phải khẳng định nguồn không có nội dung kiểm thử.
 
@@ -76,9 +77,9 @@ Các điểm dưới đây đã được kiểm chứng trong nguồn và đư�
 - **Phạm vi khuyến mãi (C-04, chốt 2026-10-24):** khuyến mãi **cơ bản thuộc phạm vi** — UC012 quản lý chương trình, UC003 áp dụng khuyến mãi trên từng dòng sản phẩm ở bước 7–8; câu “không xây dựng phân hệ khuyến mãi” tại Ch.1 §II.6/§II.8 là nội dung cũ chưa cập nhật. Voucher, tích điểm và khuyến mãi chuyên sâu vẫn ngoài phạm vi. DOCX không bị sửa. Chi tiết: [requirements §6 → C-04](requirements/scope-and-requirements.md#c-04--khuyến-mãi-vừa-ngoài-phạm-vi-vừa-có-use-case).
 - **Quy tắc làm tròn tiền (C-11, chốt 2026-10-24):** đơn vị **đồng**, **0 chữ số thập phân**, chế độ **`HALF_UP`**; một điểm làm tròn duy nhất trong `TienUtil` (`BigDecimal`); làm tròn ở **cấp chi tiết** (giảm giá, thuế) rồi cộng thành tổng; DB lưu giá trị đã tròn; giao diện/Excel chỉ định dạng dạng `1.250.000 VND`. Chi tiết: [requirements §6 → C-11](requirements/scope-and-requirements.md#c-11--quy-tắc-làm-tròn-tiền-đã-chốt-2026-10-24).
 - **Hóa đơn "in" (chốt 2026-10-24):** chỉ **giả lập hiển thị phiếu trên màn hình** (`HoaDonPreviewDialog`); **không** in ra máy in, không xuất PDF.
-- **Báo cáo – thống kê (chốt 2026-10-24):** UC014, UC015, UC016, UC017 do **Đăng** phụ trách; **cả 4 báo cáo đều có xuất Excel** từ đúng kết quả đang hiển thị. Đây là **mở rộng đã duyệt** so với nguồn (nguồn chỉ quy định xuất Excel cho UC017 — FR011); lỗi ghi file phải thông báo và giữ báo cáo trên màn hình.
+- **Báo cáo – thống kê (chốt 2026-10-25):** UC014 → Tài; UC015 → Quý; UC016 → Tuấn Anh; UC017 → Tài; **cả 4 báo cáo đều có xuất Excel** từ đúng kết quả đang hiển thị (`ExcelExporter` do Đăng cung cấp). Đây là **mở rộng đã duyệt** so với nguồn (nguồn chỉ quy định xuất Excel cho UC017 — FR011); lỗi ghi file phải thông báo và giữ báo cáo trên màn hình.
 - **Sao lưu – phục hồi (C-05, chốt 2026-10-24):** triển khai dù không có UC — **cron 00:00 hằng ngày** cho dữ liệu quan trọng, kèm **chạy bù khi khởi động** nếu bản gần nhất đã quá 24 giờ (ứng dụng desktop chỉ chạy khi đang mở); sao lưu bằng JDBC `COPY … TO STDOUT` (không phụ thuộc `pg_dump`), có `manifest` + SHA-256; phục hồi phải xác nhận 2 bước, tự sao lưu hiện trạng trước và chạy trong một transaction.
-- **Phân công 4 thành viên:** xem [plans/work-assignment-4-members.md](plans/work-assignment-4-members.md).
+- **Phân công 4 thành viên (2026-10-25):** Đăng — UC003, UC006, UC018, FR015/FR016 + hạ tầng dùng chung; Quý — UC004, UC008, UC009, UC019, UC015; Tuấn Anh — UC005, UC007, UC013, UC016; Tài — UC010, UC011, UC012, UC014, UC017. Xem [phân công](plans/work-assignment-4-members.md) và [hướng dẫn code](plans/guide-quy.md).
 
 Các xung đột **chưa được quyết định** như C-07 (mức hạt tồn kho serial hay số lượng) vẫn giữ nguyên trạng thái và không bị coi là đã giải quyết.
 
