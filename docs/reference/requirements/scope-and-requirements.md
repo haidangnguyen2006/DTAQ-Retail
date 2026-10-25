@@ -244,7 +244,15 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 
 - Ch.1 §II.3 và FR007 mô tả kiểm tra **số lượng tồn kho**, bán theo số lượng.
 - Danh mục UC003/UC004/UC008 và Ch.3 §IV mô tả **từng máy theo serial**, trạng thái `SAN_SANG_BAN`; Ch.4 dùng `SanPham` cho từng máy và `DongSanPham` cho dòng sản phẩm.
-- **Trạng thái:** mâu thuẫn mức hạt dữ liệu (sản phẩm/số lượng so với máy/serial); cần xác nhận trước khi thiết kế tồn kho.
+- **Trạng thái nguồn:** mâu thuẫn mức hạt dữ liệu (sản phẩm/số lượng so với máy/serial); DOCX không bị sửa.
+
+**Quyết định implementation (theo V1 đã duyệt 2026-10-20):**
+
+- Hệ thống quản lý **từng máy theo serial** (`SanPham`), `DongSanPham.soLuongTon` là bộ đếm do ứng dụng cập nhật khi nhập/bán/đổi-trả.
+- Chỉ bán máy có `trangThai = 'SAN_SANG_BAN'`.
+- **Không** chuyển sang mô hình tồn theo số lượng hoặc đổi mức hạt dữ liệu khi chưa được duyệt.
+- Mâu thuẫn **văn bản nguồn** vẫn được giữ làm bằng chứng lịch sử; xem [V1](../database/schema-and-integrity.md#6-bản-đồ-ddl-v1-đã-phê-duyệt).
+- **Trạng thái:** đã giải quyết ở mức implementation, còn mở ở mức tài liệu nguồn.
 
 ### C-08 — Ai cập nhật giá bán và thuế suất?
 
@@ -288,7 +296,7 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - **Định dạng hiển thị:** nhóm nghìn bằng dấu chấm + hậu tố ` VND` (ví dụ `1.250.000 VND`, `0 VND`).
 - **Phạm vi áp dụng:** hóa đơn (UC003), đổi/trả (UC006), 4 báo cáo (UC014–UC017) và file Excel — cùng một quy tắc.
 - **Trạng thái:** **đã giải quyết cho implementation**; các công thức nguồn giữ nguyên câu chữ.
-- Liên kết: [BR-C04](../business-rules/rules-and-exceptions.md#6-xung-đột-nguồn-và-nội-dung-bị-cắt) · [XBR-16](../business-rules/rules-and-exceptions.md#2-quy-tắc-liên-tính-năng) · NFR017
+- Liên kết: [BR-C04](../business-rules/rules-and-exceptions.md#6-xung-đột-nguồn-và-nội-dung-bị-cắt) · [XBR-16](../business-rules/rules-and-exceptions.md#2-quy-tắc-cắt-ngang-nhiều-tính-năng) · NFR017
 
 ### C-12 — Nhập mã định danh so với mã tự sinh bất biến
 
@@ -311,7 +319,7 @@ Bảng dưới đây chỉ nối các mã đã được lập ở tài liệu n�
 | C-04 (đã giải quyết phạm vi 2026-10-24) | — | BR-C08 |
 | C-05 | G-02 | — |
 | C-06 | G-05 | — |
-| C-07 | G-07 | — |
+| C-07 (implementation theo V1 serial, 2026-10-20) | G-07 | — |
 | C-08 (đã chốt 2026-10-25) | G-08 | BR-C10 |
 | C-09 | — | — |
 | C-10 | G-01 | — |

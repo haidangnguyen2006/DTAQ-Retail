@@ -111,11 +111,11 @@ The following rules are documented in the project report and must be checked whe
 
 ### 5.1 Product and serial-number management
 
-- The source contains a per-machine serial/status design and quantity-based stock wording in scope text; these descriptions conflict (C-07).
-- `SAN_SANG_BAN` is a source status; its unit-level applicability (per machine or per quantity) is unresolved (C-07). Preserve the documented status term.
-- Do not validate or implement a chosen stock granularity (per-machine or quantity-based) until C-07 is resolved.
+- The source contains a per-machine serial/status design and quantity-based stock wording in scope text; these descriptions conflict (C-07) and the DOCX is not edited.
+- `SAN_SANG_BAN` is a source status; its unit-level applicability (per machine or per quantity) remains a source-level conflict (C-07). Preserve the documented status term.
+- Implementation follows the **approved V1 model**: each machine is a `SanPham` row keyed by serial, and `DongSanPham.soLuongTon` is kept in sync by the application. Do not switch to a quantity-based stock model or change the grain without explicit approval.
 
-**Unresolved (C-07):** the source is not consistent on whether stock is tracked per serial or per quantity (scope/FR text uses quantity, while UC descriptions and the design use per-serial `SanPham`). Do not assume either model; confirm before implementing, per `docs/reference/requirements/scope-and-requirements.md` → C-07.
+**Partially resolved (C-07, implementation since 2026-10-20):** the source wording still conflicts (scope/FR text uses quantity, while UC descriptions and the design use per-serial `SanPham`); the approved V1 schema and current code track stock **per serial** and keep `DongSanPham.soLuongTon` as a maintained counter. The conflict remains an open documentation item (`docs/reference/requirements/scope-and-requirements.md` → C-07); do not change the stock grain without approval.
 
 Do not invent additional statuses or lifecycle transitions without consulting the specification.
 

@@ -79,15 +79,15 @@ Các điểm dưới đây đã được kiểm chứng trong nguồn và đư�
 - **Hóa đơn "in" (chốt 2026-10-24):** chỉ **giả lập hiển thị phiếu trên màn hình** (`HoaDonPreviewDialog`); **không** in ra máy in, không xuất PDF.
 - **Báo cáo – thống kê (chốt 2026-10-25):** UC014 → Tài; UC015 → Quý; UC016 → Tuấn Anh; UC017 → Tài; **cả 4 báo cáo đều có xuất Excel** từ đúng kết quả đang hiển thị (`ExcelExporter` do Đăng cung cấp). Đây là **mở rộng đã duyệt** so với nguồn (nguồn chỉ quy định xuất Excel cho UC017 — FR011); lỗi ghi file phải thông báo và giữ báo cáo trên màn hình.
 - **Sao lưu – phục hồi (C-05, chốt 2026-10-24):** triển khai dù không có UC — **cron 00:00 hằng ngày** cho dữ liệu quan trọng, kèm **chạy bù khi khởi động** nếu bản gần nhất đã quá 24 giờ (ứng dụng desktop chỉ chạy khi đang mở); sao lưu bằng JDBC `COPY … TO STDOUT` (không phụ thuộc `pg_dump`), có `manifest` + SHA-256; phục hồi phải xác nhận 2 bước, tự sao lưu hiện trạng trước và chạy trong một transaction.
-- **Cấu hình sao lưu (chốt 2026-10-25):** thư mục `backup.dir` mặc định `./backups` (thêm vào `.gitignore`), giữ **7 bản** (`backup.keep.days=7`), **nén zip** kèm `manifest.json`; phạm vi **cả 14 bảng, gồm `NhanVien`** (nếu thiếu thì restore xong không đăng nhập được) — tệp backup chứa hash BCrypt nên **không commit, không chia sẻ**; múi giờ chạy `Asia/Ho_Chi_Minh`.
+- **Cấu hình sao lưu (chốt 2026-10-25):** thư mục `DTAQ_BACKUP_DIR` mặc định `./backups` (đã thêm vào `.gitignore`), giữ **7 bản** (`DTAQ_BACKUP_KEEP_DAYS=7`), **nén zip** kèm `manifest.json`; phạm vi **cả 14 bảng, gồm `NhanVien`** (nếu thiếu thì restore xong không đăng nhập được) — tệp backup chứa hash BCrypt nên **không commit, không chia sẻ**; múi giờ chạy `Asia/Ho_Chi_Minh`.
 - **Excel (chốt 2026-10-25):** duyệt thêm dependency `org.apache.poi:poi-ooxml` (5.4.1) + `log4j-to-slf4j` để đi qua Logback; chỉ dùng trong `util/ExcelExporter`; chỉ Đăng sửa `pom.xml`. Nếu giảng viên không cho thêm thư viện → fallback CSV UTF-8 BOM và **không** đặt tên `.xlsx`.
 - **UC014 — định nghĩa "còn tồn" (chốt 2026-10-25):** tính các trạng thái `SAN_SANG_BAN`, `HANG_LOI`, `DANG_BAO_HANH`; **loại** `DA_BAN`, `DA_TRA_NHA_CUNG_CAP`, `DA_THANH_LY`. Ô ngưỡng ngày được **điền sẵn 60** (chỉ là gợi ý hiển thị, logic do người dùng nhập); có checkbox "Chỉ tính máy sẵn sàng bán" (mặc định tắt).
 - **Quyền cập nhật giá/thuế (C-08, chốt 2026-10-25):** **chỉ Nhân viên quản lý** được sửa `donGiaBanTruocThue`/`thue` (UC019); nhân viên bán hàng chỉ đọc, kể cả trong màn hình lập hóa đơn; không xây luồng phê duyệt giá riêng.
-- **Thời hạn đổi/trả (chốt 2026-10-25):** cấu hình `return.window.days`; **để trống = không chặn** (nguồn không quy định số ngày — `RB34`).
+- **Thời hạn đổi/trả (chốt 2026-10-25):** cấu hình `DTAQ_RETURN_WINDOW_DAYS`; **để trống = không chặn** (nguồn không quy định số ngày — `RB34`).
 - **Chồng lấn khuyến mãi (chốt 2026-10-25):** chỉ chặn khi **cả hai** chương trình `dangApDung = true` và khoảng ngày giao nhau; chương trình đã dừng vẫn được lưu làm lịch sử.
 - **Phân công 4 thành viên (2026-10-25):** Đăng — UC003, UC006, UC018, FR015/FR016 + hạ tầng dùng chung; Quý — UC004, UC008, UC009, UC019, UC015; Tuấn Anh — UC005, UC007, UC013, UC016; Tài — UC010, UC011, UC012, UC014, UC017. Xem [phân công](plans/work-assignment-4-members.md) và [hướng dẫn code](plans/guide-quy.md).
 
-Các xung đột **chưa được quyết định** như C-07 (mức hạt tồn kho serial hay số lượng) vẫn giữ nguyên trạng thái và không bị coi là đã giải quyết.
+Các mâu thuẫn **văn bản nguồn** còn lại (C-07 — mức hạt tồn kho serial hay số lượng) vẫn giữ nguyên trong tài liệu nguồn, nhưng **implementation đã chốt theo V1 serial** (xem [C-07](requirements/scope-and-requirements.md#c-07--mô-hình-tồn-kho-serial-hay-số-lượng)).
 
 ## 6. Giới hạn
 

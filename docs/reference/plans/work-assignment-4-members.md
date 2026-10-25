@@ -1,4 +1,4 @@
-# Phân công công việc 4 thành viên — DTAQ (v3)
+# Phân công công việc 4 thành viên — DTAQ (v3.2)
 
 > **Trạng thái:** cập nhật **2026-10-25** theo yêu cầu của chủ dự án (phân lại UC thống kê, chuyển UC018 về Đăng).
 > **Phạm vi tài liệu:** phân công theo use case + module mở rộng + hợp đồng giữa các thành viên.
