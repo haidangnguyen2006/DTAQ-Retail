@@ -15,9 +15,12 @@ import com.dtaq.retail.ui.page.report.LongStockReportPage;
 import com.dtaq.retail.ui.page.report.RevenueStatisticsPage;
 import com.dtaq.retail.ui.shell.AppShellFrame;
 import com.dtaq.retail.ui.shell.NavigationModel;
+import com.dtaq.retail.ui.shell.PageId;
+import com.dtaq.retail.ui.shell.PlaceholderPage;
 import com.dtaq.retail.util.Mailer;
 import java.time.Clock;
 import java.util.Objects;
+import java.util.Set;
 import javax.swing.JFrame;
 
 /** Điều phối việc chuyển đổi giữa màn hình đăng nhập, quên mật khẩu và khung giao diện chính AppShell. */
@@ -79,6 +82,9 @@ public final class AppNavigator {
       shell.registerPage(managerHome);
       shell.registerPage(revenueStats);
       shell.registerPage(longStock);
+
+      registerPlaceholders(
+          shell, nhanVien, Set.of(managerHome.id(), revenueStats.id(), longStock.id()));
     } else {
       SalesHomePage salesHome = new SalesHomePage(nhanVien);
       CustomerListPage customers = new CustomerListPage();
@@ -89,11 +95,30 @@ public final class AppNavigator {
       shell.registerPage(salesHome);
       shell.registerPage(customers);
       shell.registerPage(invoice);
+
+      registerPlaceholders(
+          shell, nhanVien, Set.of(salesHome.id(), customers.id(), invoice.id()));
     }
 
     shell.showPage(NavigationModel.getDefaultPageFor(nhanVien.loaiQuyen()));
     current = shell;
     shell.setVisible(true);
+  }
+
+  /**
+   * Đăng ký trang tạm cho mọi mục menu chưa có trang thật, bảo đảm không còn mục menu "chết" vì
+   * {@code AppShellFrame.showPage} bỏ qua im lặng các {@code PageId} chưa được đăng ký.
+   */
+  private static void registerPlaceholders(
+      AppShellFrame shell, NhanVien nhanVien, Set<PageId> daCoTrang) {
+    String section = nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY ? "Quản lý" : "Bán hàng";
+    for (NavigationModel.NavEntry entry : NavigationModel.getEntriesFor(nhanVien.loaiQuyen())) {
+      if (daCoTrang.contains(entry.pageId())) {
+        continue;
+      }
+      shell.registerPage(
+          new PlaceholderPage(entry.pageId(), entry.label(), section, entry.iconName()));
+    }
   }
 
   /** Xóa phiên hiện tại và quay lại màn hình đăng nhập; phải gọi trên EDT. */

@@ -17,10 +17,12 @@ Nguồn: Chương 1, mục II “Phạm vi đề tài”. Hệ thống là phầ
 | Bán hàng | Chọn sản phẩm; kiểm tra tồn; đơn giá trước thuế; thuế tính riêng; không tự đổi giá/thuế/chiết khấu; tự động tính thành tiền và tổng; lưu giá/thuế tại thời điểm bán; **chỉ thanh toán tiền mặt**; hoàn tất khi thanh toán đủ; giảm tồn sau giao dịch | Ch.1 §II.3; Q&A 1 |
 | Đổi/trả | Gắn hóa đơn gốc; không nhận hàng không xác định được giao dịch; đổi sản phẩm hoặc hoàn tiền; trả thêm phần chênh lệch; hoàn tiền từ **3.000.000 VNĐ** phải được Quản lý phê duyệt; cập nhật tồn; ghi nhận hàng lỗi; dùng giá/thuế đã lưu trên hóa đơn gốc | Ch.1 §II.4; Q&A 3 |
 | Thống kê, báo cáo | Doanh thu theo ngày/tuần/tháng/năm/khoảng thời gian; doanh số theo nhân viên và sản phẩm; báo cáo tồn kho lâu ngày (tham chiếu **trên 60 ngày**); kết xuất dữ liệu; doanh thu nội bộ theo giá trị trước thuế đã điều chỉnh đổi/trả, thuế hiển thị riêng | Ch.1 §II.5; Q&A 6 |
-| Khuyến mãi | **Không** xây dựng phân hệ quản lý khuyến mãi hoàn chỉnh; chỉ hỗ trợ gián tiếp bằng dữ liệu tồn kho, thời gian tồn, doanh số và báo cáo tồn lâu ngày | Ch.1 §II.6 |
+| Khuyến mãi | Câu chữ nguồn: **không** xây dựng phân hệ quản lý khuyến mãi hoàn chỉnh; chỉ hỗ trợ gián tiếp bằng dữ liệu tồn kho, thời gian tồn, doanh số và báo cáo tồn lâu ngày. **Câu chữ này đã lỗi thời theo quyết định 2026-10-24:** khuyến mãi cơ bản (quản lý ở UC012, áp dụng trên từng dòng sản phẩm ở UC003 bước 7–8) **thuộc phạm vi** — xem [C-04](#c-04--khuyến-mãi-vừa-ngoài-phạm-vi-vừa-có-use-case) | Ch.1 §II.6; quyết định 2026-10-24 |
 | Sao lưu, phục hồi | Quản lý được sao lưu và phục hồi dữ liệu hóa đơn, dữ liệu khách hàng | Ch.1 §II.7 |
 | Ngoài phạm vi | Website/đặt hàng trực tuyến; giao hàng; thanh toán trực tuyến/QR/thẻ/ví; công nợ; trả góp; nhà cung cấp chuyên sâu; chuỗi cung ứng; nhân sự chuyên sâu/chấm công/tính lương/phân ca; khuyến mãi – voucher – điểm thành viên chuyên sâu; CRM; thương mại điện tử; đa chi nhánh; ERP/kế toán; kê khai/quyết toán thuế, hóa đơn điện tử | Ch.1 §II.8 |
 | Kỹ thuật | Ứng dụng desktop nội bộ, kết nối CSDL tập trung; kiến trúc phân lớp `gui`, `entity`, `dao`, `connect` | Ch.1 §II.9; NFR012 |
+
+> **Cập nhật phạm vi 2026-10-24 (C-04):** cụm “khuyến mãi – voucher – điểm thành viên **chuyên sâu**” trong mục loại trừ vẫn **ngoài phạm vi**; khuyến mãi **cơ bản** theo UC012 thì **thuộc phạm vi**. DOCX không bị sửa; quyết định ghi tại [C-04](#c-04--khuyến-mãi-vừa-ngoài-phạm-vi-vừa-có-use-case).
 
 **Kết luận phạm vi (nguyên văn rút gọn):** “số hóa các nghiệp vụ nội bộ cốt lõi của một siêu thị điện máy tại một cửa hàng”, gồm quản lý nhân viên, khách hàng, sản phẩm và tồn kho; lập hóa đơn bán lẻ; đổi/trả; thống kê – báo cáo; sao lưu – phục hồi (Ch.1 §II, “Kết luận phạm vi”).
 
@@ -207,7 +209,17 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - Ch.1 §II.6: “hệ thống không xây dựng một phân hệ quản lý chương trình khuyến mãi hoàn chỉnh”; các chức năng tạo chiến dịch, mã giảm giá, voucher, tích điểm “không thuộc phạm vi triển khai hiện tại”.
 - Ch.1 §II.8 loại trừ “Quản lý chương trình khuyến mãi, voucher và điểm thành viên **chuyên sâu**”.
 - Tuy nhiên Ch.3 §III có **UC012 – Quản lý khuyến mãi**, Ch.3 §IV có đặc tả “Thêm khuyến mãi”; luồng chính UC003 bước 7–8 kiểm tra và áp dụng khuyến mãi; danh mục nêu thực thể `KhuyenMai`.
-- **Trạng thái:** mâu thuẫn phạm vi; cần xác nhận có triển khai khuyến mãi cơ bản hay không.
+- **Trạng thái nguồn (giữ nguyên, không sửa DOCX):** mâu thuẫn giữa Ch.1 §II.6/§II.8 với Ch.3 §III–IV và Ch.4 (`KhuyenMai`; các cột `maKM`, `tyLeGiamTaiLucBan`, `tienKhuyenMaiThucTe`, `tienTruocKhuyenMai`, `tienSauKhuyenMai` trên `ChiTietHoaDon`).
+
+**Quyết định phạm vi (đã chốt 2026-10-24, chủ dự án xác nhận):**
+
+- **Khuyến mãi cơ bản thuộc phạm vi triển khai.** Hệ thống **có** phân hệ quản lý khuyến mãi theo UC012 (tạo chương trình, thời gian hiệu lực, tỷ lệ giảm, gắn dòng sản phẩm, trạng thái áp dụng) và áp dụng khuyến mãi **trên từng dòng sản phẩm** ở UC003 bước 7–8.
+- **Câu chữ Ch.1 §II.6/§II.8 là nội dung cũ chưa được cập nhật** (chủ dự án xác nhận). DOCX **không bị sửa**; quyết định chỉ được ghi tại tài liệu dẫn xuất này.
+- **Vẫn ngoài phạm vi:** voucher, mã giảm giá, tích điểm/điểm thành viên và “khuyến mãi chuyên sâu” nhiều điều kiện (Ch.1 §II.8) — không triển khai.
+- **Ràng buộc kèm theo:** mỗi chương trình gắn **một** dòng sản phẩm (`RB20`); `0 ≤ tyLeGiam ≤ 100` (`RB14`); chỉ áp dụng khi `dangApDung = true` và ngày giao dịch nằm trong `[ngayBatDau, ngayKetThuc]` (`RB28`); tiền giảm làm tròn theo `C-11`; **giá, thuế và khuyến mãi tại thời điểm bán phải được snapshot** trên `ChiTietHoaDon` (`RB46`) và **không tính lại giao dịch lịch sử**.
+- **Công thức áp dụng:** theo Ch.4 — `tienTruocKhuyenMai = soLuong × donGiaBanTruocThue`; `tienKhuyenMaiThucTe = làmTròn(tienTruocKhuyenMai × tyLeGiam / 100)`; `tienSauKhuyenMai = tienTruocKhuyenMai − tienKhuyenMaiThucTe`; thuế tính trên `tienSauKhuyenMai` — khớp V1 `ChiTietHoaDon` (`RB42`–`RB46`). Khác biệt với công thức Ch.1 (không có khuyến mãi) ghi tại [BR-C01](../business-rules/rules-and-exceptions.md#6-xung-đột-nguồn-và-nội-dung-bị-cắt).
+- **Trạng thái:** **đã giải quyết ở mức phạm vi**; quy tắc làm tròn tiền vẫn chờ `C-11`.
+- Liên kết: [BR-C08](../business-rules/rules-and-exceptions.md#6-xung-đột-nguồn-và-nội-dung-bị-cắt) · [UC012](../use-cases/UC012-promotion-management.md) · [UC003](../use-cases/UC003-retail-invoice.md)
 
 ### C-05 — Thiếu use case cho sao lưu/phục hồi
 
@@ -232,14 +244,31 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 
 - Ch.1 §II.3 và FR007 mô tả kiểm tra **số lượng tồn kho**, bán theo số lượng.
 - Danh mục UC003/UC004/UC008 và Ch.3 §IV mô tả **từng máy theo serial**, trạng thái `SAN_SANG_BAN`; Ch.4 dùng `SanPham` cho từng máy và `DongSanPham` cho dòng sản phẩm.
-- **Trạng thái:** mâu thuẫn mức hạt dữ liệu (sản phẩm/số lượng so với máy/serial); cần xác nhận trước khi thiết kế tồn kho.
+- **Trạng thái nguồn:** mâu thuẫn mức hạt dữ liệu (sản phẩm/số lượng so với máy/serial); DOCX không bị sửa.
+
+**Quyết định implementation (theo V1 đã duyệt 2026-10-20):**
+
+- Hệ thống quản lý **từng máy theo serial** (`SanPham`), `DongSanPham.soLuongTon` là bộ đếm do ứng dụng cập nhật khi nhập/bán/đổi-trả.
+- Chỉ bán máy có `trangThai = 'SAN_SANG_BAN'`.
+- **Không** chuyển sang mô hình tồn theo số lượng hoặc đổi mức hạt dữ liệu khi chưa được duyệt.
+- Mâu thuẫn **văn bản nguồn** vẫn được giữ làm bằng chứng lịch sử; xem [V1](../database/schema-and-integrity.md#6-bản-đồ-ddl-v1-đã-phê-duyệt).
+- **Trạng thái:** đã giải quyết ở mức implementation, còn mở ở mức tài liệu nguồn.
 
 ### C-08 — Ai cập nhật giá bán và thuế suất?
 
 - Ch.1 §II.1.b: Nhân viên bán hàng “cập nhật thông tin giá bán và thuế suất của sản phẩm theo thông tin đã được Quản lý phê duyệt”.
 - FR006: việc cập nhật giá/thuế “phải dựa trên thông tin đã được Quản lý phê duyệt”.
 - UC019: tác nhân là **Nhân viên quản lý**, người này “cập nhật giá và thuế cho giao dịch mới”.
-- **Trạng thái:** mâu thuẫn vai trò thực hiện; cần xác nhận ai nhập liệu và ai phê duyệt.
+- **Trạng thái nguồn:** mâu thuẫn vai trò thực hiện (DOCX không bị sửa).
+
+**Quyết định implementation (đã chốt 2026-10-25, chủ dự án xác nhận):**
+
+- **Chỉ Nhân viên quản lý** được cập nhật `donGiaBanTruocThue` và `thue` (theo UC019 + `NavItem` hiện tại).
+- **Nhân viên bán hàng không có quyền sửa giá/thuế** ở bất kỳ màn hình nào (kể cả UC003 — chỉ đọc giá tại thời điểm bán).
+- Không xây luồng “phê duyệt giá” riêng (nguồn không có UC); mọi thay đổi giá/thuế ghi `ngayCapNhapCuoi` để truy vết.
+- Giao dịch cũ giữ nguyên snapshot giá/thuế đã chốt (NFR008, `RB46`).
+- **Trạng thái:** **đã giải quyết cho implementation**.
+- Liên kết: [BR-C10](../business-rules/rules-and-exceptions.md#6-xung-đột-nguồn-và-nội-dung-bị-cắt) · [UC019](../use-cases/UC019-price-tax-update.md)
 
 ### C-09 — Ngưỡng hiệu năng “dưới 3 giây” và “không quá 3 giây”
 
@@ -253,10 +282,21 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - Có **16 FR** và **19 UC**, không tương ứng một-một.
 - **Trạng thái:** chưa xác nhận; xem [traceability.md](../traceability.md).
 
-### C-11 — Chưa có quy tắc làm tròn cụ thể
+### C-11 — Quy tắc làm tròn tiền (đã chốt 2026-10-24)
 
 - NFR017 yêu cầu quy tắc làm tròn tiền tệ thống nhất và không dùng giá trị đã làm tròn trung gian, nhưng nguồn không nêu công thức, đơn vị làm tròn hay thứ tự làm tròn.
-- **Trạng thái:** chưa xác nhận; không tự đặt quy tắc.
+- **Trạng thái nguồn:** chưa xác định trong DOCX (DOCX không bị sửa).
+
+**Quyết định implementation (đã chốt 2026-10-24, chủ dự án xác nhận):**
+
+- **Đơn vị làm tròn:** đồng (VND), **0 chữ số thập phân**, chế độ **`HALF_UP`**.
+- **Một điểm làm tròn duy nhất** trong lớp ứng dụng (`TienUtil`), dùng `BigDecimal`; không dùng `double`/`float` cho tiền.
+- **Thứ tự:** làm tròn **ở cấp chi tiết** (tiền khuyến mãi, tiền thuế, thành tiền) → **cộng các giá trị đã tròn** để ra tổng chứng từ; không làm tròn lại tổng và không tính tiếp trên giá trị đã hiển thị (khớp NFR017, XBR-16).
+- **Lưu trữ:** DB lưu giá trị **đã tròn** (`NUMERIC`, 0 chữ số thập phân); giao diện và Excel **chỉ định dạng**, không làm tròn lại.
+- **Định dạng hiển thị:** nhóm nghìn bằng dấu chấm + hậu tố ` VND` (ví dụ `1.250.000 VND`, `0 VND`).
+- **Phạm vi áp dụng:** hóa đơn (UC003), đổi/trả (UC006), 4 báo cáo (UC014–UC017) và file Excel — cùng một quy tắc.
+- **Trạng thái:** **đã giải quyết cho implementation**; các công thức nguồn giữ nguyên câu chữ.
+- Liên kết: [BR-C04](../business-rules/rules-and-exceptions.md#6-xung-đột-nguồn-và-nội-dung-bị-cắt) · [XBR-16](../business-rules/rules-and-exceptions.md#2-quy-tắc-cắt-ngang-nhiều-tính-năng) · NFR017
 
 ### C-12 — Nhập mã định danh so với mã tự sinh bất biến
 
@@ -276,14 +316,14 @@ Bảng dưới đây chỉ nối các mã đã được lập ở tài liệu n�
 | C-01 | — | — |
 | C-02 | — | — |
 | C-03 | G-09 | BR-C09 |
-| C-04 | — | BR-C08 |
+| C-04 (đã giải quyết phạm vi 2026-10-24) | — | BR-C08 |
 | C-05 | G-02 | — |
 | C-06 | G-05 | — |
-| C-07 | G-07 | — |
-| C-08 | G-08 | BR-C10 |
+| C-07 (implementation theo V1 serial, 2026-10-20) | G-07 | — |
+| C-08 (đã chốt 2026-10-25) | G-08 | BR-C10 |
 | C-09 | — | — |
 | C-10 | G-01 | — |
-| C-11 | G-06 | BR-C04 |
+| C-11 (đã chốt 2026-10-24) | G-06 | BR-C04 |
 | C-12 | G-10 | BR-C11 |
 | — | G-11 | BR-C12 |
 | — | G-03 | — |

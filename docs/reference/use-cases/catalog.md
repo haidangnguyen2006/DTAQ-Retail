@@ -108,7 +108,7 @@ Mỗi mục chỉ ghi trường **Chức năng** và **Ghi chú** lấy từ dan
 
 - **Chức năng (danh mục):** Tạo chương trình; khai báo thời gian, loại và giá trị giảm; gắn dòng sản phẩm; kích hoạt hoặc dừng áp dụng.
 - **Ghi chú (danh mục):** Quản lý; KhuyenMai, DongSanPham. Chỉ áp dụng khi đang dùng và còn hiệu lực.
-- **Định vị:** Ch.3 §IV, `### UC012 – Thêm khuyến mãi`. Xem mâu thuẫn phạm vi khuyến mãi tại [C-04](../requirements/scope-and-requirements.md#c-04--khuyến-mãi-vừa-ngoài-phạm-vi-vừa-có-use-case). Đặc tả đầy đủ: [UC012-promotion-management.md](UC012-promotion-management.md).
+- **Định vị:** Ch.3 §IV, `### UC012 – Thêm khuyến mãi`. **Phạm vi đã chốt 2026-10-24:** khuyến mãi cơ bản **thuộc phạm vi** (UC012 + áp dụng ở UC003 bước 7–8); câu “không xây dựng phân hệ khuyến mãi” trong Ch.1 là nội dung cũ chưa cập nhật — xem [C-04](../requirements/scope-and-requirements.md#c-04--khuyến-mãi-vừa-ngoài-phạm-vi-vừa-có-use-case). Đặc tả đầy đủ: [UC012-promotion-management.md](UC012-promotion-management.md).
 
 ### UC013 — Thêm nhân viên bán hàng (danh mục: Quản lý nhân viên bán hàng)
 

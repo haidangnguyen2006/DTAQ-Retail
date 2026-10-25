@@ -64,14 +64,14 @@ Nguồn: Chương 3 mục III (danh mục) và mục IV (tác nhân đặc tả)
 | UC009 | Thêm dòng sản phẩm | Nhân viên bán hàng | `DongSanPham.trangThaiKinhDoanh`; `SanPham` có serial | Tác nhân danh mục khác — C-03 |
 | UC010 | Thêm danh mục sản phẩm | Nhân viên bán hàng | `DanhMucSanPham`, `DongSanPham`; không mất liên kết | Tác nhân danh mục khác — C-03 |
 | UC011 | Thêm sản phẩm lỗi | Nhân viên bán hàng | `SanPhamLoi`, `SanPham`, `TrangThaiXuLyLoi` | Tác nhân danh mục khác — C-03 |
-| UC012 | Thêm khuyến mãi | Nhân viên quản lý | `KhuyenMai`, `DongSanPham`; chỉ khi đang dùng và còn hiệu lực | Mâu thuẫn phạm vi khuyến mãi — C-04 |
+| UC012 | Thêm khuyến mãi | Nhân viên quản lý | `KhuyenMai`, `DongSanPham`; chỉ khi đang dùng và còn hiệu lực | Phạm vi đã chốt 2026-10-24: thuộc phạm vi — C-04 (trước đây là mâu thuẫn, nay đã giải quyết) |
 | UC013 | Thêm nhân viên bán hàng | Nhân viên quản lý | `NhanVien`, `LoaiQuyen`, `trangThaiHoatDong`; không xóa lịch sử | Liên quan FR003 (một phần) |
 | UC014 | Báo cáo sản phẩm tồn kho lâu ngày | Nhân viên quản lý | `DongSanPham`, `SanPham`, `ngayNhapKho`, `TrangThaiSanPham` | Liên quan FR014; mâu thuẫn tên gọi — C-01 |
 | UC015 | Thống kê doanh số theo sản phẩm | Nhân viên quản lý | `HoaDon`, `ChiTietHoaDon`, `DongSanPham`; chỉ hóa đơn đã thanh toán | Liên quan FR013 |
 | UC016 | Thống kê doanh số theo nhân viên | Nhân viên quản lý | `NhanVien`, `HoaDon`, `ChiTietHoaDon`; chỉ hóa đơn đã thanh toán | Liên quan FR012 |
 | UC017 | Thống kê doanh thu | Nhân viên quản lý | `HoaDon`, `PhieuTra`, `PhieuDoi`; loại phiếu hủy/từ chối, tránh trùng tiền đổi/trả | Liên quan FR010, FR011 |
 | UC018 | Phê duyệt yêu cầu đổi trả | Nhân viên quản lý | `PhieuTra`, `PhieuDoi`, `TrangThaiDuyet`, `TrangThaiXuLyPhieu`; chỉ hoàn tất sau khi duyệt | Liên quan FR008, BR-07 |
-| UC019 | Cập nhật giá bán và thuế suất | Nhân viên quản lý | `DongSanPham`; ghi chú cần bổ sung giá/thuế chốt vào `ChiTietHoaDon` | Mâu thuẫn vai trò — C-08; ghi chú có thể đã lỗi thời so với Ch.4 |
+| UC019 | Cập nhật giá bán và thuế suất | Nhân viên quản lý | `DongSanPham`; ghi chú cần bổ sung giá/thuế chốt vào `ChiTietHoaDon` | Vai trò đã chốt 2026-10-25: **chỉ Quản lý** — C-08; ghi chú có thể đã lỗi thời so với Ch.4 |
 
 ## 5. Truy vết yêu cầu phi chức năng
 
@@ -95,7 +95,7 @@ Nguồn NFR: Chương 1 mục V. Nguồn **không nêu** ánh xạ NFR → UC; c
 | NFR014 | Khả năng kiểm tra dữ liệu đầu vào | Không | Kiểm tra trường bắt buộc, kiểu dữ liệu |
 | NFR015 | Khả năng truy vết | Không | Người thực hiện, chứng từ gốc, người phê duyệt |
 | NFR016 | Khả năng mở rộng | Không | Khuyến mãi, phương thức thanh toán, báo cáo |
-| NFR017 | Độ chính xác tính toán tài chính | Không | Làm tròn tiền tệ thống nhất — chưa có công thức cụ thể (C-11) |
+| NFR017 | Độ chính xác tính toán tài chính | Không | Làm tròn tiền tệ thống nhất — đã chốt VND/0 chữ số thập phân/`HALF_UP` (C-11, 2026-10-24) |
 
 ## 6. Khoảng trống và câu hỏi cần xác nhận
 

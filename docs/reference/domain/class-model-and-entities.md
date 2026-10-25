@@ -561,8 +561,8 @@ Tất cả ID là `VARCHAR` do ứng dụng cấp, không có identity/sequence/
 - V1 tạo đúng **14 bảng** nêu trên; không có bảng `products`, không có dữ liệu mẫu, không có baseline tự động.
 - Không thêm trigger cho tồn kho, phê duyệt hoặc quy trình giao dịch; các quy tắc liên bảng đó vẫn thuộc lớp ứng dụng.
 - Các tổng tiền dẫn xuất của `HoaDon`, `PhieuTra`, `PhieuDoi` và các thuộc tính dẫn xuất của `SanPham`/`DongSanPham` không được lưu trong V1; ứng dụng tính theo công thức nguồn.
-- Quan hệ `KhuyenMai.maDongSP` → `DongSanPham` là quan hệ cấu trúc theo EER `image8`/sơ đồ lớp `image17` và RB20; V1 không suy ra phạm vi khuyến mãi từ quan hệ này, `C-04` vẫn mở.
-- V1 đã quyết định `G-11`/`BR-C12` theo amendment được phê duyệt; xung đột DOCX vẫn được giữ làm bằng chứng lịch sử. Các xung đột `C-04` (phạm vi khuyến mãi), `C-07` (đơn vị tồn kho serial hay số lượng) và `C-11` (quy tắc làm tròn) vẫn giữ nguyên. Xem [bản đồ DDL V1](../database/schema-and-integrity.md#6-bản-đồ-ddl-v1-đã-phê-duyệt).
+- Quan hệ `KhuyenMai.maDongSP` → `DongSanPham` là quan hệ cấu trúc theo EER `image8`/sơ đồ lớp `image17` và RB20; phạm vi khuyến mãi **đã chốt là thuộc phạm vi** ngày 2026-10-24 (`C-04`), V1 giữ nguyên cấu trúc này.
+- V1 đã quyết định `G-11`/`BR-C12` theo amendment được phê duyệt; xung đột DOCX vẫn được giữ làm bằng chứng lịch sử. `C-04` (phạm vi khuyến mãi) đã giải quyết ngày 2026-10-24; các xung đột `C-07` (đơn vị tồn kho serial hay số lượng) và `C-11` (quy tắc làm tròn) vẫn giữ nguyên. Xem [bản đồ DDL V1](../database/schema-and-integrity.md#6-bản-đồ-ddl-v1-đã-phê-duyệt).
 
 ---
 

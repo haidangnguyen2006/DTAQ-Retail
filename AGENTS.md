@@ -111,11 +111,11 @@ The following rules are documented in the project report and must be checked whe
 
 ### 5.1 Product and serial-number management
 
-- The source contains a per-machine serial/status design and quantity-based stock wording in scope text; these descriptions conflict (C-07).
-- `SAN_SANG_BAN` is a source status; its unit-level applicability (per machine or per quantity) is unresolved (C-07). Preserve the documented status term.
-- Do not validate or implement a chosen stock granularity (per-machine or quantity-based) until C-07 is resolved.
+- The source contains a per-machine serial/status design and quantity-based stock wording in scope text; these descriptions conflict (C-07) and the DOCX is not edited.
+- `SAN_SANG_BAN` is a source status; its unit-level applicability (per machine or per quantity) remains a source-level conflict (C-07). Preserve the documented status term.
+- Implementation follows the **approved V1 model**: each machine is a `SanPham` row keyed by serial, and `DongSanPham.soLuongTon` is kept in sync by the application. Do not switch to a quantity-based stock model or change the grain without explicit approval.
 
-**Unresolved (C-07):** the source is not consistent on whether stock is tracked per serial or per quantity (scope/FR text uses quantity, while UC descriptions and the design use per-serial `SanPham`). Do not assume either model; confirm before implementing, per `docs/reference/requirements/scope-and-requirements.md` → C-07.
+**Partially resolved (C-07, implementation since 2026-10-20):** the source wording still conflicts (scope/FR text uses quantity, while UC descriptions and the design use per-serial `SanPham`); the approved V1 schema and current code track stock **per serial** and keep `DongSanPham.soLuongTon` as a maintained counter. The conflict remains an open documentation item (`docs/reference/requirements/scope-and-requirements.md` → C-07); do not change the stock grain without approval.
 
 Do not invent additional statuses or lifecycle transitions without consulting the specification.
 
@@ -123,12 +123,12 @@ Do not invent additional statuses or lifecycle transitions without consulting th
 
 - The documented payment scope is cash.
 - An invoice is considered complete only after full payment.
-- Invoice totals must use a single, consistent rounding rule; the concrete method, unit and order are unresolved (C-11).
+- Invoice totals must use a single, consistent rounding rule: **VND, 0 decimal places, `HALF_UP`** (C-11, resolved 2026-10-24).
 - Historical transaction amounts must preserve the price, tax and promotion values applicable at the time of the transaction.
 
-**Unresolved (C-11):** the source requires consistency but does not define the concrete rounding rule, unit or order of rounding. Do not invent one; confirm before implementing (see `docs/reference/requirements/scope-and-requirements.md` → C-11).
+**Resolved (C-11, 2026-10-24):** rounding is **VND, 0 decimal places, `HALF_UP`**, performed at a single point (`TienUtil`, `BigDecimal` only). Round at line-detail level (promotion amount, tax amount), then sum the rounded values; never round the total again and never compute on displayed values. The database stores already-rounded values; UI and Excel format only (`1.250.000 VND`).
 
-**Unresolved (C-04):** promotion scope is contradictory — Chapter 1 excludes a complete promotion subsystem, while UC012 and the UC003 flow describe promotion behaviour. Do not implement promotion behaviour without confirmation (see [`docs/reference/requirements/scope-and-requirements.md` → C-04](docs/reference/requirements/scope-and-requirements.md#c-04--khuyến-mãi-vừa-ngoài-phạm-vi-vừa-có-use-case); and do not recalculate historical transactions using current promotions).
+**Resolved (C-04, 2026-10-24):** basic promotion **is in scope** — UC012 manages promotion programmes, and UC003 applies the promotion per product line (steps 7–8). The Chapter 1 statements that exclude a complete promotion subsystem are outdated; the DOCX is not edited, and the decision is recorded in the derived docs (`docs/reference/requirements/scope-and-requirements.md` → C-04). Vouchers, discount codes, loyalty points and "deep" promotion configuration remain out of scope. Promotions applied at sale time must still be snapshotted on `ChiTietHoaDon` (`RB46`); never recalculate historical transactions using current promotions.
 
 Do not recalculate historical transactions using current product prices, tax settings or promotions.
 
@@ -167,12 +167,14 @@ Treat these as documented examples, not as a reason to invent formats for every 
 ### 5.6 Currency and calculations
 
 - Use Vietnamese currency conventions consistently.
-- Apply one consistent rounding rule across UI, storage and reports; the concrete rule is unresolved (C-11).
+- Apply one consistent rounding rule across UI, storage and reports: **VND, 0 decimal places, `HALF_UP`**, rounded once in `TienUtil` (C-11 resolved 2026-10-24).
 - Invoice totals must be consistent with the sum of rounded detail amounts.
 - Use the existing project approach for monetary values and database precision.
 - Do not introduce inconsistent rounding behavior between the UI and persistence layer.
 
-**No-invention guard (C-11):** do not choose the rounding method, unit or order on your own; confirm it before implementing.
+**Rounding guard (C-11, resolved 2026-10-24):** round at line-detail level (promotion amount, tax amount), then sum the rounded values; never round the total again; never compute on displayed values; store already-rounded values and format only at the UI/Excel boundary (`1.250.000 VND`).
+
+**Price/tax authority (C-08, resolved 2026-10-25):** only a **Quản lý** (manager) may change `DongSanPham.donGiaBanTruocThue` or `DongSanPham.thue` (UC019). Sales staff must never edit prices or tax in any screen, including the invoice screen; invoices keep the sale-time snapshot. No separate price-approval workflow exists in the source.
 
 ## 6. UI and Figma
 
