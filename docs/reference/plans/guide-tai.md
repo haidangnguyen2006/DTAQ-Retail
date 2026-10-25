@@ -124,7 +124,7 @@ WHERE "maDongSP" = ? AND "dangApDung" = true
 | **W3** | UC017 (nối trang + biểu đồ + Excel) | 3 chỉ tiêu khớp tay; Excel đúng cột |
 | **W4** | Test, rà soát, review chéo | Không TODO; `mvn test` xanh |
 
-> **Chặn:** Excel cần `poi-ooxml` (chưa có trong `pom.xml`). Đăng xin duyệt — **không tự thêm**. Chờ duyệt thì viết theo `ExcelExporter`; chưa duyệt thì CSV UTF-8 BOM.
+> **Excel:** `poi-ooxml` **5.4.1 đã được duyệt** (2026-10-25, kèm `log4j-to-slf4j`); **Đăng** thêm vào `pom.xml`, bạn chỉ gọi `ExcelExporter` — **không tự sửa `pom.xml`**.
 
 ## 5. Từng UC — các bước code
 
@@ -163,10 +163,10 @@ WHERE "maDongSP" = ? AND "dangApDung" = true
 ### 5.4. UC014 — Báo cáo tồn kho lâu ngày (W2) — **nối trang đã có**
 
 1. `BaoCaoTonKhoDao` (read-only): `List<DongTonLau> tonLau(int nguongNgay)` từ `SanPham` + `DongSanPham`.
-2. "Còn tồn" = `trangThai <> 'DA_BAN'` (V1); **nếu nhóm muốn chỉ `SAN_SANG_BAN` → hỏi trưởng nhóm trước khi sửa**.
+2. "Còn tồn" (đã chốt 2026-10-25): tính `SAN_SANG_BAN`, `HANG_LOI`, `DANG_BAO_HANH`; **loại** `DA_BAN`, `DA_TRA_NHA_CUNG_CAP`, `DA_THANH_LY` → `WHERE "trangThai" NOT IN ('DA_BAN','DA_TRA_NHA_CUNG_CAP','DA_THANH_LY')`.
 3. `soNgayTon = ChronoUnit.DAYS.between(ngayNhapKhoBanDau, LocalDate.now())` trong Java; ngưỡng do người dùng nhập (60 chỉ là mốc tham chiếu).
 4. Controller: validate `nguongNgay > 0`; rỗng → "Không có máy vượt ngưỡng".
-5. `LongStockReportPage`: **bỏ `List.of(new LongStockRow(...))`**, gọi controller trong `SwingWorker`, giữ `DataTable` + `KpiCard` + cột sắp xếp theo số ngày; double-click → máy của dòng đó.
+5. `LongStockReportPage`: **bỏ `List.of(new LongStockRow(...))`**, gọi controller trong `SwingWorker`, giữ `DataTable` + `KpiCard` + cột sắp xếp theo số ngày; ô ngưỡng **điền sẵn 60** (chỉ là gợi ý); thêm checkbox **"Chỉ tính máy sẵn sàng bán"** (mặc định tắt, khi bật chỉ lấy `SAN_SANG_BAN`); double-click → máy của dòng đó.
 6. Excel: `ExcelExporter.export(...)`; lỗi ghi file → giữ báo cáo.
 7. Test: máy 61 ngày với ngưỡng 60 → hiện; máy `DA_BAN` → không; ngưỡng ≤ 0 → lỗi.
 

@@ -71,7 +71,7 @@ Nguồn: Chương 3 mục III (danh mục) và mục IV (tác nhân đặc tả)
 | UC016 | Thống kê doanh số theo nhân viên | Nhân viên quản lý | `NhanVien`, `HoaDon`, `ChiTietHoaDon`; chỉ hóa đơn đã thanh toán | Liên quan FR012 |
 | UC017 | Thống kê doanh thu | Nhân viên quản lý | `HoaDon`, `PhieuTra`, `PhieuDoi`; loại phiếu hủy/từ chối, tránh trùng tiền đổi/trả | Liên quan FR010, FR011 |
 | UC018 | Phê duyệt yêu cầu đổi trả | Nhân viên quản lý | `PhieuTra`, `PhieuDoi`, `TrangThaiDuyet`, `TrangThaiXuLyPhieu`; chỉ hoàn tất sau khi duyệt | Liên quan FR008, BR-07 |
-| UC019 | Cập nhật giá bán và thuế suất | Nhân viên quản lý | `DongSanPham`; ghi chú cần bổ sung giá/thuế chốt vào `ChiTietHoaDon` | Mâu thuẫn vai trò — C-08; ghi chú có thể đã lỗi thời so với Ch.4 |
+| UC019 | Cập nhật giá bán và thuế suất | Nhân viên quản lý | `DongSanPham`; ghi chú cần bổ sung giá/thuế chốt vào `ChiTietHoaDon` | Vai trò đã chốt 2026-10-25: **chỉ Quản lý** — C-08; ghi chú có thể đã lỗi thời so với Ch.4 |
 
 ## 5. Truy vết yêu cầu phi chức năng
 

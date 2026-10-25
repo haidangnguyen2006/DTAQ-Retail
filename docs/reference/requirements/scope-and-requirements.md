@@ -251,7 +251,16 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - Ch.1 §II.1.b: Nhân viên bán hàng “cập nhật thông tin giá bán và thuế suất của sản phẩm theo thông tin đã được Quản lý phê duyệt”.
 - FR006: việc cập nhật giá/thuế “phải dựa trên thông tin đã được Quản lý phê duyệt”.
 - UC019: tác nhân là **Nhân viên quản lý**, người này “cập nhật giá và thuế cho giao dịch mới”.
-- **Trạng thái:** mâu thuẫn vai trò thực hiện; cần xác nhận ai nhập liệu và ai phê duyệt.
+- **Trạng thái nguồn:** mâu thuẫn vai trò thực hiện (DOCX không bị sửa).
+
+**Quyết định implementation (đã chốt 2026-10-25, chủ dự án xác nhận):**
+
+- **Chỉ Nhân viên quản lý** được cập nhật `donGiaBanTruocThue` và `thue` (theo UC019 + `NavItem` hiện tại).
+- **Nhân viên bán hàng không có quyền sửa giá/thuế** ở bất kỳ màn hình nào (kể cả UC003 — chỉ đọc giá tại thời điểm bán).
+- Không xây luồng “phê duyệt giá” riêng (nguồn không có UC); mọi thay đổi giá/thuế ghi `ngayCapNhapCuoi` để truy vết.
+- Giao dịch cũ giữ nguyên snapshot giá/thuế đã chốt (NFR008, `RB46`).
+- **Trạng thái:** **đã giải quyết cho implementation**.
+- Liên kết: [BR-C10](../business-rules/rules-and-exceptions.md#6-xung-đột-nguồn-và-nội-dung-bị-cắt) · [UC019](../use-cases/UC019-price-tax-update.md)
 
 ### C-09 — Ngưỡng hiệu năng “dưới 3 giây” và “không quá 3 giây”
 
@@ -303,7 +312,7 @@ Bảng dưới đây chỉ nối các mã đã được lập ở tài liệu n�
 | C-05 | G-02 | — |
 | C-06 | G-05 | — |
 | C-07 | G-07 | — |
-| C-08 | G-08 | BR-C10 |
+| C-08 (đã chốt 2026-10-25) | G-08 | BR-C10 |
 | C-09 | — | — |
 | C-10 | G-01 | — |
 | C-11 (đã chốt 2026-10-24) | G-06 | BR-C04 |

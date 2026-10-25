@@ -16,6 +16,10 @@
 | D5 | Cron backup **00:00 hằng ngày** + chạy bù khi khởi động; backup/restore giao **Đăng** | [C-05](../requirements/scope-and-requirements.md#c-05--thiếu-use-case-cho-sao-lưuphục-hồi) |
 | D6 | **Khuyến mãi cơ bản thuộc phạm vi**: UC012 quản lý, UC003 bước 7–8 áp dụng từng dòng SP | [C-04](../requirements/scope-and-requirements.md#c-04--khuyến-mãi-vừa-ngoài-phạm-vi-vừa-có-use-case) |
 | D7 | Mã do **ứng dụng** sinh `TIỀN_TỐ-YYYY-NNNNNN`, không sequence/identity | [C-12](../requirements/scope-and-requirements.md#c-12--nhập-mã-định-danh-so-với-mã-tự-sinh-bất-biến) |
+| D8 | **Duyệt dependency Excel**: `poi-ooxml` 5.4.1 + `log4j-to-slf4j`; chỉ dùng trong `util/ExcelExporter`; chỉ Đăng sửa `pom.xml` | README §5.1 |
+| D9 | **Backup**: `./backups`, giữ 7 bản, nén zip + manifest/SHA-256, **cả 14 bảng gồm `NhanVien`**, không commit thư mục backup | README §5.1 |
+| D10 | **UC014 "còn tồn"**: tính `SAN_SANG_BAN` + `HANG_LOI` + `DANG_BAO_HANH`; loại `DA_BAN`, `DA_TRA_NHA_CUNG_CAP`, `DA_THANH_LY`; ô ngưỡng điền sẵn 60; checkbox "Chỉ tính máy sẵn sàng bán" (mặc định tắt) | README §5.1 |
+| D11 | **Chỉ Quản lý** sửa giá/thuế (C-08); thời hạn đổi/trả để trống = không chặn; chồng lấn KM chỉ chặn khi cả hai đang áp dụng | [C-08](../requirements/scope-and-requirements.md#c-08--ai-cập-nhật-giá-bán-và-thuế-suất), README §5.1 |
 
 ## 2. Tổng quan phân công
 
@@ -39,7 +43,7 @@
 | UC003 | Chọn khách + serial → áp khuyến mãi → tính tiền/thuế → nháp → thanh toán tiền mặt → lưu + snapshot + trừ tồn | Hủy nháp; chặn thiếu tiền/máy vừa bán; rollback; **hóa đơn giả lập**; snapshot 8 cột; KM hết hạn |
 | UC006 | Đổi/trả theo HĐ gốc, tính hoàn theo giá trị thực tế, ngưỡng **3.000.000đ** | `PhieuTra`/`PhieuDoi`; chênh lệch; `CHO_DUYET`; mở lại sau duyệt; hàng lỗi → `SanPhamLoi`; máy thay thế |
 | UC018 | Danh sách chờ duyệt → duyệt/từ chối + ý kiến/lý do | Chống ghi đè; không tự hoàn tiền/đổi tồn |
-| FR015/FR016 | Sao lưu 14 bảng, cron 00:00 + chạy bù; phục hồi có xác nhận 2 bước | `manifest.json` + SHA-256; transaction; tự backup trước khi restore |
+| FR015/FR016 | Sao lưu 14 bảng (gồm `NhanVien`), cron 00:00 + chạy bù; nén zip; phục hồi có xác nhận 2 bước | `manifest.json` + SHA-256; transaction; tự backup trước khi restore; `DTAQ_BACKUP_DIR=./backups`, `DTAQ_BACKUP_KEEP_DAYS=7` |
 
 **Hạ tầng dùng chung:** `util/MaGenerator`, `util/TienUtil` **đã có** (W0-A); Đăng còn phải cung cấp `util/ExcelExporter`, `util/DateRange`, `ui/component/KyBaoCaoFilter` và giữ quyền sửa `ui/AppNavigator`.
 
@@ -123,14 +127,16 @@ Kèm rà soát UC001/UC002 (phiên, tài khoản khóa, thông báo tiếng Vi�
 
 ## 7. Điểm chặn còn lại
 
-| Điểm chặn | Ảnh hưởng | Xử lý |
+| Điểm chặn | Trạng thái | Xử lý |
 |---|---|---|
-| **C-07** mức hạt tồn kho | UC003/004/006/008/011/014 | Bám mô hình serial đã duyệt ở V1; không tự đổi sang đếm số lượng |
-| **C-08** ai cập nhật giá/thuế | UC019 (Quý) | Tạm theo tác nhân đặc tả (Quản lý); chờ chốt |
-| **C-02** tên "Thêm"/"Quản lý" | UC007–UC013 | Sidebar giữ nhãn "Quản lý …"; làm luồng "Thêm" trước, cập nhật/xóa sau |
-| **Dependency Apache POI** | 4 báo cáo Excel | `pom.xml` chưa có `poi-ooxml` — **Đăng xin duyệt**; nếu không duyệt → CSV UTF-8 BOM |
-| **Cấu hình backup** | FR015/FR016 | Chốt `backup.dir`, số ngày giữ (mặc định 7), có backup bảng `NhanVien` hay không |
-| **Thời hạn đổi/trả** | UC006 | Không hard-code; tham số hoá, mặc định không chặn |
+| **C-07** mức hạt tồn kho | ⏳ mở | Bám mô hình serial đã duyệt ở V1; không tự đổi sang đếm số lượng |
+| **C-08** ai cập nhật giá/thuế | ✅ chốt 2026-10-25 | Chỉ Quản lý; bán hàng chỉ đọc |
+| **C-02** tên "Thêm"/"Quản lý" | ⏳ mở (không chặn) | Sidebar giữ nhãn "Quản lý …"; làm luồng "Thêm" trước, cập nhật/xóa sau |
+| **Dependency Apache POI** | ✅ duyệt 2026-10-25 | `poi-ooxml` 5.4.1 + `log4j-to-slf4j`; fallback CSV nếu giảng viên cấm |
+| **Cấu hình backup** | ✅ chốt 2026-10-25 | `./backups`, 7 bản, zip + manifest, 14 bảng gồm `NhanVien` |
+| **Thời hạn đổi/trả** | ✅ chốt 2026-10-25 | `return.window.days` để trống = không chặn |
+| **UC014 "còn tồn"** | ✅ chốt 2026-10-25 | Loại 3 trạng thái đã rời kho; prefill 60; checkbox lọc |
+| **Chồng lấn khuyến mãi** | ✅ chốt 2026-10-25 | Chỉ chặn khi cả hai `dangApDung = true` |
 
 ## 8. Definition of Done
 
@@ -168,3 +174,4 @@ Kèm rà soát UC001/UC002 (phiên, tài khoản khóa, thông báo tiếng Vi�
 | 2026-10-24 | v2.1: chốt D1–D7; C-04 trong phạm vi; Đăng nhận 4 UC thống kê + backup |
 | 2026-10-25 | **v3:** Đăng chỉ còn UC003, UC006, UC018 + FR015/016; 3 UC thống kê chia cho Quý (UC015), Tuấn Anh (UC016), Tài (UC017); thêm 3 tệp hướng dẫn code |
 | 2026-10-25 | **v3.1:** đồng bộ với mã nguồn — entity/`TienUtil`/`MaGenerator`/UI kit đã có; W0 chỉ còn DAO + hạ tầng báo cáo; đăng ký trang qua `PageId` + `AppNavigator` thay cho `NavContentFactory` |
+| 2026-10-25 | **v3.2:** chốt D8–D11 — duyệt POI 5.4.1, cấu hình backup (./backups, 7 bản, zip, gồm `NhanVien`), định nghĩa "còn tồn" của UC014, chỉ Quản lý sửa giá/thuế (C-08), thời hạn đổi/trả để trống = không chặn, chồng lấn KM chỉ chặn khi cả hai đang áp dụng |

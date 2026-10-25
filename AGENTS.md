@@ -174,6 +174,8 @@ Treat these as documented examples, not as a reason to invent formats for every 
 
 **Rounding guard (C-11, resolved 2026-10-24):** round at line-detail level (promotion amount, tax amount), then sum the rounded values; never round the total again; never compute on displayed values; store already-rounded values and format only at the UI/Excel boundary (`1.250.000 VND`).
 
+**Price/tax authority (C-08, resolved 2026-10-25):** only a **Quản lý** (manager) may change `DongSanPham.donGiaBanTruocThue` or `DongSanPham.thue` (UC019). Sales staff must never edit prices or tax in any screen, including the invoice screen; invoices keep the sale-time snapshot. No separate price-approval workflow exists in the source.
+
 ## 6. UI and Figma
 
 Use the available Figma theme and prototype screens as design references when accessible.

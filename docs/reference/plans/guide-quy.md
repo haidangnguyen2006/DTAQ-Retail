@@ -182,7 +182,7 @@ try (Connection c = dataSource.getConnection()) {
 ### 5.4. UC019 — Cập nhật giá bán và thuế suất (W2) — **trang mới**
 
 1. `DongSanPhamDao.updateGiaThue(maDongSP, gia, thue)` + `"ngayCapNhapCuoi" = CURRENT_DATE`.
-2. `GiaThueController.capNhat(...)`: validate; trả `KetQua(giaCu, giaMoi)` để UI xác nhận 2 bước.
+2. `GiaThueController.capNhat(...)`: **chỉ `LoaiQuyen.NHAN_VIEN_QUAN_LY`** (C-08, đã chốt 2026-10-25); validate; trả `KetQua(giaCu, giaMoi)` để UI xác nhận 2 bước.
 3. `PriceTaxPage`: `DataTable` dòng SP + panel phải hiện giá/thuế hiện tại (read-only) + ô nhập mới + `ModalDialog` xác nhận.
 4. **Không** UPDATE `ChiTietHoaDon` ở bất kỳ đâu (NFR008).
 5. Test: đổi giá → `findById` thấy mới; HĐ cũ giữ `donGiaBanTaiLucBan` (đọc bằng DAO của Đăng).
@@ -194,7 +194,7 @@ try (Connection c = dataSource.getConnection()) {
 3. Điều chỉnh: phiếu `trangThaiXuLyPhieu = 'HOAN_TAT'` → trừ số lượng/giá trị của serial trả, lấy từ `ChiTietHoaDon` gốc.
 4. `DateRange` của Đăng để validate kỳ; `KyBaoCaoFilter` cho UI.
 5. `SalesByProductPage`: bộ lọc + `DataTable` (Dòng SP, SL bán, Tiền trước thuế, SL trả, Doanh số sau điều chỉnh) + nút "Xuất Excel"; double-click → bảng giao dịch.
-6. Excel: `ExcelExporter.export(...)`; lỗi ghi file → thông báo, **giữ bảng**.
+6. Excel: `ExcelExporter.export(...)` (`poi-ooxml` 5.4.1 đã duyệt, Đăng thêm dependency); lỗi ghi file → thông báo, **giữ bảng**.
 7. Test: 1 HĐ 2 máy + 1 phiếu trả hoàn tất; kỳ rỗng → "không có phát sinh".
 
 ## 6. Lỗi thường gặp
