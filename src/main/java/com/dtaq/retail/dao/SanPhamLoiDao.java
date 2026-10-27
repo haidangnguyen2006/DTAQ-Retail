@@ -10,7 +10,6 @@ import java.util.Optional;
 /**
  * Giao diện truy cập dữ liệu sản phẩm lỗi trên bảng {@code "SanPhamLoi"}.
  *
- * <p>Theo phân công Wave W0 - Tài (UC011 & UC006), quản lý ghi nhận máy lỗi và theo dõi
  * các trạng thái xử lý lỗi (chờ xử lý, gửi bảo hành, trả nhà cung cấp, thanh lý).
  */
 public interface SanPhamLoiDao {
