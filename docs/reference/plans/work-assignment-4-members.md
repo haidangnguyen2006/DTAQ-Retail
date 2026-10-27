@@ -119,11 +119,11 @@ Kèm rà soát UC001/UC002 (phiên, tài khoản khóa, thông báo tiếng Vi�
 
 | Wave | Thời gian | Đăng | Quý | Tuấn Anh | Tài |
 |---|---|---|---|---|---|
-| **W0** | 26/10–01/11 | `ExcelExporter`, `DateRange`, `KyBaoCaoFilter`; DAO lõi HĐ | DAO/impl `SanPham`, `DongSanPham`, `NhaCungCap` | DAO/impl `KhachHang`; mở rộng `NhanVienDao` | DAO/impl `DanhMucSanPham`, `SanPhamLoi`, `KhuyenMai` |
-| **W1** | 02–08/11 | Khung UC003 (chọn khách/máy, tính tiền); `ExcelExporter` chạy được | UC004 + `SanPhamPicker`; UC008 | UC007 + `KhachHangPicker`; khung UC013 | UC010 (**sớm**, Quý cần); UC011 |
-| **W2** | 09–15/11 | UC003 hoàn tất (KM + preview); UC018 | UC009; UC019 | UC013 hoàn tất; UC005 | UC012 + `findHieuLuc`; UC014 |
-| **W3** | 16–22/11 | UC006; vào FR015/FR016 | **UC015** + Excel | **UC016** + Excel | **UC017** + Excel |
-| **W4** | 23–29/11 | Backup/restore hoàn tất; tích hợp; `mvn test` | Rà soát, test | Rà soát UC001/002, test | Rà soát, test |
+| **W0** | 26/10–29/10 | `ExcelExporter`, `DateRange`, `KyBaoCaoFilter`; DAO lõi HĐ | DAO/impl `SanPham`, `DongSanPham`, `NhaCungCap` | DAO/impl `KhachHang`; mở rộng `NhanVienDao` | DAO/impl `DanhMucSanPham`, `SanPhamLoi`, `KhuyenMai` |
+| **W1** | 30–03/11 | Khung UC003 (chọn khách/máy, tính tiền); `ExcelExporter` chạy được | UC004 + `SanPhamPicker`; UC008 | UC007 + `KhachHangPicker`; khung UC013 | UC010 (**sớm**, Quý cần); UC011 |
+| **W2** | 04–07/11 | UC003 hoàn tất (KM + preview); UC018 | UC009; UC019 | UC013 hoàn tất; UC005 | UC012 + `findHieuLuc`; UC014 |
+| **W3** | 08–11/11 | UC006; vào FR015/FR016 | **UC015** + Excel | **UC016** + Excel | **UC017** + Excel |
+| **W4** | 12–14/11 | Backup/restore hoàn tất; tích hợp; `mvn test` | Rà soát, test | Rà soát UC001/002, test | Rà soát, test |
 
 ## 7. Điểm chặn còn lại
 
