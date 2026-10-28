@@ -3,6 +3,7 @@ package com.dtaq.retail.dao.impl;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 class HoaDonDaoImplTest {
 
   private static final String MA_HD_MAU = "HD-2026-000001";
+  private static final String MA_HD_CHUA_THANH_TOAN = "HD-2026-000004";
   private static final String MA_NV_MAU = "NVBANHANG-2025-001";
   private static final String MA_NV_THEM = "NVBANHANG-2026-001";
   private static final String MA_KH_MAU = "KH-2026-000001";
@@ -51,6 +53,7 @@ class HoaDonDaoImplTest {
     assertEquals(LocalDate.of(2026, 1, 5), hoaDon.ngayLap());
     assertTrue(hoaDon.trangThaiThanhToan());
     assertEquals(MA_NV_MAU, hoaDon.nhanVienLap().maNV());
+    assertNull(hoaDon.nhanVienLap().matKhau(), "hóa đơn không được nạp mật khẩu nhân viên");
     assertFalse(hoaDon.nhanVienLap().hoTen().isBlank(), "họ tên nhân viên phải có");
     assertNotNull(hoaDon.nhanVienLap().loaiQuyen(), "loại quyền nhân viên phải được ánh xạ");
     assertEquals(MA_KH_MAU, hoaDon.khachHang().maKH());
@@ -71,7 +74,7 @@ class HoaDonDaoImplTest {
 
     List<HoaDon> ketQua = dao.findDaThanhToanTrongKy(tuNgay, denNgay);
 
-    assertFalse(ketQua.isEmpty(), "tháng 01/2026 phải có hóa đơn đã thanh toán");
+    Assumptions.assumeFalse(ketQua.isEmpty(), "seed V4 chưa được áp dụng");
     for (HoaDon hoaDon : ketQua) {
       assertTrue(hoaDon.trangThaiThanhToan(), "chỉ lấy hóa đơn đã thanh toán");
       assertFalse(hoaDon.ngayLap().isBefore(tuNgay), "ngày lập không được trước kỳ");
@@ -88,10 +91,38 @@ class HoaDonDaoImplTest {
   }
 
   @Test
+  @DisplayName("Chỉ liệt kê hóa đơn đã thanh toán trong kỳ")
+  void findDaThanhToanTrongKyChiLayHoaDonDaThanhToan() throws SQLException {
+    Connection ketNoi = ConnectDB.getDataSource().getConnection();
+    try {
+      Assumptions.assumeTrue(demHoaDon(ketNoi, MA_HD_MAU) > 0, "seed V4 chưa được áp dụng");
+      Assumptions.assumeTrue(
+          datTrangThaiThanhToan(ketNoi, MA_HD_CHUA_THANH_TOAN, false) == 1,
+          "seed thiếu " + MA_HD_CHUA_THANH_TOAN);
+
+      List<HoaDon> ketQua =
+          dao.findDaThanhToanTrongKy(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31));
+
+      assertFalse(
+          ketQua.stream().anyMatch(hoaDon -> MA_HD_CHUA_THANH_TOAN.equals(hoaDon.maHD())),
+          "hóa đơn chưa thanh toán không được xuất hiện");
+      assertTrue(
+          ketQua.stream().anyMatch(hoaDon -> MA_HD_MAU.equals(hoaDon.maHD())),
+          "hóa đơn đã thanh toán vẫn phải xuất hiện");
+    } finally {
+      try {
+        datTrangThaiThanhToan(ketNoi, MA_HD_CHUA_THANH_TOAN, true);
+      } finally {
+        ketNoi.close();
+      }
+    }
+  }
+
+  @Test
   @DisplayName("Khoảng ngày không có hóa đơn đã thanh toán trả về danh sách rỗng")
   void findDaThanhToanTrongKyOutsideSeedIsEmpty() {
     List<HoaDon> ketQua = dao.findDaThanhToanTrongKy(
-        LocalDate.of(2027, 1, 1), LocalDate.of(2027, 12, 31));
+        LocalDate.of(1999, 1, 1), LocalDate.of(1999, 12, 31));
     assertTrue(ketQua.isEmpty());
   }
 
@@ -100,6 +131,15 @@ class HoaDonDaoImplTest {
   void findDaThanhToanTrongKyRejectsReversedRange() {
     assertThrows(IllegalArgumentException.class, () -> dao.findDaThanhToanTrongKy(
         LocalDate.of(2026, 2, 1), LocalDate.of(2026, 1, 1)));
+  }
+
+  @Test
+  @DisplayName("Ngày null bị từ chối")
+  void findDaThanhToanTrongKyRejectsNullDays() {
+    assertThrows(IllegalArgumentException.class, () -> dao.findDaThanhToanTrongKy(
+        null, LocalDate.of(2026, 1, 31)));
+    assertThrows(IllegalArgumentException.class, () -> dao.findDaThanhToanTrongKy(
+        LocalDate.of(2026, 1, 1), null));
   }
 
   @Test
@@ -115,8 +155,11 @@ class HoaDonDaoImplTest {
 
       dao.insert(ketNoi, hoaDon);
 
+      assertFalse(ketNoi.getAutoCommit(), "DAO không được đổi chế độ cam kết");
       assertEquals(1, demHoaDon(ketNoi, maHD), "hóa đơn phải tồn tại trong giao dịch hiện tại");
-      assertTrue(maHD.matches("^HD-2026-\\d{6}$"), "mã hóa đơn sai định dạng: " + maHD);
+      assertTrue(
+          maHD.matches("^HD-" + LocalDate.now().getYear() + "-\\d{6}$"),
+          "mã hóa đơn sai định dạng: " + maHD);
     } finally {
       try {
         ketNoi.rollback();
@@ -124,6 +167,22 @@ class HoaDonDaoImplTest {
       } finally {
         ketNoi.close();
       }
+    }
+  }
+
+  @Test
+  @DisplayName("insert từ chối hóa đơn thiếu khách hàng")
+  void insertTuChoiHoaDonThieuKhachHang() throws SQLException {
+    Connection ketNoi = ConnectDB.getDataSource().getConnection();
+    try {
+      NhanVien nhanVien = docNhanVien(ketNoi, MA_NV_THEM);
+      HoaDon hoaDon =
+          new HoaDon("HD-2026-999998", LocalDate.of(2026, 12, 31), nhanVien, null, true);
+
+      assertThrows(IllegalArgumentException.class, () -> dao.insert(ketNoi, hoaDon));
+      assertEquals(0, demHoaDon(ketNoi, "HD-2026-999998"), "không được ghi hóa đơn không hợp lệ");
+    } finally {
+      ketNoi.close();
     }
   }
 
@@ -173,6 +232,22 @@ class HoaDonDaoImplTest {
         resultSet.next();
         return resultSet.getInt(1);
       }
+    }
+  }
+
+  /**
+   * Đặt cờ thanh toán và xác nhận ngay (kết nối ở chế độ auto-commit) để connection khác đọc thấy.
+   *
+   * @return số dòng đã cập nhật, dùng để test tự kiểm chứng UPDATE có hiệu lực
+   */
+  private int datTrangThaiThanhToan(Connection ketNoi, String maHD, boolean daThanhToan)
+      throws SQLException {
+    try (PreparedStatement statement =
+        ketNoi.prepareStatement(
+            "UPDATE \"HoaDon\" SET \"trangThaiThanhToan\" = ? WHERE \"maHD\" = ?")) {
+      statement.setBoolean(1, daThanhToan);
+      statement.setString(2, maHD);
+      return statement.executeUpdate();
     }
   }
 }

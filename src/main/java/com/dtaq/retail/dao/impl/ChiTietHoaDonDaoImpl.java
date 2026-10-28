@@ -49,7 +49,6 @@ public final class ChiTietHoaDonDaoImpl implements ChiTietHoaDonDao {
           + " nv.\"email\" AS nv_email,"
           + " nv.\"ngayVaoLam\" AS nv_ngayVaoLam,"
           + " nv.\"tenDangNhap\" AS nv_tenDangNhap,"
-          + " nv.\"matKhau\" AS nv_matKhau,"
           + " nv.\"loaiQuyen\" AS nv_loaiQuyen,"
           + " nv.\"trangThaiHoatDong\" AS nv_trangThaiHoatDong,"
           + " kh.\"maKH\" AS kh_maKH,"
@@ -85,8 +84,7 @@ public final class ChiTietHoaDonDaoImpl implements ChiTietHoaDonDao {
           + " km.\"ngayKetThuc\" AS km_ngayKetThuc,"
           + " km.\"tyLeGiam\" AS km_tyLeGiam,"
           + " km.\"moTa\" AS km_moTa,"
-          + " km.\"dangApDung\" AS km_dangApDung,"
-          + " km.\"maDongSP\" AS km_maDongSP"
+          + " km.\"dangApDung\" AS km_dangApDung"
           + " FROM \"ChiTietHoaDon\" ct"
           + " JOIN \"HoaDon\" hd ON hd.\"maHD\" = ct.\"maHD\""
           + " JOIN \"NhanVien\" nv ON nv.\"maNV\" = hd.\"nhanVienLap\""
@@ -127,6 +125,9 @@ public final class ChiTietHoaDonDaoImpl implements ChiTietHoaDonDao {
     }
     if (chiTiet.hoaDon() == null || chiTiet.sanPham() == null) {
       throw new IllegalArgumentException("Chi tiết hóa đơn phải có hóa đơn và sản phẩm");
+    }
+    if (chiTiet.sanPham().dongSanPham() == null) {
+      throw new IllegalArgumentException("Chi tiết hóa đơn phải có dòng sản phẩm");
     }
     Objects.requireNonNull(ketNoi, "ketNoi");
     try (PreparedStatement statement = ketNoi.prepareStatement(INSERT_CHI_TIET)) {
@@ -184,7 +185,8 @@ public final class ChiTietHoaDonDaoImpl implements ChiTietHoaDonDao {
         resultSet.getString("nv_email"),
         resultSet.getObject("nv_ngayVaoLam", LocalDate.class),
         resultSet.getString("nv_tenDangNhap"),
-        resultSet.getString("nv_matKhau"),
+        // Không nạp mật khẩu: chi tiết hóa đơn không cần và không được đưa hash lên tầng trên.
+        null,
         LoaiQuyen.valueOf(resultSet.getString("nv_loaiQuyen")),
         resultSet.getBoolean("nv_trangThaiHoatDong"));
 
@@ -235,6 +237,8 @@ public final class ChiTietHoaDonDaoImpl implements ChiTietHoaDonDao {
     KhuyenMai khuyenMai = null;
     String maKM = resultSet.getString("ct_maKM");
     if (maKM != null) {
+      // V1 không ràng buộc "maKM" cùng dòng sản phẩm; dùng dòng đã bán để dựng đối tượng
+      // chỉ để hiển thị.
       khuyenMai = new KhuyenMai(
           resultSet.getString("km_maKM"),
           resultSet.getString("km_tenKM"),
