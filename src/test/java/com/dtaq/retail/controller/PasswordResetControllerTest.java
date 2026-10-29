@@ -12,6 +12,7 @@ import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.exception.MailDeliveryException;
 import com.dtaq.retail.util.Mailer;
 import com.dtaq.retail.util.PasswordHasher;
+import java.sql.Connection;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -265,6 +266,41 @@ class PasswordResetControllerTest {
 
     @Override
     public void updateMatKhau(String maNV, String matKhauHash) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đặt lại mật khẩu");
+    }
+
+    @Override
+    public List<NhanVien> findAll() {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đặt lại mật khẩu");
+    }
+
+    @Override
+    public Optional<NhanVien> findByMa(String maNV) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đặt lại mật khẩu");
+    }
+
+    @Override
+    public void insert(Connection ketNoi, NhanVien nhanVien) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đặt lại mật khẩu");
+    }
+
+    @Override
+    public void update(NhanVien nhanVien) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đặt lại mật khẩu");
+    }
+
+    @Override
+    public void updateTrangThai(String maNV, boolean trangThaiHoatDong) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đặt lại mật khẩu");
+    }
+
+    @Override
+    public boolean existsTenDangNhap(String tenDangNhap) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đặt lại mật khẩu");
+    }
+
+    @Override
+    public boolean existsMaNV(String maNV) {
       throw new UnsupportedOperationException("không dùng trong kiểm thử đặt lại mật khẩu");
     }
   }
