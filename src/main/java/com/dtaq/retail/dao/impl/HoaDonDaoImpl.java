@@ -58,7 +58,6 @@ public final class HoaDonDaoImpl implements HoaDonDao {
           + " VALUES (?, ?, ?, ?, ?)";
 
   private final DataSource dataSource;
-
   /**
    * Khởi tạo DAO với nguồn dữ liệu dùng chung của ứng dụng.
    *
