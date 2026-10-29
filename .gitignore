@@ -8,3 +8,6 @@ local/
 db.properties
 backups/
 /bin/
+.setting
+.classpath
+.project
