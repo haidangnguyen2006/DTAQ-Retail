@@ -34,7 +34,6 @@ public final class HoaDonDaoImpl implements HoaDonDao {
           + " nv.\"email\" AS \"nv_email\","
           + " nv.\"ngayVaoLam\" AS \"nv_ngayVaoLam\","
           + " nv.\"tenDangNhap\" AS \"nv_tenDangNhap\","
-          + " nv.\"matKhau\" AS \"nv_matKhau\","
           + " nv.\"loaiQuyen\" AS \"nv_loaiQuyen\","
           + " nv.\"trangThaiHoatDong\" AS \"nv_trangThaiHoatDong\","
           + " kh.\"maKH\" AS \"kh_maKH\","
@@ -59,7 +58,6 @@ public final class HoaDonDaoImpl implements HoaDonDao {
           + " VALUES (?, ?, ?, ?, ?)";
 
   private final DataSource dataSource;
-
   /**
    * Khởi tạo DAO với nguồn dữ liệu dùng chung của ứng dụng.
    *
@@ -73,6 +71,9 @@ public final class HoaDonDaoImpl implements HoaDonDao {
   public void insert(Connection ketNoi, HoaDon hoaDon) {
     if (hoaDon == null || hoaDon.maHD() == null || hoaDon.maHD().isBlank()) {
       throw new IllegalArgumentException("Hóa đơn không hợp lệ");
+    }
+    if (hoaDon.nhanVienLap() == null || hoaDon.khachHang() == null) {
+      throw new IllegalArgumentException("Hóa đơn phải có nhân viên lập và khách hàng");
     }
     Objects.requireNonNull(ketNoi, "ketNoi");
     // Không đóng kết nối và không đổi auto-commit: giao dịch do bên gọi quản lý.
@@ -136,7 +137,8 @@ public final class HoaDonDaoImpl implements HoaDonDao {
         resultSet.getString("nv_email"),
         resultSet.getObject("nv_ngayVaoLam", LocalDate.class),
         resultSet.getString("nv_tenDangNhap"),
-        resultSet.getString("nv_matKhau"),
+        // Không nạp mật khẩu: hóa đơn không cần và không được đưa hash lên tầng trên.
+        null,
         LoaiQuyen.valueOf(resultSet.getString("nv_loaiQuyen")),
         resultSet.getBoolean("nv_trangThaiHoatDong"));
     KhachHang khachHang = new KhachHang(

@@ -10,7 +10,9 @@ import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.exception.DataAccessException;
 import com.dtaq.retail.util.PasswordHasher;
+import java.sql.Connection;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -123,6 +125,41 @@ class AuthControllerTest {
 
     @Override
     public void updateMatKhau(String maNV, String matKhauHash) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đăng nhập");
+    }
+
+    @Override
+    public List<NhanVien> findAll() {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đăng nhập");
+    }
+
+    @Override
+    public Optional<NhanVien> findByMa(String maNV) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đăng nhập");
+    }
+
+    @Override
+    public void insert(Connection ketNoi, NhanVien nhanVien) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đăng nhập");
+    }
+
+    @Override
+    public void update(NhanVien nhanVien) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đăng nhập");
+    }
+
+    @Override
+    public void updateTrangThai(String maNV, boolean trangThaiHoatDong) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đăng nhập");
+    }
+
+    @Override
+    public boolean existsTenDangNhap(String tenDangNhap) {
+      throw new UnsupportedOperationException("không dùng trong kiểm thử đăng nhập");
+    }
+
+    @Override
+    public boolean existsMaNV(String maNV) {
       throw new UnsupportedOperationException("không dùng trong kiểm thử đăng nhập");
     }
   }
