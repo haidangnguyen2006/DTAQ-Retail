@@ -1,6 +1,9 @@
 package com.dtaq.retail.ui.page.customer;
 
+import com.dtaq.retail.controller.KhachHangController;
+import com.dtaq.retail.entity.KhachHang;
 import com.dtaq.retail.ui.component.Card;
+import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
@@ -20,6 +23,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -28,8 +33,11 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Màn hình Quản lý khách hàng (UC007, CustomerListPage, Figma frame 1:368).
@@ -42,7 +50,10 @@ public class CustomerListPage implements Page {
   /** Số khách hàng trên mỗi trang; controller dùng cùng giá trị khi truy vấn. */
   public static final int PAGE_SIZE = 10;
 
+  private static final Logger log = LoggerFactory.getLogger(CustomerListPage.class);
+
   private static final String NOT_CONNECTED_TIP = "Chức năng đang được kết nối dữ liệu";
+  private static final String LOAD_ERROR = "Không thể tải danh sách khách hàng. Vui lòng thử lại";
 
   public record CustomerRow(
       String maKH,
@@ -70,6 +81,9 @@ public class CustomerListPage implements Page {
   private Consumer<CustomerRow> onOpenDetailListener;
   private Consumer<AddCustomerDialog.NewCustomerForm> onSaveCustomerListener;
   private String lastKeyword = "";
+  private KhachHangController controller;
+  private int currentPage = 1;
+  private int loadRequest;
 
   public CustomerListPage() {
     view = new JPanel(new MigLayout(
@@ -105,6 +119,88 @@ public class CustomerListPage implements Page {
     view.add(tableCard, "grow, push");
 
     refreshControls();
+  }
+
+  /**
+   * Khởi tạo trang đã nối dữ liệu thật: danh sách, tìm kiếm, phân trang, thêm và cập nhật khách hàng
+   * đều đi qua {@code controller}, chạy ngoài EDT.
+   *
+   * @param controller bộ điều khiển khách hàng; không được {@code null}
+   */
+  public CustomerListPage(KhachHangController controller) {
+    this();
+    this.controller = Objects.requireNonNull(controller, "controller");
+    tableState.setOnRetry(() -> loadPage(currentPage));
+    setOnSearch(keyword -> loadPage(1));
+    setOnPageChange(this::loadPage);
+    setOnOpenDetail(this::openEditDialog);
+    setOnSaveCustomer(form -> addCustomerDialog.save(
+        () -> controller.themKhach(form.hoTen(), form.soDienThoai(), form.diaChi()),
+        saved -> {
+          Toast.success(view, "Đã lưu khách hàng");
+          loadPage(currentPage);
+        },
+        this::showExistingCustomer));
+  }
+
+  private void loadPage(int page) {
+    int request = ++loadRequest;
+    String keyword = lastKeyword;
+    showLoading();
+    new SwingWorker<KhachHangController.TrangKhachHang, Void>() {
+      @Override
+      protected KhachHangController.TrangKhachHang doInBackground() {
+        return controller.danhSach(keyword, page, PAGE_SIZE);
+      }
+
+      @Override
+      protected void done() {
+        if (request != loadRequest) {
+          return;
+        }
+        try {
+          KhachHangController.TrangKhachHang trang = get();
+          currentPage = trang.trang();
+          renderCustomers(
+              trang.danhSach().stream().map(CustomerListPage::toRow).toList(), trang.tongSo(), trang.trang());
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          showError(LOAD_ERROR);
+        } catch (ExecutionException e) {
+          Throwable cause = e.getCause();
+          log.warn("Không thể tải danh sách khách hàng (exception={})",
+              cause == null ? "none" : cause.getClass().getName());
+          showError(cause instanceof SecurityException ? cause.getMessage() : LOAD_ERROR);
+        }
+      }
+    }.execute();
+  }
+
+  /** Bảng chưa có cột ngày tạo trong CSDL nên để trống; {@link #renderCustomers} hiển thị "—". */
+  private static CustomerRow toRow(KhachHang khachHang) {
+    return new CustomerRow(
+        khachHang.maKH(), khachHang.hoTen(), khachHang.soDienThoai(), khachHang.diaChi(), null);
+  }
+
+  private void openEditDialog(CustomerRow row) {
+    AddCustomerDialog dialog = AddCustomerDialog.forEdit(
+        ConfirmDialog.frameOf(view), row.maKH(), row.hoTen(), row.soDienThoai(), row.diaChi());
+    dialog.setOnSave(form -> dialog.save(
+        () -> controller.capNhatKhach(row.maKH(), form.hoTen(), form.soDienThoai(), form.diaChi()),
+        saved -> {
+          Toast.success(view, "Đã cập nhật khách hàng");
+          loadPage(currentPage);
+        },
+        this::showExistingCustomer));
+    dialog.setVisible(true);
+  }
+
+  /** Luồng 8.a: không tạo hồ sơ trùng, đưa hồ sơ hiện có lên bảng để nhân viên tiếp tục sử dụng. */
+  private void showExistingCustomer(KhachHang khachHang) {
+    searchField.setText(khachHang.soDienThoai());
+    lastKeyword = khachHang.soDienThoai();
+    Toast.show(view, "Đang dùng hồ sơ " + khachHang.maKH(), Toast.Kind.INFO);
+    loadPage(1);
   }
 
   private JPanel buildFilterRow() {
@@ -261,6 +357,13 @@ public class CustomerListPage implements Page {
   }
 
   // ---------------------------------------------------------------- Page
+
+  @Override
+  public void onShow() {
+    if (controller != null) {
+      loadPage(currentPage);
+    }
+  }
 
   @Override
   public void installShortcuts(InputMap inputMap, ActionMap actionMap) {
