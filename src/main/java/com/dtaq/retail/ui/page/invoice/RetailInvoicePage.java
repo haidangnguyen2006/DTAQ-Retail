@@ -1,5 +1,8 @@
 package com.dtaq.retail.ui.page.invoice;
 
+import com.dtaq.retail.controller.BanHangController;
+import com.dtaq.retail.dao.HoaDonTamDao.HoaDonTam;
+import com.dtaq.retail.entity.KhachHang;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.DataTable;
@@ -17,6 +20,7 @@ import com.dtaq.retail.ui.component.table.RowAction;
 import com.dtaq.retail.ui.format.DateFormats;
 import com.dtaq.retail.ui.format.MoneyFormat;
 import com.dtaq.retail.ui.format.PhoneFormat;
+import com.dtaq.retail.ui.page.customer.KhachHangPicker;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqColors;
@@ -32,10 +36,12 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 import javax.swing.AbstractAction;
@@ -49,10 +55,13 @@ import javax.swing.JSeparator;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Màn hình Lập hóa đơn bán lẻ (UC003, RetailInvoicePage).
@@ -63,11 +72,16 @@ import net.miginfocom.swing.MigLayout;
  */
 public class RetailInvoicePage implements Page {
 
+  private static final Logger log = LoggerFactory.getLogger(RetailInvoicePage.class);
+
   public record CustomerInfo(String maKH, String hoTen, String sdt, String diaChi) {}
 
-  public record ProductResult(String maSP, String tenSP, int tonKho, String thueSuat, long donGia) {}
+  public record ProductResult(
+      String maDongSP, String tenDongSP, int tonKho, String thueSuat, long donGia) {}
 
-  public record CartItem(String maSP, String tenSP, int soLuong, long donGiaTruocThue, String thueSuat, long thanhTienSauThue) {}
+  public record CartItem(
+      String maDongSP, String tenDongSP, int soLuong, long donGiaTruocThue,
+      String thueSuat, long thanhTienSauThue, int tonKho) {}
 
   private static final String NOT_CONNECTED_TIP = "Chức năng đang được kết nối dữ liệu";
   private static final String DRAFT_PILL_TEXT = "Hóa đơn mới · Bản nháp";
@@ -78,6 +92,8 @@ public class RetailInvoicePage implements Page {
   private static final int RESULT_LIST_MAX_HEIGHT = 300;
 
   private final NhanVien nhanVien;
+  private BanHangController banHangController;
+  private KhachHangPicker khachHangPicker;
   private final JPanel view;
   private final PageHeader header;
   private final StatusPill invoiceStatusPill = StatusPill.neutral(DRAFT_PILL_TEXT);
@@ -105,6 +121,8 @@ public class RetailInvoicePage implements Page {
   private final FormField cashField = FormField.money("Tiền khách đưa (VNĐ)", "0");
   private final JLabel changeLabel = new JLabel("0 VNĐ");
   private final DtaqButton payButton = DtaqButton.primary(PAY_TEXT);
+  private final DtaqButton saveDraftBtn = DtaqButton.secondary("Lưu hóa đơn tạm");
+  private final DtaqButton openDraftBtn = DtaqButton.secondary("Mở hóa đơn tạm");
   private final JLabel conditionLabel = new JLabel();
 
   private CustomerInfo currentCustomer;
@@ -118,16 +136,21 @@ public class RetailInvoicePage implements Page {
   private boolean paid;
   private String paymentError;
   private InvoiceViewState state = InvoiceViewState.NO_CUSTOMER;
+  private final javax.swing.Timer timKiemTre =
+      new javax.swing.Timer(300, e -> triggerProductSearch());
+  private int lanTimKiem;
 
   private Consumer<String> onCustomerLookup;
   private Consumer<String> onProductSearch;
   private Consumer<ProductResult> onAddToCart;
   private Consumer<CartItem> onRemoveFromCart;
+  private java.util.function.BiConsumer<String, Integer> onChangeQuantity;
   private LongConsumer onProcessPayment;
   private Runnable onNewInvoice;
 
   public RetailInvoicePage(NhanVien nhanVien) {
     this.nhanVien = Objects.requireNonNull(nhanVien, "nhanVien");
+    timKiemTre.setRepeats(false);
 
     view = new JPanel(new MigLayout(
         "fill, insets " + DtaqSpacing.PAGE_PADDING,
@@ -151,6 +174,154 @@ public class RetailInvoicePage implements Page {
     view.add(body, "grow, push");
 
     refreshView();
+  }
+
+  /**
+   * Khởi tạo trang đã nối với bộ điều khiển bán hàng và bộ chọn khách hàng.
+   *
+   * <p>Hàm dựng một tham số vẫn dùng được độc lập (mọi điều khiển bị tắt); hàm dựng này chỉ gắn
+   * thêm callback để trang thao tác được thật. Luồng thanh toán vẫn chưa nối nên nút thanh toán tiếp
+   * tục bị tắt.
+   *
+   * @param nhanVien nhân viên đang lập hóa đơn; không được {@code null}
+   * @param banHangController bộ điều khiển bán hàng; không được {@code null}
+   * @param khachHangPicker bộ chọn khách hàng theo số điện thoại; không được {@code null}
+   */
+  public RetailInvoicePage(
+      NhanVien nhanVien, BanHangController banHangController, KhachHangPicker khachHangPicker) {
+    this(nhanVien);
+    this.banHangController = Objects.requireNonNull(banHangController, "banHangController");
+    this.khachHangPicker = Objects.requireNonNull(khachHangPicker, "khachHangPicker");
+
+    setOnCustomerLookup(sdt -> this.khachHangPicker.chon(view, sdt).ifPresent(this::hienThiKhach));
+    setOnProductSearch(this::timDong);
+    setOnAddToCart(r -> apDungKetQua(banHangController.themDong(r.maDongSP(), 1)));
+    setOnChangeQuantity((ma, sl) -> apDungKetQua(banHangController.datSoLuong(ma, sl)));
+    setOnRemoveFromCart(c -> apDungHoaDon(banHangController.boDong(c.maDongSP())));
+    setOnNewInvoice(banHangController::xoaGio);
+    refreshView();
+  }
+
+  // ---------------------------------------------------------------- xử lý qua controller
+
+  private void hienThiKhach(KhachHang khachHang) {
+    setCustomer(new CustomerInfo(
+        khachHang.maKH(), khachHang.hoTen(), khachHang.soDienThoai(), khachHang.diaChi()));
+  }
+
+  private void timDong(String tuKhoa) {
+    int lan = ++lanTimKiem;
+    new SwingWorker<List<BanHangController.DongBan>, Void>() {
+      @Override
+      protected List<BanHangController.DongBan> doInBackground() {
+        return banHangController.timDongSanPham(tuKhoa);
+      }
+
+      @Override
+      protected void done() {
+        if (lan != lanTimKiem) {
+          return;
+        }
+        try {
+          List<ProductResult> ketQua = get().stream()
+              .map(dong -> new ProductResult(
+                  dong.maDongSP(), dong.tenDongSP(), dong.tonKho(),
+                  dinhDangThue(dong.thueSuat()), dong.donGiaTruocThue().longValueExact()))
+              .toList();
+          renderSearchResults(ketQua);
+        } catch (Exception e) {
+          baoLoiTraCuu(e);
+          Toast.error(view, "Không thể tra cứu sản phẩm");
+        }
+      }
+    }.execute();
+  }
+
+  private void apDungKetQua(BanHangController.KetQuaDoiDong kq) {
+    if (!kq.thanhCong()) {
+      Toast.error(view, kq.thongBao());
+      return;
+    }
+    apDungHoaDon(kq.hoaDon());
+  }
+
+  private void apDungHoaDon(BanHangController.HoaDonTinh hoaDon) {
+    List<CartItem> items = hoaDon.dongHang().stream()
+        .map(dong -> new CartItem(
+            dong.maDongSP(),
+            dong.tenDongSP(),
+            dong.soLuong(),
+            dong.donGiaTruocThue().longValueExact(),
+            dinhDangThue(dong.thueSuat()),
+            dong.thanhTienSauThue().longValueExact(),
+            dong.tonKho()))
+        .toList();
+    InvoiceTotals invoiceTotals = new InvoiceTotals(
+        hoaDon.tongTruocThue().longValueExact(),
+        hoaDon.tongThue().longValueExact(),
+        hoaDon.tongThanhToan().longValueExact());
+    setCart(items, invoiceTotals);
+  }
+
+  private static String dinhDangThue(BigDecimal thueSuat) {
+    return thueSuat.stripTrailingZeros().toPlainString() + "%";
+  }
+
+  private KhachHang khachHangHienTai() {
+    return currentCustomer == null
+        ? null
+        : new KhachHang(
+            currentCustomer.maKH(), currentCustomer.hoTen(),
+            currentCustomer.sdt(), currentCustomer.diaChi());
+  }
+
+  private static void baoLoiTraCuu(Exception e) {
+    if (e instanceof InterruptedException) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  private void luuBanTam() {
+    if (currentCustomer == null && cartItems.isEmpty()) {
+      Toast.error(view, "Chọn khách hàng hoặc thêm sản phẩm trước khi lưu tạm");
+      return;
+    }
+    try {
+      HoaDonTam banTam = banHangController.luuBanTam(
+          nhanVien.maNV(), nhanVien.hoTen(), khachHangHienTai());
+      Toast.success(view, "Đã lưu hóa đơn tạm " + banTam.maTam());
+      resetForNewInvoice();
+    } catch (RuntimeException e) {
+      log.warn("Không thể lưu hóa đơn tạm (exception={})", e.getClass().getName());
+      Toast.error(view, "Không thể lưu hóa đơn tạm");
+    }
+  }
+
+  private void moBanTam() {
+    try {
+      List<HoaDonTam> danhSach = banHangController.danhSachBanTam(nhanVien.maNV());
+      if (danhSach.isEmpty()) {
+        Toast.error(view, "Chưa có hóa đơn tạm nào");
+        return;
+      }
+      Optional<String> maDaChon =
+          new DraftInvoicesDialog(ownerFrame(), danhSach, banHangController::xoaBanTam).moBanTam();
+      if (maDaChon.isEmpty()) {
+        return;
+      }
+      BanHangController.KetQuaKhoiPhuc kq = banHangController.khoiPhucBanTam(maDaChon.get());
+      HoaDonTam banTam = kq.banTam();
+      setCustomer(banTam.maKH() == null
+          ? null
+          : new CustomerInfo(banTam.maKH(), banTam.tenKhachHang(), banTam.sdtKhachHang(), null));
+      apDungHoaDon(kq.hoaDon());
+      if (!kq.dongDaDieuChinh().isEmpty()) {
+        Toast.error(view, "Đã điều chỉnh/bỏ dòng: "
+            + String.join(", ", kq.dongDaDieuChinh()));
+      }
+    } catch (RuntimeException e) {
+      Toast.error(view, "Không thể mở hóa đơn tạm");
+    }
   }
 
   // ---------------------------------------------------------------- build
@@ -198,6 +369,22 @@ public class RetailInvoicePage implements Page {
     productSearchField.setShortcut("F3 · Enter để thêm");
     JTextField input = productSearchField.getTextField();
     input.addActionListener(e -> onProductEnter());
+    input.getDocument().addDocumentListener(new DocumentListener() {
+      @Override
+      public void insertUpdate(DocumentEvent e) {
+        timKiemTre.restart();
+      }
+
+      @Override
+      public void removeUpdate(DocumentEvent e) {
+        timKiemTre.restart();
+      }
+
+      @Override
+      public void changedUpdate(DocumentEvent e) {
+        timKiemTre.restart();
+      }
+    });
     bindKey(input, KeyEvent.VK_DOWN, "dtaq.nextResult", () -> moveSelection(1));
     bindKey(input, KeyEvent.VK_UP, "dtaq.prevResult", () -> moveSelection(-1));
     bindKey(input, KeyEvent.VK_ESCAPE, "dtaq.hideResults", this::hideResults);
@@ -225,9 +412,12 @@ public class RetailInvoicePage implements Page {
     cartTable.setMoneyColumn(3);
     cartTable.setMoneyColumn(5);
     cartTable.setCellPadding(10);
-    cartTable.setColumnWidths(80, 210, 44, 100, 60, 104, 76);
+    cartTable.setColumnWidths(90, 190, 44, 100, 60, 104, 150);
     cartTable.setVisibleRows(2, 6);
-    cartTable.setActionColumn(6, RowAction.danger("Xóa", this::removeCartRow));
+    cartTable.setActionColumn(6,
+        RowAction.secondary("−", this::giamSoLuong),
+        RowAction.secondary("+", this::tangSoLuong),
+        RowAction.danger("Xóa", this::removeCartRow));
 
     JPanel content = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]12[]"));
     content.setOpaque(false);
@@ -296,6 +486,13 @@ public class RetailInvoicePage implements Page {
     totalsPanel.add(cashField, "growx, span, wrap");
 
     addAmountRow(totalsPanel, "Tiền trả lại khách:", changeLabel);
+
+    saveDraftBtn.setEnabled(false);
+    saveDraftBtn.addActionListener(e -> luuBanTam());
+    totalsPanel.add(saveDraftBtn, "growx, span, split 2");
+    openDraftBtn.setEnabled(false);
+    openDraftBtn.addActionListener(e -> moBanTam());
+    totalsPanel.add(openDraftBtn, "growx, wrap");
 
     payButton.setShortcutKey("F8");
     payButton.setEnabled(false);
@@ -404,6 +601,7 @@ public class RetailInvoicePage implements Page {
 
   /** Xóa toàn bộ dữ liệu hóa đơn đang hiển thị để lập hóa đơn mới. */
   public void resetForNewInvoice() {
+    timKiemTre.stop();
     currentCustomer = null;
     customerLookupMessage = null;
     cartItems.clear();
@@ -446,6 +644,16 @@ public class RetailInvoicePage implements Page {
 
   public void setOnRemoveFromCart(Consumer<CartItem> listener) {
     this.onRemoveFromCart = listener;
+  }
+
+  /**
+   * Nhận yêu cầu đổi số lượng của một dòng trong giỏ hàng (mã dòng sản phẩm, số lượng mới).
+   *
+   * @param listener xử lý đổi số lượng; {@code null} để tắt hai nút tăng/giảm
+   */
+  public void setOnChangeQuantity(java.util.function.BiConsumer<String, Integer> listener) {
+    this.onChangeQuantity = listener;
+    refreshView();
   }
 
   /** Nhận số tiền khách đưa (VNĐ) khi người dùng bấm thanh toán. */
@@ -506,6 +714,20 @@ public class RetailInvoicePage implements Page {
   private void removeCartRow(int modelRow) {
     if (onRemoveFromCart != null && !isLocked() && modelRow >= 0 && modelRow < cartItems.size()) {
       onRemoveFromCart.accept(cartItems.get(modelRow));
+    }
+  }
+
+  private void giamSoLuong(int modelRow) {
+    if (onChangeQuantity != null && !isLocked() && modelRow >= 0 && modelRow < cartItems.size()) {
+      CartItem item = cartItems.get(modelRow);
+      onChangeQuantity.accept(item.maDongSP(), item.soLuong() - 1);
+    }
+  }
+
+  private void tangSoLuong(int modelRow) {
+    if (onChangeQuantity != null && !isLocked() && modelRow >= 0 && modelRow < cartItems.size()) {
+      CartItem item = cartItems.get(modelRow);
+      onChangeQuantity.accept(item.maDongSP(), item.soLuong() + 1);
     }
   }
 
@@ -593,6 +815,10 @@ public class RetailInvoicePage implements Page {
     productSearchField.getInputComponent().setToolTipText(canSearch ? null : NOT_CONNECTED_TIP);
 
     cashField.getInputComponent().setEnabled(!locked && !cartItems.isEmpty());
+
+    boolean canDraft = banHangController != null && !locked;
+    saveDraftBtn.setEnabled(canDraft);
+    openDraftBtn.setEnabled(canDraft);
   }
 
   private void updateLookupStatus() {
@@ -666,7 +892,7 @@ public class RetailInvoicePage implements Page {
     }
     for (CartItem item : cartItems) {
       cartTableModel.addRow(new Object[] {
-          item.maSP(), item.tenSP(), item.soLuong(), item.donGiaTruocThue(),
+          item.maDongSP(), item.tenDongSP(), item.soLuong(), item.donGiaTruocThue(),
           item.thueSuat(), item.thanhTienSauThue(), ""});
     }
     cartState.showContent();
@@ -783,10 +1009,11 @@ public class RetailInvoicePage implements Page {
 
     JPanel info = new JPanel(new MigLayout("insets 0, gapy 2", "[]", "[]"));
     info.setOpaque(false);
-    JLabel name = new JLabel(res.tenSP());
+    JLabel name = new JLabel(res.tenDongSP());
     name.setFont(DtaqFonts.BODY_13_MEDIUM);
     info.add(name, "wrap");
-    JLabel sub = new JLabel(res.maSP() + " · Tồn " + res.tonKho() + " · Thuế " + res.thueSuat());
+    JLabel sub = new JLabel(
+        res.maDongSP() + " · Tồn " + res.tonKho() + " · Thuế " + res.thueSuat());
     sub.setFont(DtaqFonts.HINT);
     sub.setForeground(DtaqColors.TEXT_MUTED);
     info.add(sub);
@@ -831,6 +1058,11 @@ public class RetailInvoicePage implements Page {
   @Override
   public void onShow() {
     header.setSubtitle(headerMeta());
+  }
+
+  @Override
+  public void onHide() {
+    timKiemTre.stop();
   }
 
   @Override

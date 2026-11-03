@@ -181,4 +181,47 @@ class SanPhamControllerTest {
         TrangThaiSanPham.SAN_SANG_BAN);
     assertFalse(dongSai.thanhCong());
   }
+
+  @Test
+  @DisplayName("Thêm máy HANG_LOI không làm tăng số lượng tồn")
+  void themMayHangLoiKhongTangTon() {
+    Assumptions.assumeTrue(ConnectDB.isAvailable(), "Cơ sở dữ liệu không khả dụng");
+
+    SanPhamDao sanPhamDao = new SanPhamImpl(ConnectDB.getDataSource());
+    DongSanPhamDao dongSanPhamDao = new DongSanPhamImpl(ConnectDB.getDataSource());
+    NhaCungCapDao nhaCungCapDao = new NhaCungCapImpl(ConnectDB.getDataSource());
+    SanPhamController controller = new SanPhamController(
+        sanPhamDao, dongSanPhamDao, nhaCungCapDao, ConnectDB.getDataSource());
+
+    DongSanPham dong = dongSanPhamDao.findAll().stream()
+        .filter(DongSanPham::trangThaiKinhDoanh)
+        .findFirst()
+        .orElseThrow();
+    NhaCungCap nhaCungCap = nhaCungCapDao.findAll().stream().findFirst().orElseThrow();
+
+    String serial = "UC008-HANGLOI-" + System.nanoTime();
+    int tonBanDau = dongSanPhamDao.findById(dong.maDongSP()).orElseThrow().soLuongTon();
+
+    try {
+      SanPhamController.KetQua<SanPham> ketQua = controller.themMay(
+          serial,
+          nhaCungCap.maNCC(),
+          dong.maDongSP(),
+          new BigDecimal("1000000"),
+          LocalDate.now(),
+          TrangThaiSanPham.HANG_LOI);
+
+      assertTrue(ketQua.thanhCong(), ketQua.thongBao());
+      assertNotNull(ketQua.duLieu());
+      assertEquals(serial, ketQua.duLieu().soSerial());
+
+      DongSanPham sauKhiThem = dongSanPhamDao.findById(dong.maDongSP()).orElseThrow();
+      assertEquals(tonBanDau, sauKhiThem.soLuongTon(),
+          "Máy HANG_LOI không được tính vào số lượng tồn (RB37)");
+    } finally {
+      serialsCanXoa.add(serial);
+      dongCanReset.add(dong.maDongSP());
+      tonCu.add(tonBanDau);
+    }
+  }
 }

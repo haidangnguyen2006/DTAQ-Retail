@@ -105,7 +105,7 @@
 |---|---|---|
 | RB35 | Bán hàng và giao máy thay thế | Chỉ được xuất bán hoặc giao thay thế máy có trạng thái `SAN_SANG_BAN` và thuộc dòng sản phẩm đang kinh doanh. |
 | RB36 | Tồn kho | Số lượng bán hoặc giao thay thế không được vượt số lượng sẵn sàng bán. Tồn kho sau giao dịch không được âm. |
-| RB37 | DongSanPham – SanPham | `soLuongTon` của dòng sản phẩm phải bằng số máy thuộc dòng có trạng thái `SAN_SANG_BAN`, theo quy ước tồn sẵn sàng bán của hệ thống. |
+| RB37 | DongSanPham – SanPham | `soLuongTon` của dòng sản phẩm phải bằng số máy thuộc dòng có trạng thái `SAN_SANG_BAN`, theo quy ước tồn sẵn sàng bán của hệ thống. Từ `2026-11-03`, DB cưỡng chế bất biến này bằng trigger `trg_sanpham_cap_nhat_ton` (migration `V6__trigger_so_luong_ton.sql`) và `SanPhamController` cũng tính lại khi thêm máy; không có cột nhập tay. |
 | RB38 | Hoàn tất hóa đơn | Hóa đơn được thanh toán phải có ít nhất một chi tiết hợp lệ và khách đã thanh toán đủ. Khi giao dịch thành công, các máy bán phải chuyển sang `DA_BAN` và tồn sẵn sàng bán được cập nhật tương ứng. |
 | RB39 | Nhận hàng đổi/trả | Hàng nhận lại chỉ được chuyển sang `SAN_SANG_BAN` khi đã kiểm tra đủ điều kiện. Hàng lỗi phải được ghi nhận đúng trạng thái, không tự động cộng vào tồn sẵn sàng bán. |
 | RB40 | Xử lý đồng thời | Hai giao dịch không được cùng xuất bán một máy đang sẵn sàng bán. Trạng thái máy và tồn kho phải được kiểm tra lại trong giao dịch ghi nhận kết quả. |

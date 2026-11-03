@@ -44,7 +44,7 @@ public final class Main {
       NhanVienDaoImpl nhanVienDao = new NhanVienDaoImpl(dataSource);
       PasswordResetDaoImpl passwordResetDao = new PasswordResetDaoImpl(dataSource);
       Mailer mailer = new SmtpMailer();
-      AppNavigator navigator = new AppNavigator(nhanVienDao, passwordResetDao, mailer);
+      AppNavigator navigator = new AppNavigator(nhanVienDao, passwordResetDao, mailer, dataSource);
       navigator.showLogin();
     });
   }
