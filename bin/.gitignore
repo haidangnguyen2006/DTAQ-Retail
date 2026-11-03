@@ -1,0 +1,9 @@
+target/
+.idea/
+*.iml
+*.log
+hs_err_pid*.log
+.DS_Store
+local/
+db.properties
+backups/

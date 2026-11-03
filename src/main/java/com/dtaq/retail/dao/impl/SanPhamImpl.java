@@ -58,6 +58,9 @@ public final class SanPhamImpl implements SanPhamDao {
   private static final String SELECT_BY_TRANG_THAI =
       SELECT_CO_JOIN + " WHERE sp.\"trangThai\" = ? ORDER BY sp.\"soSerial\"";
 
+  private static final String SELECT_ALL =
+      SELECT_CO_JOIN + " ORDER BY sp.\"soSerial\"";
+
   private static final String INSERT_SAN_PHAM =
       "INSERT INTO \"SanPham\""
           + " (\"soSerial\", \"maNCC\", \"maDongSP\", \"giaNhap\", \"ngayNhapKhoBanDau\","
@@ -148,6 +151,21 @@ public final class SanPhamImpl implements SanPhamDao {
       }
     } catch (SQLException e) {
       throw new DataAccessException("Không thể tra cứu sản phẩm theo trạng thái", e);
+    }
+  }
+
+  @Override
+  public List<SanPham> findAll() {
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(SELECT_ALL);
+        ResultSet resultSet = statement.executeQuery()) {
+      List<SanPham> ketQua = new ArrayList<>();
+      while (resultSet.next()) {
+        ketQua.add(mapSanPham(resultSet));
+      }
+      return ketQua;
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tra cứu danh sách sản phẩm", e);
     }
   }
 

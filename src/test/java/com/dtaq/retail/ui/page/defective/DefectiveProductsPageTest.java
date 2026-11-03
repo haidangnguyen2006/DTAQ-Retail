@@ -94,6 +94,11 @@ class DefectiveProductsPageTest {
     }
 
     @Override
+    public List<SanPham> findAll() {
+      return List.of();
+    }
+
+    @Override
     public void updateTrangThai(String soSerial, TrangThaiSanPham trangThai) {}
   }
 }
