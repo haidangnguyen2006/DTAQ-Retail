@@ -99,8 +99,13 @@ public final class SanPhamController {
             0,
             0);
         sanPhamDao.insert(ketNoi, sanPham);
+        // RB37: soLuongTon là bộ đếm dẫn xuất từ SanPham.
         try (PreparedStatement ps = ketNoi.prepareStatement(
-            "UPDATE \"DongSanPham\" SET \"soLuongTon\" = \"soLuongTon\" + 1 WHERE \"maDongSP\" = ?")) {
+            "UPDATE \"DongSanPham\" d SET \"soLuongTon\" = ("
+                + "SELECT count(*) FROM \"SanPham\" s"
+                + " WHERE s.\"maDongSP\" = d.\"maDongSP\""
+                + " AND s.\"trangThai\" = 'SAN_SANG_BAN')"
+                + " WHERE d.\"maDongSP\" = ?")) {
           ps.setString(1, maDongChuanHoa);
           ps.executeUpdate();
         }
