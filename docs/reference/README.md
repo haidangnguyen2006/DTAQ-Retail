@@ -86,8 +86,13 @@ Các điểm dưới đây đã được kiểm chứng trong nguồn và đư�
 - **Thời hạn đổi/trả (chốt 2026-10-25):** cấu hình `DTAQ_RETURN_WINDOW_DAYS`; **để trống = không chặn** (nguồn không quy định số ngày — `RB34`).
 - **Chồng lấn khuyến mãi (chốt 2026-10-25):** chỉ chặn khi **cả hai** chương trình `dangApDung = true` và khoảng ngày giao nhau; chương trình đã dừng vẫn được lưu làm lịch sử.
 - **Phân công 4 thành viên (2026-10-25):** Đăng — UC003, UC006, UC018, FR015/FR016 + hạ tầng dùng chung; Quý — UC004, UC008, UC009, UC019, UC015; Tuấn Anh — UC005, UC007, UC013, UC016; Tài — UC010, UC011, UC012, UC014, UC017. Xem [phân công](plans/work-assignment-4-members.md) và [hướng dẫn code](plans/guide-quy.md).
+- **Giỏ/tìm kiếm theo dòng sản phẩm (D12, chốt 2026-11-03):** UC003 tìm theo **mã dòng hoặc tên dòng** (`maDongSP`/`tenDongSP`); giỏ hàng là **dòng sản phẩm + số lượng** (1..tồn sẵn sàng bán), thay cho cách "mỗi dòng một serial"; khớp UC003 bước 4–8 và hình thiết kế Hình 6/7 (`docs/reference/assets/screens/image3.png`, `image19.png`).
+- **Tồn khả dụng (D13, chốt 2026-11-03):** tồn sẵn sàng bán của một dòng bằng **số `SanPham` có `trangThai = 'SAN_SANG_BAN'`** của dòng đó; `DongSanPham.soLuongTon` là **bộ đếm dẫn xuất** phải bằng đúng số đó (`RB37`).
+- **Phân bổ máy khi thanh toán (D14, chốt 2026-11-03):** chọn máy theo **FIFO** trên `SanPham.ngayNhapKhoBanDau` tăng dần, tie-break `soSerial` tăng dần; quy tắc này **không có trong tài liệu nguồn** — là quyết định mới của chủ dự án.
+- **Nở chi tiết hóa đơn (D15, chốt 2026-11-03):** giỏ có N đơn vị của một dòng → **N dòng `ChiTietHoaDon` với `soLuong = 1`**; làm tròn theo từng máy rồi cộng (`C-11`/`RB51`).
+- **Cưỡng chế RB37 (D16, chốt 2026-11-03):** `soLuongTon` được **tính lại** bởi trigger DB `trg_sanpham_cap_nhat_ton` (migration `V6__trigger_so_luong_ton.sql`) và bởi `SanPhamController`; **không nhập tay**.
 
-Các mâu thuẫn **văn bản nguồn** còn lại (C-07 — mức hạt tồn kho serial hay số lượng) vẫn giữ nguyên trong tài liệu nguồn, nhưng **implementation đã chốt theo V1 serial** (xem [C-07](requirements/scope-and-requirements.md#c-07--mô-hình-tồn-kho-serial-hay-số-lượng)).
+Các mâu thuẫn **văn bản nguồn** còn lại (C-07 — mức hạt tồn kho serial hay số lượng) vẫn giữ nguyên trong tài liệu nguồn, nhưng **implementation đã chốt theo V1 serial** (xem [C-07](requirements/scope-and-requirements.md#c-07--mô-hình-tồn-kho-serial-hay-số-lượng)); từ **2026-11-03**, **mức hạt UI/giỏ đã chốt theo dòng sản phẩm (D12)**, còn **mức hạt tồn vẫn theo serial (V1)**.
 
 ## 6. Giới hạn
 

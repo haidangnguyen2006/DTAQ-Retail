@@ -252,6 +252,7 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - Chỉ bán máy có `trangThai = 'SAN_SANG_BAN'`.
 - **Không** chuyển sang mô hình tồn theo số lượng hoặc đổi mức hạt dữ liệu khi chưa được duyệt.
 - Mâu thuẫn **văn bản nguồn** vẫn được giữ làm bằng chứng lịch sử; xem [V1](../database/schema-and-integrity.md#6-bản-đồ-ddl-v1-đã-phê-duyệt).
+- **Ghi chú trạng thái (2026-11-03):** đã chốt **mức hạt UI/giỏ** theo dòng sản phẩm + số lượng (D12) và phân bổ máy FIFO (D14); **mức hạt tồn kho vẫn theo serial** (V1); DOCX không bị sửa.
 - **Trạng thái:** đã giải quyết ở mức implementation, còn mở ở mức tài liệu nguồn.
 
 ### C-08 — Ai cập nhật giá bán và thuế suất?

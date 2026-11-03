@@ -20,6 +20,11 @@
 | D9 | **Backup**: `./backups`, giữ 7 bản, nén zip + manifest/SHA-256, **cả 14 bảng gồm `NhanVien`**, không commit thư mục backup | README §5.1 |
 | D10 | **UC014 "còn tồn"**: tính `SAN_SANG_BAN` + `HANG_LOI` + `DANG_BAO_HANH`; loại `DA_BAN`, `DA_TRA_NHA_CUNG_CAP`, `DA_THANH_LY`; ô ngưỡng điền sẵn 60; checkbox "Chỉ tính máy sẵn sàng bán" (mặc định tắt) | README §5.1 |
 | D11 | **Chỉ Quản lý** sửa giá/thuế (C-08); thời hạn đổi/trả để trống = không chặn; chồng lấn KM chỉ chặn khi cả hai đang áp dụng | [C-08](../requirements/scope-and-requirements.md#c-08--ai-cập-nhật-giá-bán-và-thuế-suất), README §5.1 |
+| D12 | **UC003 tìm/gộp giỏ theo dòng sản phẩm**: tìm theo `maDongSP`/`tenDongSP`; giỏ = dòng sản phẩm + số lượng (1..tồn), thay cách "mỗi dòng một serial" | phiên duyệt 2026-11-03 (D12 khớp UC003 bước 4–8; D14 không có trong nguồn) |
+| D13 | **Tồn khả dụng** = số `SanPham` có `trangThai = 'SAN_SANG_BAN'` của dòng; `DongSanPham.soLuongTon` là bộ đếm dẫn xuất phải bằng số đó (RB37) | phiên duyệt 2026-11-03 (D12 khớp UC003 bước 4–8; D14 không có trong nguồn) |
+| D14 | **Phân bổ máy khi thanh toán**: FIFO theo `SanPham.ngayNhapKhoBanDau` tăng dần, tie-break `soSerial` tăng dần | phiên duyệt 2026-11-03 (D12 khớp UC003 bước 4–8; D14 không có trong nguồn) |
+| D15 | **Nở chi tiết hóa đơn**: giỏ N đơn vị → N dòng `ChiTietHoaDon` với `soLuong = 1`; làm tròn theo từng máy rồi cộng (C-11/RB51) | phiên duyệt 2026-11-03 (D12 khớp UC003 bước 4–8; D14 không có trong nguồn) |
+| D16 | **Cưỡng chế RB37**: `soLuongTon` tính lại bởi trigger `trg_sanpham_cap_nhat_ton` (migration `V6__trigger_so_luong_ton.sql`) và `SanPhamController`; không nhập tay | phiên duyệt 2026-11-03 (D12 khớp UC003 bước 4–8; D14 không có trong nguồn) |
 
 ## 2. Tổng quan phân công
 
@@ -175,3 +180,4 @@ Kèm rà soát UC001/UC002 (phiên, tài khoản khóa, thông báo tiếng Vi�
 | 2026-10-25 | **v3:** Đăng chỉ còn UC003, UC006, UC018 + FR015/016; 3 UC thống kê chia cho Quý (UC015), Tuấn Anh (UC016), Tài (UC017); thêm 3 tệp hướng dẫn code |
 | 2026-10-25 | **v3.1:** đồng bộ với mã nguồn — entity/`TienUtil`/`MaGenerator`/UI kit đã có; W0 chỉ còn DAO + hạ tầng báo cáo; đăng ký trang qua `PageId` + `AppNavigator` thay cho `NavContentFactory` |
 | 2026-10-25 | **v3.2:** chốt D8–D11 — duyệt POI 5.4.1, cấu hình backup (./backups, 7 bản, zip, gồm `NhanVien`), định nghĩa "còn tồn" của UC014, chỉ Quản lý sửa giá/thuế (C-08), thời hạn đổi/trả để trống = không chặn, chồng lấn KM chỉ chặn khi cả hai đang áp dụng |
+| 2026-11-03 | **v3.3:** chốt D12–D16 — UC003 theo dòng sản phẩm + số lượng (giỏ/tìm theo `maDongSP`/`tenDongSP`), hóa đơn tạm cục bộ, phân bổ máy FIFO khi thanh toán, nở chi tiết hóa đơn `soLuong = 1`, trigger RB37 (`trg_sanpham_cap_nhat_ton`); đăng ký toàn bộ trang đã có vào `AppNavigator` |
