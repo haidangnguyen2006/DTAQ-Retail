@@ -55,4 +55,34 @@ public interface DongSanPhamDao {
    * @param trangThaiKinhDoanh trạng thái kinh doanh mới
    */
   void updateTrangThaiKinhDoanh(String maDongSP, boolean trangThaiKinhDoanh);
+
+  /**
+   * Tìm kiếm dòng sản phẩm theo từ khóa.
+   */
+  default List<DongSanPham> search(String tuKhoa) {
+    String keyword = tuKhoa == null ? "" : tuKhoa.trim();
+    if (keyword.isEmpty()) {
+      return findAll();
+    }
+    String lower = keyword.toLowerCase();
+    return findAll().stream()
+        .filter(dsp -> dsp.maDongSP().toLowerCase().contains(lower)
+            || dsp.tenDongSP().toLowerCase().contains(lower)
+            || dsp.danhMucSanPham().tenDanhMuc().toLowerCase().contains(lower))
+        .toList();
+  }
+
+  /**
+   * Lấy toàn bộ dòng sản phẩm kèm danh mục liên quan.
+   */
+  default List<DongSanPham> findAllWithDanhMuc() {
+    return findAll();
+  }
+
+  /**
+   * Kiểm tra sự tồn tại của mã dòng sản phẩm.
+   */
+  default boolean existsMaDong(String maDongSP) {
+    return findById(maDongSP).isPresent();
+  }
 }

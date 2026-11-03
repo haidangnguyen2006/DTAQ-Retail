@@ -1,0 +1,31 @@
+# Cổng kiểm tra build trước khi hợp nhất (merge) vào nhánh main.
+# Lý do tồn tại: trước đây một lần merge đã đưa vào main mã nguồn không biên dịch được
+# (lỗi compile), nên cần chặn mọi push/PR vào main khi build hoặc test thất bại.
+# Các bài test phụ thuộc cơ sở dữ liệu sẽ tự bỏ qua (self-skip) bằng Assumptions
+# khi không có PostgreSQL, vì vậy workflow này KHÔNG cần khai báo database service.
+name: build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B clean test

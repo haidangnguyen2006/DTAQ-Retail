@@ -47,6 +47,51 @@ public interface SanPhamDao {
   List<SanPham> findByTrangThai(TrangThaiSanPham trangThai);
 
   /**
+   * Liệt kê toàn bộ sản phẩm trong hệ thống.
+   */
+  List<SanPham> findAll();
+
+  /**
+   * Tìm máy theo số serial, tương đương với {@link #findById(String)}.
+   */
+  default Optional<SanPham> findBySerial(String soSerial) {
+    return findById(soSerial);
+  }
+
+  /**
+   * Tìm máy theo mã dòng sản phẩm, tương đương với {@link #findByDongSanPham(String)}.
+   */
+  default List<SanPham> findByDong(String maDongSP) {
+    return findByDongSanPham(maDongSP);
+  }
+
+  /**
+   * Tìm máy theo danh mục sản phẩm.
+   */
+  default List<SanPham> findByDanhMuc(String maDanhMuc) {
+    return findAll().stream()
+        .filter(sp -> sp.dongSanPham().danhMucSanPham() != null
+            && maDanhMuc.equals(sp.dongSanPham().danhMucSanPham().maDanhMuc()))
+        .toList();
+  }
+
+  /**
+   * Lấy danh sách máy đang sẵn sàng để bán theo dòng sản phẩm.
+   */
+  default List<SanPham> findBanDuoc(String maDongSP) {
+    return findByDongSanPham(maDongSP).stream()
+        .filter(sp -> sp.trangThai() == TrangThaiSanPham.SAN_SANG_BAN)
+        .toList();
+  }
+
+  /**
+   * Kiểm tra xem serial đã tồn tại trong kho hay chưa.
+   */
+  default boolean existsSerial(String soSerial) {
+    return findById(soSerial).isPresent();
+  }
+
+  /**
    * Cập nhật trạng thái của một máy cụ thể.
    *
    * @param soSerial số serial máy cần cập nhật
