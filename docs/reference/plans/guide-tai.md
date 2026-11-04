@@ -164,7 +164,7 @@ WHERE "maDongSP" = ? AND "dangApDung" = true
 
 1. `BaoCaoTonKhoDao` (read-only): `List<DongTonLau> tonLau(int nguongNgay)` từ `SanPham` + `DongSanPham`.
 2. "Còn tồn" (đã chốt 2026-10-25): tính `SAN_SANG_BAN`, `HANG_LOI`, `DANG_BAO_HANH`; **loại** `DA_BAN`, `DA_TRA_NHA_CUNG_CAP`, `DA_THANH_LY` → `WHERE "trangThai" NOT IN ('DA_BAN','DA_TRA_NHA_CUNG_CAP','DA_THANH_LY')`.
-3. `soNgayTon = ChronoUnit.DAYS.between(ngayNhapKhoBanDau, LocalDate.now())` trong Java; ngưỡng do người dùng nhập (60 chỉ là mốc tham chiếu).
+3. **`soNgayTon` (chốt 2026-11-04):** tính **trong SQL** của `BaoCaoTonKhoDao` — `CURRENT_DATE - "ngayNhapKhoBanDau"` (số ngày); máy có `ngayNhapKhoBanDau` NULL bị loại; ngưỡng do người dùng nhập, 60 chỉ là mốc tham chiếu. Giữ đúng công thức của [UC014](../use-cases/UC014-inventory-report.md).
 4. Controller: validate `nguongNgay > 0`; rỗng → "Không có máy vượt ngưỡng".
 5. `LongStockReportPage`: **bỏ `List.of(new LongStockRow(...))`**, gọi controller trong `SwingWorker`, giữ `DataTable` + `KpiCard` + cột sắp xếp theo số ngày; ô ngưỡng **điền sẵn 60** (chỉ là gợi ý); thêm checkbox **"Chỉ tính máy sẵn sàng bán"** (mặc định tắt, khi bật chỉ lấy `SAN_SANG_BAN`); double-click → máy của dòng đó.
 6. Excel: `ExcelExporter.export(...)`; lỗi ghi file → giữ báo cáo.

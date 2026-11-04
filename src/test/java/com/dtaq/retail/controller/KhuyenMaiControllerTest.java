@@ -3,6 +3,7 @@ package com.dtaq.retail.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.dtaq.retail.dao.DongSanPhamDao;
@@ -10,7 +11,10 @@ import com.dtaq.retail.dao.KhuyenMaiDao;
 import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.KhuyenMai;
+import com.dtaq.retail.entity.LoaiQuyen;
+import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.session.CurrentSession;
 import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -21,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +43,32 @@ class KhuyenMaiControllerTest {
 
   @BeforeEach
   void setUp() {
+    CurrentSession.set(nhanVien(LoaiQuyen.NHAN_VIEN_QUAN_LY));
     controller = new KhuyenMaiController(khuyenMaiDao, dongSanPhamDao, dataSourceSinhMa(0));
+  }
+
+  @AfterEach
+  void dongPhien() {
+    CurrentSession.clear();
+  }
+
+  @Test
+  @DisplayName("Nhân viên bán hàng không được thêm mới chương trình khuyến mãi")
+  void khongPhaiQuanLyThiChanThemMoi() {
+    CurrentSession.set(nhanVien(LoaiQuyen.NHAN_VIEN_BAN_HANG));
+
+    assertThrows(SecurityException.class, () -> them(BigDecimal.TEN));
+    assertEquals(0, khuyenMaiDao.soLanInsert);
+  }
+
+  @Test
+  @DisplayName("Nhân viên bán hàng vẫn tra cứu được khuyến mãi hiệu lực cho UC003")
+  void nhanVienBanHangVanTraCuuHieuLuc() {
+    KhuyenMai km = khuyenMai("KM-2026-000012", true, BAT_DAU, KET_THUC);
+    khuyenMaiDao.hieuLuc = Optional.of(km);
+    CurrentSession.set(nhanVien(LoaiQuyen.NHAN_VIEN_BAN_HANG));
+
+    assertEquals(Optional.of(km), controller.timKhuyenMaiHieuLuc(MA_DONG, BAT_DAU));
   }
 
   @Test
@@ -133,6 +163,19 @@ class KhuyenMaiControllerTest {
 
   private KhuyenMaiController.KetQua<KhuyenMai> them(BigDecimal tyLe) {
     return controller.themMoi("Khuyến mãi test", null, tyLe, BAT_DAU, KET_THUC, MA_DONG, true);
+  }
+
+  private static NhanVien nhanVien(LoaiQuyen loaiQuyen) {
+    return new NhanVien(
+        "NVQUANLY-TEST-001",
+        "Nguyễn Quản Lý",
+        "0900000001",
+        "quanly.test@dtaq.local",
+        LocalDate.of(2026, 1, 1),
+        "quanly.test",
+        "matkhau-test",
+        loaiQuyen,
+        true);
   }
 
   private static KhuyenMai khuyenMai(String ma, boolean dangApDung, LocalDate tuNgay, LocalDate denNgay) {

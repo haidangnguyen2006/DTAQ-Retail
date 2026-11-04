@@ -5,23 +5,27 @@ import com.dtaq.retail.dao.DanhMucSanPhamDao;
 import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.ui.component.Card;
+import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.StatefulView;
+import com.dtaq.retail.ui.component.Toast;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
+import java.awt.Component;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.awt.Component;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
 
@@ -41,11 +45,15 @@ public final class ProductLinesPage implements Page {
   private final FormField priceField = FormField.money("Giá bán trước thuế", "0");
   private final FormField taxField = FormField.money("Thuế suất %", "0");
   private final DtaqButton saveButton = DtaqButton.primary("Lưu", "save");
+  private final DtaqButton ngungButton = DtaqButton.secondary("Ngừng kinh doanh");
+  private final DtaqButton kinhDoanhLaiButton = DtaqButton.secondary("Kinh doanh lại");
 
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(
       new String[] {"Mã dòng", "Tên dòng", "Danh mục", "ĐVT", "Giá", "Thuế", "Kinh doanh"}, 0);
   private final DataTable table = new DataTable(tableModel, 36);
   private final StatefulView statefulView;
+  private final List<DongSanPham> danhSachDong = new ArrayList<>();
+  private DongSanPham dongDangChon;
 
   public ProductLinesPage(DongSanPhamController controller, DanhMucSanPhamDao danhMucSanPhamDao) {
     this.controller = Objects.requireNonNull(controller, "controller");
@@ -58,7 +66,7 @@ public final class ProductLinesPage implements Page {
     PageHeader header = new PageHeader(
         "Quản lý dòng sản phẩm",
         "Tạo mới và cập nhật thông tin dòng sản phẩm, giá bán trước thuế và thuế suất.");
-    header.setTrailing(saveButton);
+    header.setTrailing(ngungButton, kinhDoanhLaiButton, saveButton);
     view.add(header, "growx, wrap");
 
     categoryField.setRequired(true);
@@ -93,6 +101,16 @@ public final class ProductLinesPage implements Page {
     view.add(formCard, "growx, wrap");
 
     saveButton.addActionListener(e -> luu());
+    ngungButton.setEnabled(false);
+    kinhDoanhLaiButton.setEnabled(false);
+    ngungButton.addActionListener(e -> xacNhanNgungKinhDoanh());
+    kinhDoanhLaiButton.addActionListener(e -> xacNhanKinhDoanhLai());
+    table.setOnRowDoubleClick(this::chonDong);
+    table.getTable().getSelectionModel().addListSelectionListener(event -> {
+      if (!event.getValueIsAdjusting()) {
+        capNhatLuaChon();
+      }
+    });
     table.setCodeColumn(0);
     table.setMoneyColumn(4);
     table.setColumnWidths(140, 220, 170, 90, 120, 90, 120);
@@ -141,8 +159,11 @@ public final class ProductLinesPage implements Page {
       categoryBox.addItem(item);
     }
 
+    dongDangChon = null;
+    danhSachDong.clear();
     tableModel.setRowCount(0);
     for (DongSanPham dong : controller.layDanhSach()) {
+      danhSachDong.add(dong);
       tableModel.addRow(new Object[] {
           dong.maDongSP(),
           dong.tenDongSP(),
@@ -153,11 +174,108 @@ public final class ProductLinesPage implements Page {
           dong.trangThaiKinhDoanh() ? "Đang kinh doanh" : "Ngừng kinh doanh"
       });
     }
+    capNhatLuaChon();
     if (tableModel.getRowCount() == 0) {
       statefulView.showEmpty();
     } else {
       statefulView.showContent();
     }
+  }
+
+  /** Chọn dòng theo chỉ số model, dùng chung cho nhấp đúp và kiểm thử. */
+  void chonDong(int modelRow) {
+    int viewRow = table.getTable().convertRowIndexToView(modelRow);
+    if (viewRow >= 0) {
+      table.getTable().setRowSelectionInterval(viewRow, viewRow);
+    }
+    capNhatLuaChon();
+  }
+
+  private void capNhatLuaChon() {
+    int viewRow = table.getTable().getSelectedRow();
+    dongDangChon = null;
+    if (viewRow >= 0) {
+      int modelRow = table.getTable().convertRowIndexToModel(viewRow);
+      if (modelRow >= 0 && modelRow < danhSachDong.size()) {
+        dongDangChon = danhSachDong.get(modelRow);
+      }
+    }
+    boolean dangKinhDoanh = dongDangChon != null && dongDangChon.trangThaiKinhDoanh();
+    ngungButton.setEnabled(dangKinhDoanh);
+    kinhDoanhLaiButton.setEnabled(dongDangChon != null && !dangKinhDoanh);
+  }
+
+  private void xacNhanNgungKinhDoanh() {
+    if (dongDangChon == null) {
+      return;
+    }
+    String maDong = dongDangChon.maDongSP();
+    ConfirmDialog.confirm(
+        view,
+        "Xác nhận ngừng kinh doanh",
+        "Dòng " + maDong + " sẽ không còn được bán. Tiếp tục?",
+        "Ngừng kinh doanh",
+        () -> apDungTrangThai(false));
+  }
+
+  private void xacNhanKinhDoanhLai() {
+    if (dongDangChon == null) {
+      return;
+    }
+    String maDong = dongDangChon.maDongSP();
+    ConfirmDialog.confirm(
+        view,
+        "Xác nhận kinh doanh lại",
+        "Dòng " + maDong + " sẽ được bán trở lại. Tiếp tục?",
+        "Kinh doanh lại",
+        () -> apDungTrangThai(true));
+  }
+
+  /**
+   * Áp dụng trạng thái kinh doanh cho dòng đang chọn; gọi controller ngoài EDT rồi tải lại danh sách.
+   *
+   * @param kinhDoanh {@code true} để kinh doanh lại, {@code false} để ngừng kinh doanh
+   */
+  void apDungTrangThai(boolean kinhDoanh) {
+    if (dongDangChon == null) {
+      return;
+    }
+    String maDong = dongDangChon.maDongSP();
+    ngungButton.setEnabled(false);
+    kinhDoanhLaiButton.setEnabled(false);
+    new SwingWorker<DongSanPhamController.KetQua<DongSanPham>, Void>() {
+      @Override
+      protected DongSanPhamController.KetQua<DongSanPham> doInBackground() {
+        return kinhDoanh ? controller.kinhDoanhLai(maDong) : controller.ngungKinhDoanh(maDong);
+      }
+
+      @Override
+      protected void done() {
+        try {
+          DongSanPhamController.KetQua<DongSanPham> ketQua = get();
+          if (ketQua.thanhCong()) {
+            Toast.success(view, ketQua.thongBao());
+            taiDanhSach();
+            table.getTable().clearSelection();
+            capNhatLuaChon();
+          } else {
+            Toast.error(view, ketQua.thongBao());
+            capNhatLuaChon();
+          }
+        } catch (Exception ex) {
+          Toast.error(view, "Không thể cập nhật trạng thái kinh doanh của dòng sản phẩm");
+          capNhatLuaChon();
+        }
+      }
+    }.execute();
+  }
+
+  DtaqButton nutNgung() {
+    return ngungButton;
+  }
+
+  DtaqButton nutKinhDoanhLai() {
+    return kinhDoanhLaiButton;
   }
 
   private void luu() {

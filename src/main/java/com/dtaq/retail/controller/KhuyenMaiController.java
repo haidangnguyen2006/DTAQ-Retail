@@ -4,7 +4,9 @@ import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.dao.KhuyenMaiDao;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.KhuyenMai;
+import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.util.MaGenerator;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -25,6 +27,7 @@ import org.slf4j.LoggerFactory;
 public final class KhuyenMaiController {
 
   private static final Logger log = LoggerFactory.getLogger(KhuyenMaiController.class);
+  private static final String LOI_QUYEN = "Chỉ Quản lý được quản lý chương trình khuyến mãi";
 
   private final KhuyenMaiDao khuyenMaiDao;
   private final DongSanPhamDao dongSanPhamDao;
@@ -147,6 +150,8 @@ public final class KhuyenMaiController {
       String maDongSP,
       boolean dangApDung) {
 
+    yeuCauQuanLy();
+
     // 1. Validate thông tin nhập liệu (Luồng phụ 9.a)
     String loiNhapLieu = validateThongTin(tenKM, tyLeGiam, ngayBatDau, ngayKetThuc, maDongSP);
     if (loiNhapLieu != null) {
@@ -245,6 +250,7 @@ public final class KhuyenMaiController {
       String maDongSP,
       boolean dangApDung) {
 
+    yeuCauQuanLy();
     if (maKM == null || maKM.isBlank()) {
       return KetQua.loi("Mã chương trình khuyến mãi không được để trống");
     }
@@ -319,6 +325,7 @@ public final class KhuyenMaiController {
    * @return kết quả thao tác
    */
   public KetQua<Void> batDauApDung(String maKM) {
+    yeuCauQuanLy();
     if (maKM == null || maKM.isBlank()) {
       return KetQua.loi("Mã chương trình khuyến mãi không được để trống");
     }
@@ -371,6 +378,7 @@ public final class KhuyenMaiController {
    * @return kết quả thao tác
    */
   public KetQua<Void> dungApDung(String maKM) {
+    yeuCauQuanLy();
     if (maKM == null || maKM.isBlank()) {
       return KetQua.loi("Mã chương trình khuyến mãi không được để trống");
     }
@@ -398,6 +406,16 @@ public final class KhuyenMaiController {
     } catch (DataAccessException e) {
       log.error("Lỗi khi dừng áp dụng khuyến mãi: {}", maChuanHoa, e);
       return KetQua.loi("Dừng áp dụng khuyến mãi thất bại: " + e.getMessage());
+    }
+  }
+
+  /** Bắt buộc phiên đăng nhập hiện tại là Nhân viên quản lý (UC012). */
+  private static void yeuCauQuanLy() {
+    boolean laQuanLy = CurrentSession.get()
+        .map(nhanVien -> nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY)
+        .orElse(false);
+    if (!laQuanLy) {
+      throw new SecurityException(LOI_QUYEN);
     }
   }
 

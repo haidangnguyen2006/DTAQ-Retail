@@ -98,4 +98,20 @@ public interface SanPhamDao {
    * @param trangThai trạng thái mới
    */
   void updateTrangThai(String soSerial, TrangThaiSanPham trangThai);
+
+  /**
+   * Đánh dấu một máy đã bán bằng câu lệnh có điều kiện, dùng trong giao dịch thanh toán.
+   *
+   * <p>Chỉ chuyển sang {@code DA_BAN} khi máy đang ở trạng thái {@code SAN_SANG_BAN}; nhờ vậy hai giao
+   * dịch không thể cùng bán một máy (RB40). Bên gọi sở hữu kết nối và giao dịch: kết nối được truyền
+   * vào không bị đóng ở đây và chế độ tự động xác nhận (auto-commit) của nó không bị thay đổi.
+   *
+   * @param ketNoi kết nối của bên gọi; không được {@code null}
+   * @param soSerial số serial của máy cần đánh dấu
+   * @return {@code true} nếu máy được chuyển sang {@code DA_BAN}, {@code false} nếu máy không còn
+   *     sẵn sàng bán hoặc không tồn tại
+   */
+  default boolean danhDauDaBan(java.sql.Connection ketNoi, String soSerial) {
+    throw new UnsupportedOperationException("Chưa hỗ trợ đánh dấu bán theo giao dịch");
+  }
 }

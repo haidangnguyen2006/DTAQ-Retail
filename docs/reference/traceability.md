@@ -61,7 +61,7 @@ Nguồn: Chương 3 mục III (danh mục) và mục IV (tác nhân đặc tả)
 | UC006 | Xử lý đổi trả sản phẩm | Nhân viên bán hàng | `PhieuTra`, `ChiTietPhieuTra`, `PhieuDoi`, `ChiTietPhieuDoi`; chờ phê duyệt | Liên quan FR008, FR009 |
 | UC007 | Thêm khách hàng | Nhân viên bán hàng | `KhachHang`; giữ liên kết lịch sử hóa đơn | Tên danh mục khác đặc tả — C-02 |
 | UC008 | Thêm sản phẩm | Nhân viên bán hàng | `SanPham`, `DongSanPham`; `TrangThaiSanPham` | Tác nhân danh mục “Quản lý” — C-03 |
-| UC009 | Thêm dòng sản phẩm | Nhân viên bán hàng | `DongSanPham.trangThaiKinhDoanh`; `SanPham` có serial | Tác nhân danh mục khác — C-03 |
+| UC009 | Thêm dòng sản phẩm | Nhân viên bán hàng | `DongSanPham.trangThaiKinhDoanh`; `SanPham` có serial | Tác nhân danh mục khác — C-03; **đã chốt 2026-11-04: Nhân viên bán hàng** |
 | UC010 | Thêm danh mục sản phẩm | Nhân viên bán hàng | `DanhMucSanPham`, `DongSanPham`; không mất liên kết | Tác nhân danh mục khác — C-03 |
 | UC011 | Thêm sản phẩm lỗi | Nhân viên bán hàng | `SanPhamLoi`, `SanPham`, `TrangThaiXuLyLoi` | Tác nhân danh mục khác — C-03 |
 | UC012 | Thêm khuyến mãi | Nhân viên quản lý | `KhuyenMai`, `DongSanPham`; chỉ khi đang dùng và còn hiệu lực | Phạm vi đã chốt 2026-10-24: thuộc phạm vi — C-04 (trước đây là mâu thuẫn, nay đã giải quyết) |

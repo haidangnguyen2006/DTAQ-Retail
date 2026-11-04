@@ -62,8 +62,8 @@ class AppNavigatorPagesTest {
   }
 
   @Test
-  @DisplayName("Vai trò quản lý đăng ký đúng 5 trang thật")
-  void managerDangKyDung5TrangThat() {
+  @DisplayName("Vai trò quản lý đăng ký đúng 9 trang thật theo thứ tự menu")
+  void managerDangKyDung9TrangThat() {
     List<Page> pages = AppNavigator.managerPages(NV_QUAN_LY, DS, KHONG_DIEU_HUONG);
 
     Set<PageId> ids = idsOf(pages);
@@ -71,14 +71,28 @@ class AppNavigatorPagesTest {
         PageId.MANAGER_HOME,
         PageId.REVENUE_STATS,
         PageId.LONG_STOCK_REPORT,
+        PageId.PRODUCT_LINES,
+        PageId.DEFECTIVE_PRODUCTS,
+        PageId.PROMOTIONS,
         PageId.EMPLOYEES,
-        PageId.DEFECTIVE_PRODUCTS), ids);
-    assertEquals(5, pages.size(), "không được đăng ký trùng PageId");
+        PageId.RETURN_APPROVALS,
+        PageId.PRICE_TAX), ids);
+    assertEquals(9, pages.size(), "không được đăng ký trùng PageId");
+    assertEquals(List.of(
+        PageId.MANAGER_HOME,
+        PageId.REVENUE_STATS,
+        PageId.LONG_STOCK_REPORT,
+        PageId.PRODUCT_LINES,
+        PageId.DEFECTIVE_PRODUCTS,
+        PageId.PROMOTIONS,
+        PageId.EMPLOYEES,
+        PageId.RETURN_APPROVALS,
+        PageId.PRICE_TAX), idsTheoThuTu(pages), "đúng thứ tự menu của vai trò quản lý");
   }
 
   @Test
-  @DisplayName("Vai trò bán hàng đăng ký đúng 7 trang thật")
-  void salesDangKyDung7TrangThat() {
+  @DisplayName("Vai trò bán hàng đăng ký đúng 9 trang thật theo thứ tự menu")
+  void salesDangKyDung9TrangThat() {
     List<Page> pages = AppNavigator.salesPages(NV_BAN_HANG, DS, KHONG_DIEU_HUONG);
 
     Set<PageId> ids = idsOf(pages);
@@ -87,10 +101,23 @@ class AppNavigatorPagesTest {
         PageId.CUSTOMERS,
         PageId.RETAIL_INVOICE,
         PageId.PRODUCT_LOOKUP,
+        PageId.CUSTOMER_LOOKUP,
         PageId.PRODUCTS,
+        PageId.PRODUCT_LINES,
         PageId.CATEGORIES,
         PageId.DEFECTIVE_PRODUCTS), ids);
-    assertEquals(7, pages.size(), "không được đăng ký trùng PageId");
+    assertEquals(9, pages.size(), "không được đăng ký trùng PageId");
+    assertEquals(List.of(
+        PageId.SALES_HOME,
+        PageId.CUSTOMERS,
+        PageId.RETAIL_INVOICE,
+        PageId.PRODUCT_LOOKUP,
+        PageId.CUSTOMER_LOOKUP,
+        PageId.PRODUCTS,
+        PageId.PRODUCT_LINES,
+        PageId.CATEGORIES,
+        PageId.DEFECTIVE_PRODUCTS), idsTheoThuTu(pages),
+        "đúng thứ tự menu của vai trò bán hàng");
   }
 
   @Test
@@ -99,22 +126,18 @@ class AppNavigatorPagesTest {
     kiemTraPhuMenu(
         LoaiQuyen.NHAN_VIEN_QUAN_LY,
         AppNavigator.managerPages(NV_QUAN_LY, DS, KHONG_DIEU_HUONG),
-        8,
+        4,
         Set.of(
-            PageId.PRODUCT_LINES,
-            PageId.PROMOTIONS,
             PageId.SALES_BY_PRODUCT,
             PageId.SALES_BY_EMPLOYEE,
-            PageId.RETURN_APPROVALS,
-            PageId.PRICE_TAX,
             PageId.BACKUP,
             PageId.RESTORE));
 
     kiemTraPhuMenu(
         LoaiQuyen.NHAN_VIEN_BAN_HANG,
         AppNavigator.salesPages(NV_BAN_HANG, DS, KHONG_DIEU_HUONG),
-        3,
-        Set.of(PageId.CUSTOMER_LOOKUP, PageId.RETURNS, PageId.PRODUCT_LINES));
+        1,
+        Set.of(PageId.RETURNS));
   }
 
   private static void kiemTraPhuMenu(
@@ -137,5 +160,9 @@ class AppNavigatorPagesTest {
     return pages.stream()
         .map(Page::id)
         .collect(Collectors.toCollection(() -> EnumSet.noneOf(PageId.class)));
+  }
+
+  private static List<PageId> idsTheoThuTu(List<Page> pages) {
+    return pages.stream().map(Page::id).toList();
   }
 }

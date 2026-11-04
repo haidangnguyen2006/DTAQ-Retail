@@ -49,7 +49,8 @@ public class InvoiceReceiptDialog extends ModalDialog {
       long tienThue,
       long tongThanhToan,
       long tienKhachDua,
-      long tienTraLai
+      long tienTraLai,
+      long tienGiamGia
   ) {}
 
   private static final String[] ITEM_COLUMNS = {"STT", "Mã SP", "Tên sản phẩm", "ĐVT", "SL", "Đơn giá", "Thuế", "Thành tiền"};
@@ -139,6 +140,9 @@ public class InvoiceReceiptDialog extends ModalDialog {
     JPanel totals = new JPanel(new MigLayout("fillx, insets 0, gapy 5", "[grow][]", "[]"));
     totals.setOpaque(false);
     addTotalRow(totals, "Tổng tiền hàng trước thuế:", MoneyFormat.formatVnd(data.tongTienHang()), false);
+    if (data.tienGiamGia() > 0) {
+      addTotalRow(totals, "Giảm giá:", MoneyFormat.formatVnd(data.tienGiamGia()), false);
+    }
     addTotalRow(totals, "Tổng tiền thuế VAT:", MoneyFormat.formatVnd(data.tienThue()), false);
     totals.add(new JSeparator(), "growx, span, wrap, gaptop 2, gapbottom 2");
     addTotalRow(totals, "TỔNG THANH TOÁN:", MoneyFormat.formatVnd(data.tongThanhToan()), true);

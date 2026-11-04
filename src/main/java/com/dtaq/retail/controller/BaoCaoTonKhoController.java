@@ -2,8 +2,10 @@ package com.dtaq.retail.controller;
 
 import com.dtaq.retail.dao.BaoCaoTonKhoDao;
 import com.dtaq.retail.dao.BaoCaoTonKhoDao.DongTonLau;
+import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.exception.DataAccessException;
 import com.dtaq.retail.exception.ExcelExportException;
+import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.util.ExcelExporter;
 import java.io.File;
 import java.util.ArrayList;
@@ -17,6 +19,7 @@ public final class BaoCaoTonKhoController {
 
   private static final Logger log = LoggerFactory.getLogger(BaoCaoTonKhoController.class);
   private static final String TIEU_DE_BAO_CAO = "Báo cáo sản phẩm tồn kho lâu ngày";
+  private static final String LOI_QUYEN = "Chỉ Quản lý được xem báo cáo tồn kho";
   private static final List<String> TIEU_DE_COT = List.of(
       "Mã dòng sản phẩm", "Tên dòng sản phẩm", "Danh mục", "Số serial",
       "Ngày nhập kho", "Trạng thái", "Số ngày tồn");
@@ -29,6 +32,7 @@ public final class BaoCaoTonKhoController {
 
   /** Truy vấn báo cáo và tổng hợp các KPI cho danh sách máy trả về. */
   public KetQua<BaoCao> xemBaoCao(int nguongNgay, boolean chiTinhSanSangBan) {
+    yeuCauQuanLy();
     if (nguongNgay <= 0) {
       return KetQua.loi("Ngưỡng ngày tồn kho phải là số nguyên dương");
     }
@@ -48,6 +52,7 @@ public final class BaoCaoTonKhoController {
 
   /** Xuất đúng danh sách đang hiển thị; thao tác này không thay đổi dữ liệu báo cáo. */
   public KetQua<Void> xuatExcel(File tep, List<DongTonLau> danhSachHienThi) {
+    yeuCauQuanLy();
     if (tep == null) {
       return KetQua.loi("Tệp xuất Excel không được để trống");
     }
@@ -72,6 +77,16 @@ public final class BaoCaoTonKhoController {
     } catch (ExcelExportException | IllegalArgumentException e) {
       log.error("Lỗi khi xuất báo cáo tồn kho lâu ngày ra Excel", e);
       return KetQua.loi("Không thể xuất tệp Excel: " + e.getMessage());
+    }
+  }
+
+  /** Bắt buộc phiên đăng nhập hiện tại là Nhân viên quản lý (UC014). */
+  private static void yeuCauQuanLy() {
+    boolean laQuanLy = CurrentSession.get()
+        .map(nhanVien -> nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY)
+        .orElse(false);
+    if (!laQuanLy) {
+      throw new SecurityException(LOI_QUYEN);
     }
   }
 

@@ -2,42 +2,61 @@ package com.dtaq.retail.ui;
 
 import com.dtaq.retail.controller.AuthController;
 import com.dtaq.retail.controller.BanHangController;
+import com.dtaq.retail.controller.BaoCaoTonKhoController;
 import com.dtaq.retail.controller.DanhMucController;
 import com.dtaq.retail.controller.DongSanPhamController;
 import com.dtaq.retail.controller.GiaThueController;
 import com.dtaq.retail.controller.KhachHangController;
+import com.dtaq.retail.controller.KhuyenMaiController;
 import com.dtaq.retail.controller.NhanVienController;
 import com.dtaq.retail.controller.PasswordResetController;
+import com.dtaq.retail.controller.PheDuyetDoiTraController;
 import com.dtaq.retail.controller.SanPhamController;
 import com.dtaq.retail.controller.SanPhamLoiController;
+import com.dtaq.retail.controller.TraCuuKhachHangController;
 import com.dtaq.retail.controller.TraCuuSanPhamController;
+import com.dtaq.retail.dao.DanhMucSanPhamDao;
 import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.dao.NhaCungCapDao;
 import com.dtaq.retail.dao.NhanVienDao;
 import com.dtaq.retail.dao.PasswordResetDao;
+import com.dtaq.retail.dao.PhieuDuyet;
 import com.dtaq.retail.dao.SanPhamDao;
 import com.dtaq.retail.dao.SanPhamLoiDao;
+import com.dtaq.retail.dao.impl.BaoCaoTonKhoDaoImpl;
+import com.dtaq.retail.dao.impl.ChiTietHoaDonDaoImpl;
 import com.dtaq.retail.dao.impl.DanhMucSanPhamDaoImpl;
 import com.dtaq.retail.dao.impl.DongSanPhamImpl;
+import com.dtaq.retail.dao.impl.HoaDonDaoImpl;
 import com.dtaq.retail.dao.impl.HoaDonTamFileDaoImpl;
 import com.dtaq.retail.dao.impl.KhachHangDaoImpl;
+import com.dtaq.retail.dao.impl.KhachHangGiaoDichDaoImpl;
+import com.dtaq.retail.dao.impl.KhuyenMaiDaoImpl;
 import com.dtaq.retail.dao.impl.NhaCungCapImpl;
 import com.dtaq.retail.dao.impl.NhanVienDaoImpl;
+import com.dtaq.retail.dao.impl.PhieuDoiDaoImpl;
+import com.dtaq.retail.dao.impl.PhieuTraDaoImpl;
 import com.dtaq.retail.dao.impl.SanPhamImpl;
 import com.dtaq.retail.dao.impl.SanPhamLoiDaoImpl;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.session.CurrentSession;
+import com.dtaq.retail.ui.page.approval.ReturnApprovalsPage;
 import com.dtaq.retail.ui.page.category.CategoriesPage;
 import com.dtaq.retail.ui.page.customer.CustomerListPage;
+import com.dtaq.retail.ui.page.customer.CustomerLookupPage;
 import com.dtaq.retail.ui.page.customer.KhachHangPicker;
 import com.dtaq.retail.ui.page.defective.DefectiveProductsPage;
 import com.dtaq.retail.ui.page.employee.EmployeePage;
 import com.dtaq.retail.ui.page.home.ManagerHomePage;
+import com.dtaq.retail.ui.page.home.ManagerHomePage.ApprovalRow;
 import com.dtaq.retail.ui.page.home.SalesHomePage;
 import com.dtaq.retail.ui.page.invoice.RetailInvoicePage;
+import com.dtaq.retail.ui.page.product.PriceTaxPage;
+import com.dtaq.retail.ui.page.product.ProductLinesPage;
 import com.dtaq.retail.ui.page.product.ProductLookupPage;
 import com.dtaq.retail.ui.page.product.ProductPage;
+import com.dtaq.retail.ui.page.promotion.PromotionsPage;
 import com.dtaq.retail.ui.page.report.LongStockReportPage;
 import com.dtaq.retail.ui.page.report.RevenueStatisticsPage;
 import com.dtaq.retail.ui.shell.AppShellFrame;
@@ -47,13 +66,16 @@ import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.shell.PlaceholderPage;
 import com.dtaq.retail.util.Mailer;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import javax.sql.DataSource;
 import javax.swing.JFrame;
+import javax.swing.SwingWorker;
 
 /** Điều phối việc chuyển đổi giữa màn hình đăng nhập, quên mật khẩu và khung giao diện chính AppShell. */
 public final class AppNavigator {
@@ -126,7 +148,11 @@ public final class AppNavigator {
    * @param nhanVien nhân viên quản lý đang đăng nhập; không được {@code null}
    * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
    * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
-   * @return danh sách trang thật theo thứ tự hiển thị, mỗi {@code PageId} xuất hiện tối đa một lần
+   * @return 9 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
+   *     PageId#REVENUE_STATS}, {@link PageId#LONG_STOCK_REPORT}, {@link PageId#PRODUCT_LINES},
+   *     {@link PageId#DEFECTIVE_PRODUCTS}, {@link PageId#PROMOTIONS}, {@link PageId#EMPLOYEES},
+   *     {@link PageId#RETURN_APPROVALS}, {@link PageId#PRICE_TAX}; mỗi {@code PageId} xuất hiện
+   *     tối đa một lần
    */
   static List<Page> managerPages(
       NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate) {
@@ -135,15 +161,128 @@ public final class AppNavigator {
     Objects.requireNonNull(onNavigate, "onNavigate");
 
     SanPhamDao sanPhamDao = new SanPhamImpl(dataSource);
+    DongSanPhamDao dongSanPhamDao = new DongSanPhamImpl(dataSource);
+    DanhMucSanPhamDao danhMucDao = new DanhMucSanPhamDaoImpl(dataSource);
+    PheDuyetDoiTraController pheDuyet = new PheDuyetDoiTraController(
+        new PhieuTraDaoImpl(dataSource), new PhieuDoiDaoImpl(dataSource),
+        Clock.systemDefaultZone());
+
     ManagerHomePage managerHome = new ManagerHomePage(nhanVien);
     RevenueStatisticsPage revenueStats = new RevenueStatisticsPage();
-    LongStockReportPage longStock = new LongStockReportPage();
-    EmployeePage employees = new EmployeePage(new NhanVienController(new NhanVienDaoImpl(dataSource)));
+    LongStockReportPage longStock = new LongStockReportPage(
+        new BaoCaoTonKhoController(new BaoCaoTonKhoDaoImpl(dataSource)));
+    ProductLinesPage productLines = new ProductLinesPage(
+        new DongSanPhamController(dongSanPhamDao, danhMucDao, dataSource), danhMucDao);
     DefectiveProductsPage defective = new DefectiveProductsPage(
         new SanPhamLoiController(new SanPhamLoiDaoImpl(dataSource), sanPhamDao, dataSource));
+    PromotionsPage promotions = new PromotionsPage(
+        new KhuyenMaiController(new KhuyenMaiDaoImpl(dataSource), dongSanPhamDao, dataSource));
+    EmployeePage employees = new EmployeePage(
+        new NhanVienController(new NhanVienDaoImpl(dataSource), dataSource));
+    ReturnApprovalsPage returnApprovals = new ReturnApprovalsPage(pheDuyet);
+    PriceTaxPage priceTax = new PriceTaxPage(
+        new GiaThueController(dongSanPhamDao), dongSanPhamDao);
     revenueStats.setOnNavigate(onNavigate);
 
-    return List.of(managerHome, revenueStats, longStock, employees, defective);
+    managerHome.setOnApprove(
+        (maPhieu, yKien) -> quyetDinhRoiTaiLai(pheDuyet, managerHome, maPhieu, true, yKien));
+    managerHome.setOnReject(
+        (maPhieu, yKien) -> quyetDinhRoiTaiLai(pheDuyet, managerHome, maPhieu, false, yKien));
+
+    List<Page> pages = List.of(
+        managerHome,
+        revenueStats,
+        longStock,
+        productLines,
+        defective,
+        promotions,
+        employees,
+        returnApprovals,
+        priceTax);
+    taiDanhSachChoDuyet(pheDuyet, managerHome);
+    return pages;
+  }
+
+  /**
+   * Ghi quyết định phê duyệt/từ chối ở luồng nền rồi tải lại danh sách chờ duyệt của trang chủ.
+   * Không để ngoại lệ thoát khỏi luồng nền.
+   */
+  private static void quyetDinhRoiTaiLai(
+      PheDuyetDoiTraController pheDuyet,
+      ManagerHomePage managerHome,
+      String maPhieu,
+      boolean duyet,
+      String yKien) {
+    new SwingWorker<Boolean, Void>() {
+      @Override
+      protected Boolean doInBackground() {
+        return pheDuyet.quyetDinh(maPhieu, duyet, yKien).thanhCong();
+      }
+
+      @Override
+      protected void done() {
+        try {
+          get();
+          taiDanhSachChoDuyet(pheDuyet, managerHome);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          managerHome.showError("Không thể ghi quyết định phê duyệt");
+        } catch (ExecutionException e) {
+          if (e.getCause() instanceof SecurityException) {
+            managerHome.showError("Chỉ Quản lý được phê duyệt yêu cầu đổi trả");
+          } else {
+            managerHome.showError("Không thể ghi quyết định phê duyệt");
+          }
+        } catch (SecurityException e) {
+          managerHome.showError("Chỉ Quản lý được phê duyệt yêu cầu đổi trả");
+        }
+      }
+    }.execute();
+  }
+
+  /**
+   * Tải danh sách phiếu chờ duyệt ở luồng nền và đẩy sang bảng của trang chủ Quản lý.
+   * Không để ngoại lệ thoát khỏi luồng nền.
+   */
+  private static void taiDanhSachChoDuyet(
+      PheDuyetDoiTraController pheDuyet, ManagerHomePage managerHome) {
+    managerHome.showLoading();
+
+    new SwingWorker<List<PhieuDuyet>, Void>() {
+      @Override
+      protected List<PhieuDuyet> doInBackground() {
+        return pheDuyet.danhSachChoDuyet();
+      }
+
+      @Override
+      protected void done() {
+        try {
+          List<ApprovalRow> rows = new ArrayList<>();
+          for (PhieuDuyet phieu : get()) {
+            rows.add(new ApprovalRow(
+                phieu.maPhieu(),
+                phieu.maHDGoc(),
+                phieu.tenKhachHang(),
+                phieu.soDienThoai(),
+                phieu.hoanDuKien() == null ? 0L : phieu.hoanDuKien().longValueExact(),
+                phieu.tenNhanVienLap(),
+                phieu.lyDo() == null ? "" : phieu.lyDo()));
+          }
+          managerHome.renderApprovals(rows);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          managerHome.showError("Không thể tải danh sách phiếu chờ duyệt");
+        } catch (ExecutionException e) {
+          if (e.getCause() instanceof SecurityException) {
+            managerHome.showError("Chỉ Quản lý được phê duyệt yêu cầu đổi trả");
+          } else {
+            managerHome.showError("Không thể tải danh sách phiếu chờ duyệt");
+          }
+        } catch (SecurityException e) {
+          managerHome.showError("Chỉ Quản lý được phê duyệt yêu cầu đổi trả");
+        }
+      }
+    }.execute();
   }
 
   /**
@@ -153,7 +292,11 @@ public final class AppNavigator {
    * @param nhanVien nhân viên bán hàng đang đăng nhập; không được {@code null}
    * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
    * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
-   * @return danh sách trang thật theo thứ tự hiển thị, mỗi {@code PageId} xuất hiện tối đa một lần
+   * @return 9 trang thật theo đúng thứ tự menu: {@link PageId#SALES_HOME}, {@link
+   *     PageId#CUSTOMERS}, {@link PageId#RETAIL_INVOICE}, {@link PageId#PRODUCT_LOOKUP}, {@link
+   *     PageId#CUSTOMER_LOOKUP}, {@link PageId#PRODUCTS}, {@link PageId#PRODUCT_LINES}, {@link
+   *     PageId#CATEGORIES}, {@link PageId#DEFECTIVE_PRODUCTS}; mỗi {@code PageId} xuất hiện tối đa
+   *     một lần
    */
   static List<Page> salesPages(
       NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate) {
@@ -163,6 +306,7 @@ public final class AppNavigator {
 
     SanPhamDao sanPhamDao = new SanPhamImpl(dataSource);
     DongSanPhamDao dongSanPhamDao = new DongSanPhamImpl(dataSource);
+    DanhMucSanPhamDao danhMucDao = new DanhMucSanPhamDaoImpl(dataSource);
     NhaCungCapDao nhaCungCapDao = new NhaCungCapImpl(dataSource);
     KhachHangController khachHangController =
         new KhachHangController(new KhachHangDaoImpl(dataSource), dataSource);
@@ -172,16 +316,26 @@ public final class AppNavigator {
     CustomerListPage customers = new CustomerListPage(khachHangController);
     BanHangController banHang = new BanHangController(
         sanPhamDao,
+        new KhuyenMaiDaoImpl(dataSource),
+        new HoaDonDaoImpl(dataSource),
+        new ChiTietHoaDonDaoImpl(dataSource),
         new HoaDonTamFileDaoImpl(
-            HoaDonTamFileDaoImpl.macDinh(), Clock.systemDefaultZone()));
+            HoaDonTamFileDaoImpl.macDinh(), Clock.systemDefaultZone()),
+        dataSource,
+        Clock.systemDefaultZone());
     RetailInvoicePage invoice =
         new RetailInvoicePage(nhanVien, banHang, new KhachHangPicker(khachHangController));
     ProductLookupPage productLookup =
         new ProductLookupPage(new TraCuuSanPhamController(sanPhamDao, dongSanPhamDao));
+    CustomerLookupPage customerLookup = new CustomerLookupPage(
+        new TraCuuKhachHangController(
+            new KhachHangDaoImpl(dataSource), new KhachHangGiaoDichDaoImpl(dataSource)));
     ProductPage products = new ProductPage(
         new SanPhamController(sanPhamDao, dongSanPhamDao, nhaCungCapDao, dataSource), sanPhamDao);
-    CategoriesPage categories =
-        new CategoriesPage(new DanhMucController(new DanhMucSanPhamDaoImpl(dataSource), dataSource));
+    ProductLinesPage productLines = new ProductLinesPage(
+        new DongSanPhamController(dongSanPhamDao, danhMucDao, dataSource), danhMucDao);
+    CategoriesPage categories = new CategoriesPage(
+        new DanhMucController(danhMucDao, dataSource));
     DefectiveProductsPage defective = new DefectiveProductsPage(
         new SanPhamLoiController(sanPhamLoiDao, sanPhamDao, dataSource));
 
@@ -192,7 +346,9 @@ public final class AppNavigator {
         customers,
         invoice,
         productLookup,
+        customerLookup,
         products,
+        productLines,
         categories,
         defective);
   }

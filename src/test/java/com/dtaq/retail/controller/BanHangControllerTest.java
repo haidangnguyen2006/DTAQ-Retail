@@ -7,20 +7,32 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.dtaq.retail.dao.ChiTietHoaDonDao;
+import com.dtaq.retail.dao.HoaDonDao;
 import com.dtaq.retail.dao.HoaDonTamDao;
+import com.dtaq.retail.dao.KhuyenMaiDao;
 import com.dtaq.retail.dao.SanPhamDao;
+import com.dtaq.retail.entity.ChiTietHoaDon;
 import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
+import com.dtaq.retail.entity.HoaDon;
 import com.dtaq.retail.entity.KhachHang;
+import com.dtaq.retail.entity.KhuyenMai;
+import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhaCungCap;
+import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.entity.SanPham;
 import com.dtaq.retail.entity.TrangThaiSanPham;
+import com.dtaq.retail.exception.DataAccessException;
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -373,6 +385,206 @@ class BanHangControllerTest {
     assertEquals(1, controller.danhSachBanTam("NV-2026-000002").size());
   }
 
+  @Test
+  @DisplayName("hoaDonHienTai: áp khuyến mãi đang hiệu lực cho từng dòng sản phẩm")
+  void khuyenMaiApChoDong() {
+    FakeSanPhamDao sanPhamDao = new FakeSanPhamDao();
+    DongSanPham mayGiat = dong(DSP_1, "Máy giặt", 1000000, "10", true);
+    sanPhamDao.them(may("SP-2026-000001", mayGiat, TrangThaiSanPham.SAN_SANG_BAN));
+    sanPhamDao.them(may("SP-2026-000002", mayGiat, TrangThaiSanPham.SAN_SANG_BAN));
+    FakeKhuyenMaiDao khuyenMaiDao = new FakeKhuyenMaiDao();
+    khuyenMaiDao.them(khuyenMai("KM-2026-000001", "10", true, mayGiat));
+    BanHangController controller = controllerDayDu(sanPhamDao, khuyenMaiDao,
+        new FakeHoaDonDao(), new FakeChiTietHoaDonDao());
+    controller.themDong(DSP_1, 2);
+
+    BanHangController.HoaDonTinh hoaDon = controller.hoaDonHienTai();
+
+    assertEquals(1, hoaDon.dongHang().size());
+    BanHangController.DongGio dongGio = hoaDon.dongHang().getFirst();
+    assertNotNull(dongGio.khuyenMai(), "dòng phải giữ chương trình khuyến mãi đã áp");
+    assertTien(10, dongGio.tyLeGiam());
+    assertTien(200000, dongGio.tienKhuyenMai());
+    assertTien(200000, hoaDon.tongKhuyenMai());
+    assertTien(1800000, hoaDon.tongTruocThue());
+    assertTien(180000, hoaDon.tongThue());
+    assertTien(1980000, hoaDon.tongThanhToan());
+  }
+
+  @Test
+  @DisplayName("hoaDonHienTai: không có khuyến mãi hiệu lực thì tiền giảm bằng 0")
+  void khongCoKhuyenMaiThiGiamBangKhong() {
+    FakeSanPhamDao sanPhamDao = new FakeSanPhamDao();
+    DongSanPham mayGiat = dong(DSP_1, "Máy giặt", 1000000, "10", true);
+    sanPhamDao.them(may("SP-2026-000001", mayGiat, TrangThaiSanPham.SAN_SANG_BAN));
+    sanPhamDao.them(may("SP-2026-000002", mayGiat, TrangThaiSanPham.SAN_SANG_BAN));
+    BanHangController controller = controllerDayDu(sanPhamDao, new FakeKhuyenMaiDao(),
+        new FakeHoaDonDao(), new FakeChiTietHoaDonDao());
+    controller.themDong(DSP_1, 2);
+
+    BanHangController.HoaDonTinh hoaDon = controller.hoaDonHienTai();
+
+    BanHangController.DongGio dongGio = hoaDon.dongHang().getFirst();
+    assertNull(dongGio.khuyenMai());
+    assertTien(0, dongGio.tienKhuyenMai());
+    assertTien(0, hoaDon.tongKhuyenMai());
+    assertTien(2000000, hoaDon.tongTruocThue());
+    assertTien(200000, hoaDon.tongThue());
+    assertTien(2200000, hoaDon.tongThanhToan());
+  }
+
+  @Test
+  @DisplayName("thanhToan: từ chối khi tiền khách đưa chưa đủ và giữ nguyên giỏ hàng")
+  void thanhToanThieuTienBiTuChoi() {
+    FakeSanPhamDao sanPhamDao = new FakeSanPhamDao();
+    DongSanPham mayGiat = dong(DSP_1, "Máy giặt", 1000000, "10", true);
+    sanPhamDao.them(may("SP-2026-000001", mayGiat, TrangThaiSanPham.SAN_SANG_BAN));
+    FakeHoaDonDao hoaDonDao = new FakeHoaDonDao();
+    BanHangController controller = controllerDayDu(sanPhamDao, new FakeKhuyenMaiDao(),
+        hoaDonDao, new FakeChiTietHoaDonDao());
+    controller.themDong(DSP_1, 1);
+
+    BanHangController.KetQuaThanhToan ketQua =
+        controller.thanhToan(nhanVien(), khachHang(), 100000);
+
+    assertFalse(ketQua.thanhCong());
+    assertTrue(ketQua.thongBao().contains("chưa đủ"));
+    assertEquals(0, hoaDonDao.soLanGoi(), "không được ghi hóa đơn khi thiếu tiền");
+    assertEquals(1, controller.hoaDonHienTai().dongHang().size(), "giỏ hàng phải được giữ nguyên");
+  }
+
+  @Test
+  @DisplayName("thanhToan: máy vừa bị bán thì trả về thất bại và giữ nguyên giỏ hàng")
+  void thanhToanMayVuaBanBiTuChoi() {
+    FakeSanPhamDao sanPhamDao = new FakeSanPhamDao();
+    sanPhamDao.tuChoiDanhDau = true;
+    DongSanPham mayGiat = dong(DSP_1, "Máy giặt", 1000000, "10", true);
+    sanPhamDao.them(may("SP-2026-000001", mayGiat, TrangThaiSanPham.SAN_SANG_BAN));
+    FakeHoaDonDao hoaDonDao = new FakeHoaDonDao();
+    BanHangController controller = controllerDayDu(sanPhamDao, new FakeKhuyenMaiDao(),
+        hoaDonDao, new FakeChiTietHoaDonDao());
+    controller.themDong(DSP_1, 1);
+
+    BanHangController.KetQuaThanhToan ketQua =
+        controller.thanhToan(nhanVien(), khachHang(), 5000000);
+
+    assertFalse(ketQua.thanhCong());
+    assertTrue(ketQua.thongBao().contains("vừa được bán"));
+    assertEquals(1, hoaDonDao.soLanGoi());
+    assertEquals(1, controller.hoaDonHienTai().dongHang().size(), "giỏ hàng phải được giữ nguyên");
+  }
+
+  @Test
+  @DisplayName("thanhToan: lỗi khi ghi chi tiết không làm mất giỏ hàng")
+  void loiKhiGhiChiTietKhongLamMatGio() {
+    FakeSanPhamDao sanPhamDao = new FakeSanPhamDao();
+    DongSanPham mayGiat = dong(DSP_1, "Máy giặt", 1000000, "10", true);
+    sanPhamDao.them(may("SP-2026-000001", mayGiat, TrangThaiSanPham.SAN_SANG_BAN));
+    sanPhamDao.them(may("SP-2026-000002", mayGiat, TrangThaiSanPham.SAN_SANG_BAN));
+    BanHangController controller = controllerDayDu(sanPhamDao, new FakeKhuyenMaiDao(),
+        new FakeHoaDonDao(), new FakeChiTietHoaDonDao(2));
+    controller.themDong(DSP_1, 2);
+
+    assertThrows(DataAccessException.class,
+        () -> controller.thanhToan(nhanVien(), khachHang(), 5000000));
+
+    BanHangController.HoaDonTinh conLai = controller.hoaDonHienTai();
+    assertEquals(1, conLai.dongHang().size(), "giỏ hàng phải được giữ nguyên");
+    assertEquals(2, conLai.dongHang().getFirst().soLuong());
+  }
+
+  private static BanHangController controllerDayDu(
+      FakeSanPhamDao sanPhamDao,
+      FakeKhuyenMaiDao khuyenMaiDao,
+      FakeHoaDonDao hoaDonDao,
+      FakeChiTietHoaDonDao chiTietHoaDonDao) {
+    return new BanHangController(
+        sanPhamDao,
+        khuyenMaiDao,
+        hoaDonDao,
+        chiTietHoaDonDao,
+        new FakeHoaDonTamDao(),
+        dataSourceGia(),
+        Clock.fixed(
+            LocalDateTime.of(2026, 6, 1, 9, 0).atZone(ZoneId.systemDefault()).toInstant(),
+            ZoneId.systemDefault()));
+  }
+
+  /**
+   * Nguồn dữ liệu giả chỉ đủ để {@link com.dtaq.retail.util.MaGenerator} sinh mã và để bộ điều khiển
+   * điều khiển giao dịch; không truy vấn cơ sở dữ liệu thật.
+   */
+  private static javax.sql.DataSource dataSourceGia() {
+    ClassLoader lop = BanHangControllerTest.class.getClassLoader();
+    java.sql.Connection ketNoi = (java.sql.Connection) java.lang.reflect.Proxy.newProxyInstance(
+        lop,
+        new Class<?>[] {java.sql.Connection.class},
+        (proxy, method, args) -> switch (method.getName()) {
+          case "getAutoCommit" -> true;
+          case "isClosed" -> false;
+          case "prepareStatement" -> preparedStatementGia();
+          case "toString" -> "FakeConnection";
+          case "hashCode" -> System.identityHashCode(proxy);
+          case "equals" -> proxy == args[0];
+          default -> null;
+        });
+    return (javax.sql.DataSource) java.lang.reflect.Proxy.newProxyInstance(
+        lop,
+        new Class<?>[] {javax.sql.DataSource.class},
+        (proxy, method, args) -> switch (method.getName()) {
+          case "getConnection" -> ketNoi;
+          case "toString" -> "FakeDataSource";
+          case "hashCode" -> System.identityHashCode(proxy);
+          case "equals" -> proxy == args[0];
+          default -> null;
+        });
+  }
+
+  private static java.sql.PreparedStatement preparedStatementGia() {
+    ClassLoader lop = BanHangControllerTest.class.getClassLoader();
+    java.sql.ResultSet ketQua = (java.sql.ResultSet) java.lang.reflect.Proxy.newProxyInstance(
+        lop,
+        new Class<?>[] {java.sql.ResultSet.class},
+        (proxy, method, args) -> switch (method.getName()) {
+          case "next" -> true;
+          case "getLong" -> 0L;
+          case "toString" -> "FakeResultSet";
+          default -> null;
+        });
+    return (java.sql.PreparedStatement) java.lang.reflect.Proxy.newProxyInstance(
+        lop,
+        new Class<?>[] {java.sql.PreparedStatement.class},
+        (proxy, method, args) -> switch (method.getName()) {
+          case "executeQuery" -> ketQua;
+          case "executeUpdate" -> 1;
+          case "toString" -> "FakePreparedStatement";
+          default -> null;
+        });
+  }
+
+  private static NhanVien nhanVien() {
+    return new NhanVien(
+        "NVBANHANG-2026-001", "Nguyễn Văn A", "0901234567", "a@dtaq.vn",
+        LocalDate.of(2026, 1, 1), "nva", "hash", LoaiQuyen.NHAN_VIEN_BAN_HANG, true);
+  }
+
+  private static KhachHang khachHang() {
+    return new KhachHang("KH-2026-000001", "Trần Thị B", "0907654321", "Cần Thơ");
+  }
+
+  private static KhuyenMai khuyenMai(
+      String maKM, String tyLeGiam, boolean dangApDung, DongSanPham dongSanPham) {
+    return new KhuyenMai(
+        maKM,
+        "Khuyến mãi " + tyLeGiam + "%",
+        LocalDate.of(2026, 1, 1),
+        LocalDate.of(2026, 12, 31),
+        new BigDecimal(tyLeGiam),
+        "Giảm " + tyLeGiam + "%",
+        dangApDung,
+        dongSanPham);
+  }
+
   private static void assertTien(long mongDoi, BigDecimal thucTe) {
     assertNotNull(thucTe);
     assertEquals(0, BigDecimal.valueOf(mongDoi).compareTo(thucTe),
@@ -415,6 +627,9 @@ class BanHangControllerTest {
   private static final class FakeSanPhamDao implements SanPhamDao {
 
     private final List<SanPham> kho = new ArrayList<>();
+    private final Map<String, Boolean> daBan = new HashMap<>();
+    boolean tuChoiDanhDau;
+    private int soLanDanhDau;
 
     void them(SanPham sanPham) {
       kho.add(sanPham);
@@ -470,6 +685,152 @@ class BanHangControllerTest {
               cu.ngayNhapKhoBanDau(), trangThai, cu.soLanDoiTra(), cu.soLanSua()));
         }
       }
+    }
+
+    @Override
+    public boolean danhDauDaBan(Connection ketNoi, String soSerial) {
+      soLanDanhDau++;
+      if (tuChoiDanhDau) {
+        return false;
+      }
+      daBan.put(soSerial, true);
+      updateTrangThai(soSerial, TrangThaiSanPham.DA_BAN);
+      return true;
+    }
+
+    boolean daBan(String soSerial) {
+      return Boolean.TRUE.equals(daBan.get(soSerial));
+    }
+
+    int soLanDanhDau() {
+      return soLanDanhDau;
+    }
+  }
+
+  /** DAO khuyến mãi trong bộ nhớ, chỉ hỗ trợ tra cứu hiệu lực. */
+  private static final class FakeKhuyenMaiDao implements KhuyenMaiDao {
+
+    private final Map<String, KhuyenMai> theoDong = new LinkedHashMap<>();
+
+    void them(KhuyenMai khuyenMai) {
+      theoDong.put(khuyenMai.dongSanPham().maDongSP(), khuyenMai);
+    }
+
+    @Override
+    public Optional<KhuyenMai> findHieuLuc(String maDongSP, LocalDate ngay) {
+      KhuyenMai khuyenMai = maDongSP == null ? null : theoDong.get(maDongSP);
+      if (khuyenMai == null || !khuyenMai.dangApDung()) {
+        return Optional.empty();
+      }
+      if (ngay.isBefore(khuyenMai.ngayBatDau()) || ngay.isAfter(khuyenMai.ngayKetThuc())) {
+        return Optional.empty();
+      }
+      return Optional.of(khuyenMai);
+    }
+
+    @Override
+    public Optional<KhuyenMai> findById(String maKM) {
+      return theoDong.values().stream()
+          .filter(khuyenMai -> khuyenMai.maKM().equals(maKM))
+          .findFirst();
+    }
+
+    @Override
+    public List<KhuyenMai> findAll() {
+      return List.copyOf(theoDong.values());
+    }
+
+    @Override
+    public List<KhuyenMai> findByDongSanPham(String maDongSP) {
+      KhuyenMai khuyenMai = theoDong.get(maDongSP);
+      return khuyenMai == null ? List.of() : List.of(khuyenMai);
+    }
+
+    @Override
+    public void insert(KhuyenMai khuyenMai) {
+      throw new UnsupportedOperationException("Không dùng trong kiểm thử");
+    }
+
+    @Override
+    public void update(KhuyenMai khuyenMai) {
+      throw new UnsupportedOperationException("Không dùng trong kiểm thử");
+    }
+
+    @Override
+    public void updateTrangThaiApDung(String maKM, boolean dangApDung) {
+      throw new UnsupportedOperationException("Không dùng trong kiểm thử");
+    }
+
+    @Override
+    public boolean existsTrungMa(String maKM) {
+      return false;
+    }
+
+    @Override
+    public boolean existsChongLan(
+        String maDongSP, LocalDate ngayBatDau, LocalDate ngayKetThuc, String excludeMaKM) {
+      return false;
+    }
+  }
+
+  /** DAO hóa đơn trong bộ nhớ, đếm số lần ghi để kiểm tra giao dịch. */
+  private static final class FakeHoaDonDao implements HoaDonDao {
+
+    private final List<HoaDon> kho = new ArrayList<>();
+    private int soLanGoi;
+
+    @Override
+    public void insert(Connection ketNoi, HoaDon hoaDon) {
+      soLanGoi++;
+      kho.add(hoaDon);
+    }
+
+    @Override
+    public Optional<HoaDon> findById(String maHD) {
+      return kho.stream().filter(hoaDon -> hoaDon.maHD().equals(maHD)).findFirst();
+    }
+
+    @Override
+    public List<HoaDon> findDaThanhToanTrongKy(LocalDate tuNgay, LocalDate denNgay) {
+      return List.of();
+    }
+
+    int soLanGoi() {
+      return soLanGoi;
+    }
+  }
+
+  /** DAO chi tiết hóa đơn trong bộ nhớ, có thể giả lập lỗi ở lần ghi thứ N. */
+  private static final class FakeChiTietHoaDonDao implements ChiTietHoaDonDao {
+
+    private final List<ChiTietHoaDon> kho = new ArrayList<>();
+    private final int loiTaiLanThu;
+
+    FakeChiTietHoaDonDao() {
+      this(0);
+    }
+
+    FakeChiTietHoaDonDao(int loiTaiLanThu) {
+      this.loiTaiLanThu = loiTaiLanThu;
+    }
+
+    @Override
+    public void insert(Connection ketNoi, ChiTietHoaDon chiTiet) {
+      if (loiTaiLanThu > 0 && kho.size() + 1 == loiTaiLanThu) {
+        throw new DataAccessException("Lỗi ghi chi tiết giả lập");
+      }
+      kho.add(chiTiet);
+    }
+
+    @Override
+    public List<ChiTietHoaDon> findByHoaDon(String maHD) {
+      return kho.stream()
+          .filter(chiTiet -> chiTiet.hoaDon().maHD().equals(maHD))
+          .toList();
+    }
+
+    int soDong() {
+      return kho.size();
     }
   }
 
