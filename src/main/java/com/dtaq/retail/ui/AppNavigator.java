@@ -3,6 +3,8 @@ package com.dtaq.retail.ui;
 import com.dtaq.retail.controller.AuthController;
 import com.dtaq.retail.controller.BanHangController;
 import com.dtaq.retail.controller.DanhMucController;
+import com.dtaq.retail.controller.DongSanPhamController;
+import com.dtaq.retail.controller.GiaThueController;
 import com.dtaq.retail.controller.KhachHangController;
 import com.dtaq.retail.controller.NhanVienController;
 import com.dtaq.retail.controller.PasswordResetController;
@@ -139,7 +141,6 @@ public final class AppNavigator {
     EmployeePage employees = new EmployeePage(new NhanVienController(new NhanVienDaoImpl(dataSource)));
     DefectiveProductsPage defective = new DefectiveProductsPage(
         new SanPhamLoiController(new SanPhamLoiDaoImpl(dataSource), sanPhamDao, dataSource));
-
     revenueStats.setOnNavigate(onNavigate);
 
     return List.of(managerHome, revenueStats, longStock, employees, defective);
@@ -186,7 +187,14 @@ public final class AppNavigator {
 
     salesHome.setOnNavigate(onNavigate);
 
-    return List.of(salesHome, customers, invoice, productLookup, products, categories, defective);
+    return List.of(
+        salesHome,
+        customers,
+        invoice,
+        productLookup,
+        products,
+        categories,
+        defective);
   }
 
   private static Set<PageId> idsOf(List<Page> pages) {

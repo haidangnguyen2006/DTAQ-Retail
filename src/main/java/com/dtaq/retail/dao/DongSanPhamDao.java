@@ -41,6 +41,15 @@ public interface DongSanPhamDao {
   List<DongSanPham> findByDanhMuc(String maDanhMuc);
 
   /**
+   * Cập nhật toàn bộ thông tin của một dòng sản phẩm đã có.
+   *
+   * @param dongSanPham dòng sản phẩm mới sau khi cập nhật; không được {@code null}
+   */
+  default void update(DongSanPham dongSanPham) {
+    throw new UnsupportedOperationException("Cập nhật dòng sản phẩm chưa được triển khai");
+  }
+
+  /**
    * Cập nhật số lượng tồn hiện tại của dòng sản phẩm.
    *
    * @param maDongSP mã dòng sản phẩm
@@ -55,6 +64,17 @@ public interface DongSanPhamDao {
    * @param trangThaiKinhDoanh trạng thái kinh doanh mới
    */
   void updateTrangThaiKinhDoanh(String maDongSP, boolean trangThaiKinhDoanh);
+
+  /**
+   * Cập nhật giá bán trước thuế và thuế suất của một dòng sản phẩm.
+   *
+   * @param maDongSP mã dòng sản phẩm cần cập nhật
+   * @param giaBanTruocThue giá trị mới
+   * @param thue thuế mới
+   */
+  default void updateGiaThue(String maDongSP, java.math.BigDecimal giaBanTruocThue, java.math.BigDecimal thue) {
+    throw new UnsupportedOperationException("Cập nhật giá và thuế chưa được triển khai");
+  }
 
   /**
    * Tìm kiếm dòng sản phẩm theo từ khóa.
