@@ -3,6 +3,7 @@ package com.dtaq.retail.controller;
 import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.LoaiQuyen;
+import com.dtaq.retail.session.CurrentSession;
 import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.Optional;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 public final class GiaThueController {
 
   private static final Logger log = LoggerFactory.getLogger(GiaThueController.class);
+  private static final String LOI_QUYEN = "Chỉ quản lý mới được cập nhật giá bán và thuế suất";
 
   private final DongSanPhamDao dongSanPhamDao;
 
@@ -25,13 +27,10 @@ public final class GiaThueController {
   public KetQua<CapNhatGiaThue> capNhat(
       String maDongSP,
       BigDecimal giaMoi,
-      BigDecimal thueMoi,
-      LoaiQuyen nguoiThucHien) {
+      BigDecimal thueMoi) {
+    yeuCauQuanLy();
     if (maDongSP == null || maDongSP.isBlank()) {
       return KetQua.loi("Mã dòng sản phẩm không được để trống");
-    }
-    if (nguoiThucHien != LoaiQuyen.NHAN_VIEN_QUAN_LY) {
-      return KetQua.loi("Chỉ quản lý mới được cập nhật giá bán và thuế suất");
     }
     if (giaMoi == null || giaMoi.compareTo(BigDecimal.ZERO) <= 0) {
       return KetQua.loi("Giá bán trước thuế không hợp lệ");
@@ -62,9 +61,18 @@ public final class GiaThueController {
   public KetQua<CapNhatGiaThue> capNhatGiaThue(
       String maDongSP,
       BigDecimal giaMoi,
-      BigDecimal thueMoi,
-      LoaiQuyen nguoiThucHien) {
-    return capNhat(maDongSP, giaMoi, thueMoi, nguoiThucHien);
+      BigDecimal thueMoi) {
+    return capNhat(maDongSP, giaMoi, thueMoi);
+  }
+
+  /** Bắt buộc phiên đăng nhập hiện tại là Nhân viên quản lý (UC019). */
+  private static void yeuCauQuanLy() {
+    boolean laQuanLy = CurrentSession.get()
+        .map(nhanVien -> nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY)
+        .orElse(false);
+    if (!laQuanLy) {
+      throw new SecurityException(LOI_QUYEN);
+    }
   }
 
   public record CapNhatGiaThue(

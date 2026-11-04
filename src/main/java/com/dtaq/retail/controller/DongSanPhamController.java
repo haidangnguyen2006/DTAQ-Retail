@@ -4,6 +4,7 @@ import com.dtaq.retail.dao.DanhMucSanPhamDao;
 import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
+import com.dtaq.retail.exception.DataAccessException;
 import com.dtaq.retail.util.MaGenerator;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -189,20 +190,65 @@ public final class DongSanPhamController {
     }
   }
 
+  /**
+   * Ngừng kinh doanh một dòng sản phẩm (UC009).
+   *
+   * <p>Chỉ cập nhật trạng thái kinh doanh; không thay đổi giá bán, thuế suất hay số lượng tồn.
+   *
+   * @param maDongSP mã dòng sản phẩm cần ngừng kinh doanh
+   * @return kết quả kèm dòng sản phẩm sau khi cập nhật
+   */
   public KetQua<DongSanPham> ngungKinhDoanh(String maDongSP) {
-    Optional<DongSanPham> dong = timTheoMa(maDongSP);
+    return datTrangThaiKinhDoanh(maDongSP, false);
+  }
+
+  /**
+   * Cho một dòng sản phẩm đã ngừng kinh doanh trở lại kinh doanh (UC009).
+   *
+   * <p>Chỉ cập nhật trạng thái kinh doanh; không thay đổi giá bán, thuế suất hay số lượng tồn.
+   *
+   * @param maDongSP mã dòng sản phẩm cần kinh doanh lại
+   * @return kết quả kèm dòng sản phẩm sau khi cập nhật
+   */
+  public KetQua<DongSanPham> kinhDoanhLai(String maDongSP) {
+    return datTrangThaiKinhDoanh(maDongSP, true);
+  }
+
+  private KetQua<DongSanPham> datTrangThaiKinhDoanh(String maDongSP, boolean trangThai) {
+    if (maDongSP == null || maDongSP.isBlank()) {
+      return KetQua.loi("Mã dòng sản phẩm không được để trống");
+    }
+    Optional<DongSanPham> dong = dongSanPhamDao.findById(maDongSP.trim());
     if (dong.isEmpty()) {
       return KetQua.loi("Dòng sản phẩm không tồn tại");
     }
     DongSanPham hienTai = dong.get();
-    return capNhat(
+    if (hienTai.trangThaiKinhDoanh() == trangThai) {
+      return KetQua.thanhCong(
+          hienTai,
+          trangThai ? "Dòng sản phẩm đang kinh doanh" : "Dòng sản phẩm đã ngừng kinh doanh");
+    }
+    try {
+      dongSanPhamDao.updateTrangThaiKinhDoanh(hienTai.maDongSP(), trangThai);
+    } catch (DataAccessException e) {
+      log.warn("Không thể cập nhật trạng thái kinh doanh của dòng sản phẩm {}: {}",
+          hienTai.maDongSP(), e.getMessage(), e);
+      return KetQua.loi("Không thể cập nhật trạng thái kinh doanh của dòng sản phẩm");
+    }
+    DongSanPham capNhat = new DongSanPham(
         hienTai.maDongSP(),
         hienTai.tenDongSP(),
-        hienTai.danhMucSanPham().maDanhMuc(),
+        hienTai.danhMucSanPham(),
         hienTai.donViTinh(),
-        hienTai.donGiaBanTruocThue(),
+        hienTai.soLuongTon(),
         hienTai.thue(),
-        false);
+        hienTai.donGiaBanTruocThue(),
+        trangThai,
+        hienTai.ngayNhapKho(),
+        hienTai.ngayCapNhapCuoi());
+    return KetQua.thanhCong(
+        capNhat,
+        trangThai ? "Kinh doanh lại dòng sản phẩm thành công" : "Ngừng kinh doanh dòng sản phẩm thành công");
   }
 
   private String sinhMaDongMoi() {

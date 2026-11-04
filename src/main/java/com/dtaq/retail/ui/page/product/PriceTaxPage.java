@@ -3,8 +3,8 @@ package com.dtaq.retail.ui.page.product;
 import com.dtaq.retail.controller.GiaThueController;
 import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.entity.DongSanPham;
-import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.ui.component.Card;
+import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
@@ -125,28 +125,41 @@ public final class PriceTaxPage implements Page {
       return;
     }
 
-    var ketQua = controller.capNhat(
-        maDongSP,
-        BigDecimal.valueOf(priceField.getMoney()),
-        BigDecimal.valueOf(taxField.getMoney()),
-        LoaiQuyen.NHAN_VIEN_QUAN_LY);
-    if (ketQua.thanhCong()) {
-      clearErrors();
-      productBox.setSelectedIndex(-1);
-      priceField.setText("");
-      taxField.setText("");
-      taiDanhSach();
-      return;
+    ConfirmDialog.confirm(
+        view,
+        "Xác nhận cập nhật giá và thuế",
+        "Cập nhật dòng " + maDongSP + " thành giá " + priceField.getText()
+            + " và thuế " + taxField.getText() + "%?",
+        "Cập nhật",
+        () -> thucHienCapNhat(maDongSP));
+  }
+
+  private void thucHienCapNhat(String maDongSP) {
+    try {
+      var ketQua = controller.capNhat(
+          maDongSP,
+          BigDecimal.valueOf(priceField.getMoney()),
+          BigDecimal.valueOf(taxField.getMoney()));
+      if (ketQua.thanhCong()) {
+        clearErrors();
+        productBox.setSelectedIndex(-1);
+        priceField.setText("");
+        taxField.setText("");
+        taiDanhSach();
+        return;
+      }
+      if (ketQua.thongBao().toLowerCase().contains("giá bán")) {
+        priceField.setError(ketQua.thongBao());
+        return;
+      }
+      if (ketQua.thongBao().toLowerCase().contains("thuế")) {
+        taxField.setError(ketQua.thongBao());
+        return;
+      }
+      productField.setError(ketQua.thongBao());
+    } catch (SecurityException e) {
+      productField.setError(e.getMessage());
     }
-    if (ketQua.thongBao().toLowerCase().contains("giá bán")) {
-      priceField.setError(ketQua.thongBao());
-      return;
-    }
-    if (ketQua.thongBao().toLowerCase().contains("thuế")) {
-      taxField.setError(ketQua.thongBao());
-      return;
-    }
-    productField.setError(ketQua.thongBao());
   }
 
   private void clearErrors() {

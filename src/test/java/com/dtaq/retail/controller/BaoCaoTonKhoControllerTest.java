@@ -2,12 +2,16 @@ package com.dtaq.retail.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.dtaq.retail.dao.BaoCaoTonKhoDao;
 import com.dtaq.retail.dao.BaoCaoTonKhoDao.DongTonLau;
+import com.dtaq.retail.entity.LoaiQuyen;
+import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.entity.TrangThaiSanPham;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.session.CurrentSession;
 import java.io.File;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -15,6 +19,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,8 +35,47 @@ class BaoCaoTonKhoControllerTest {
 
   @BeforeEach
   void setUp() {
+    CurrentSession.set(nhanVien(LoaiQuyen.NHAN_VIEN_QUAN_LY));
     dao = new FakeBaoCaoTonKhoDao();
     controller = new BaoCaoTonKhoController(dao);
+  }
+
+  @AfterEach
+  void dongPhien() {
+    CurrentSession.clear();
+  }
+
+  @Test
+  @DisplayName("Nhân viên bán hàng không được xem báo cáo tồn kho")
+  void khongPhaiQuanLyThiChanXemBaoCao() {
+    CurrentSession.set(nhanVien(LoaiQuyen.NHAN_VIEN_BAN_HANG));
+
+    assertThrows(SecurityException.class, () -> controller.xemBaoCao(30, true));
+    assertEquals(0, dao.soLanTruyVan);
+  }
+
+  @Test
+  @DisplayName("Nhân viên bán hàng không được xuất Excel báo cáo tồn kho")
+  void khongPhaiQuanLyThiChanXuatExcel() {
+    CurrentSession.set(nhanVien(LoaiQuyen.NHAN_VIEN_BAN_HANG));
+    File file = tempDir.resolve("bi-chan.xlsx").toFile();
+
+    assertThrows(SecurityException.class,
+        () -> controller.xuatExcel(file, List.of(dong("S-1", "DSP-1", 90))));
+    assertFalse(file.exists());
+  }
+
+  private static NhanVien nhanVien(LoaiQuyen loaiQuyen) {
+    return new NhanVien(
+        "NVQUANLY-TEST-001",
+        "Nguyễn Quản Lý",
+        "0900000001",
+        "quanly.test@dtaq.local",
+        LocalDate.of(2026, 1, 1),
+        "quanly.test",
+        "matkhau-test",
+        loaiQuyen,
+        true);
   }
 
   @Test
