@@ -51,11 +51,20 @@ public final class DongSanPhamImpl implements DongSanPhamDao {
           + " \"ngayCapNhapCuoi\")"
           + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
+  private static final String UPDATE_DONG_SAN_PHAM =
+      "UPDATE \"DongSanPham\" SET \"tenDongSP\" = ?, \"maDanhMuc\" = ?, \"donViTinh\" = ?, \"thue\" = ?,"
+          + " \"donGiaBanTruocThue\" = ?, \"trangThaiKinhDoanh\" = ?, \"ngayCapNhapCuoi\" = CURRENT_DATE"
+          + " WHERE \"maDongSP\" = ?";
+
   private static final String UPDATE_SO_LUONG_TON =
       "UPDATE \"DongSanPham\" SET \"soLuongTon\" = ? WHERE \"maDongSP\" = ?";
 
   private static final String UPDATE_TRANG_THAI_KINH_DOANH =
       "UPDATE \"DongSanPham\" SET \"trangThaiKinhDoanh\" = ? WHERE \"maDongSP\" = ?";
+
+  private static final String UPDATE_GIA_THUE =
+      "UPDATE \"DongSanPham\" SET \"donGiaBanTruocThue\" = ?, \"thue\" = ?, \"ngayCapNhapCuoi\" = CURRENT_DATE"
+          + " WHERE \"maDongSP\" = ?";
 
   private final DataSource dataSource;
 
@@ -150,6 +159,27 @@ public final class DongSanPhamImpl implements DongSanPhamDao {
   }
 
   @Override
+  public void update(DongSanPham dongSanPham) {
+    Objects.requireNonNull(dongSanPham, "dongSanPham");
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(UPDATE_DONG_SAN_PHAM)) {
+      statement.setString(1, dongSanPham.tenDongSP());
+      statement.setString(2, dongSanPham.danhMucSanPham().maDanhMuc());
+      statement.setString(3, dongSanPham.donViTinh());
+      statement.setBigDecimal(4, dongSanPham.thue());
+      statement.setBigDecimal(5, dongSanPham.donGiaBanTruocThue());
+      statement.setBoolean(6, dongSanPham.trangThaiKinhDoanh());
+      statement.setString(7, dongSanPham.maDongSP());
+      int affected = statement.executeUpdate();
+      if (affected != 1) {
+        throw new DataAccessException("Không thể cập nhật dòng sản phẩm " + dongSanPham.maDongSP());
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể cập nhật dòng sản phẩm " + dongSanPham.maDongSP(), e);
+    }
+  }
+
+  @Override
   public void updateSoLuongTon(String maDongSP, int soLuongTon) {
     Objects.requireNonNull(maDongSP, "maDongSP");
     try (Connection connection = dataSource.getConnection();
@@ -180,6 +210,25 @@ public final class DongSanPhamImpl implements DongSanPhamDao {
     } catch (SQLException e) {
       throw new DataAccessException(
           "Không thể cập nhật trạng thái kinh doanh của dòng sản phẩm " + maDongSP, e);
+    }
+  }
+
+  @Override
+  public void updateGiaThue(String maDongSP, BigDecimal giaBanTruocThue, BigDecimal thue) {
+    Objects.requireNonNull(maDongSP, "maDongSP");
+    Objects.requireNonNull(giaBanTruocThue, "giaBanTruocThue");
+    Objects.requireNonNull(thue, "thue");
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(UPDATE_GIA_THUE)) {
+      statement.setBigDecimal(1, giaBanTruocThue);
+      statement.setBigDecimal(2, thue);
+      statement.setString(3, maDongSP);
+      int affected = statement.executeUpdate();
+      if (affected != 1) {
+        throw new DataAccessException("Không thể cập nhật giá và thuế của dòng sản phẩm " + maDongSP);
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể cập nhật giá và thuế của dòng sản phẩm " + maDongSP, e);
     }
   }
 

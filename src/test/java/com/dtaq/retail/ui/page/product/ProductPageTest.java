@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.dtaq.retail.controller.SanPhamController;
+import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.dao.NhaCungCapDao;
 import com.dtaq.retail.dao.SanPhamDao;
@@ -40,6 +41,15 @@ class ProductPageTest {
     assertEquals("Quản lý", page.section());
     assertFalse(page.scrollable());
     assertNotNull(page.view());
+  }
+
+  @Test
+  @DisplayName("Hiển thị danh mục dạng văn bản đọc được")
+  void formatDanhMucDisplay_hienThiDocDuoc() {
+    DanhMucSanPham danhMuc = new DanhMucSanPham("DM-2026-000001", "Điện tử gia dụng", "Máy giặt mini");
+
+    assertEquals("DM-2026-000001 — Điện tử gia dụng — Máy giặt mini",
+        ProductLinesPage.formatDanhMucDisplay(danhMuc));
   }
 
   private static final class FakeSanPhamDao implements SanPhamDao {
