@@ -202,7 +202,12 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - Đặc tả Ch.3 §IV ghi “Nhân viên bán hàng” cho cả bốn UC.
 - Mô tả tác nhân Ch.3 §II giao sản phẩm/dòng sản phẩm/danh mục/sản phẩm lỗi cho **Nhân viên quản lý**.
 - Ch.1 §II.1.b lại giao “Quản lý thông tin sản phẩm”, “Quản lý danh mục loại sản phẩm” cho **Nhân viên bán hàng**.
-- **Trạng thái:** mâu thuẫn ba chiều; cần quyết định trước khi phân quyền.
+- **Trạng thái:** mâu thuẫn ba chiều; **đã giải quyết một phần ngày 2026-11-04** (UC009), UC008/UC010/UC011 vẫn mở.
+- **Quyết định (chốt 2026-11-04, chủ dự án):** **Nhân viên bán hàng quản lý dòng sản phẩm (UC009)**.
+  - Tác nhân UC009 = **Nhân viên bán hàng**; **không** áp dụng kiểm quyền chỉ-Quản-lý cho `DongSanPhamController`/`ProductLinesPage`.
+  - Trang "Quản lý dòng sản phẩm" vẫn hiển thị cho cả hai vai trò như hiện tại (menu Quản lý và menu Bán hàng); quyết định này không thu hẹp quyền của Nhân viên quản lý.
+  - **UC008, UC010, UC011 vẫn chưa chốt** tác nhân và tiếp tục không có kiểm quyền chỉ-Quản-lý.
+  - DOCX **không bị sửa**; quyết định chỉ ghi tại tài liệu dẫn xuất này.
 
 ### C-04 — Khuyến mãi vừa ngoài phạm vi vừa có use case
 
@@ -316,7 +321,7 @@ Bảng dưới đây chỉ nối các mã đã được lập ở tài liệu n�
 |---|---|---|
 | C-01 | — | — |
 | C-02 | — | — |
-| C-03 | G-09 | BR-C09 |
+| C-03 (UC009 đã chốt 2026-11-04; UC008/UC010/UC011 còn mở) | G-09 | BR-C09 |
 | C-04 (đã giải quyết phạm vi 2026-10-24) | — | BR-C08 |
 | C-05 | G-02 | — |
 | C-06 | G-05 | — |

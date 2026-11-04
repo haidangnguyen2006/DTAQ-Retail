@@ -142,6 +142,7 @@ Kèm rà soát UC001/UC002 (phiên, tài khoản khóa, thông báo tiếng Vi�
 | **Thời hạn đổi/trả** | ✅ chốt 2026-10-25 | `return.window.days` để trống = không chặn |
 | **UC014 "còn tồn"** | ✅ chốt 2026-10-25 | Loại 3 trạng thái đã rời kho; prefill 60; checkbox lọc |
 | **Chồng lấn khuyến mãi** | ✅ chốt 2026-10-25 | Chỉ chặn khi cả hai `dangApDung = true` |
+| **C-03** tác nhân UC009 | ✅ chốt 2026-11-04 | Nhân viên bán hàng quản lý dòng sản phẩm; không kiểm quyền chỉ-Quản-lý (UC008/010/011 vẫn mở) |
 
 ## 8. Definition of Done
 
@@ -181,3 +182,4 @@ Kèm rà soát UC001/UC002 (phiên, tài khoản khóa, thông báo tiếng Vi�
 | 2026-10-25 | **v3.1:** đồng bộ với mã nguồn — entity/`TienUtil`/`MaGenerator`/UI kit đã có; W0 chỉ còn DAO + hạ tầng báo cáo; đăng ký trang qua `PageId` + `AppNavigator` thay cho `NavContentFactory` |
 | 2026-10-25 | **v3.2:** chốt D8–D11 — duyệt POI 5.4.1, cấu hình backup (./backups, 7 bản, zip, gồm `NhanVien`), định nghĩa "còn tồn" của UC014, chỉ Quản lý sửa giá/thuế (C-08), thời hạn đổi/trả để trống = không chặn, chồng lấn KM chỉ chặn khi cả hai đang áp dụng |
 | 2026-11-03 | **v3.3:** chốt D12–D16 — UC003 theo dòng sản phẩm + số lượng (giỏ/tìm theo `maDongSP`/`tenDongSP`), hóa đơn tạm cục bộ, phân bổ máy FIFO khi thanh toán, nở chi tiết hóa đơn `soLuong = 1`, trigger RB37 (`trg_sanpham_cap_nhat_ton`); đăng ký toàn bộ trang đã có vào `AppNavigator` |
+| 2026-11-04 | **v3.4:** chốt C-03 cho UC009 (Nhân viên bán hàng quản lý dòng sản phẩm); chốt vị trí tính `soNgayTon` của UC014 trong SQL |

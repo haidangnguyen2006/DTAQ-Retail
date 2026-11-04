@@ -65,7 +65,7 @@ Các điểm dưới đây đã được kiểm chứng trong nguồn và đư�
 
 1. UC014 có tên danh mục “Báo cáo sản phẩm tồn kho **hằng ngày**”, nhưng tiêu đề đặc tả chi tiết và FR014 dùng “**lâu ngày**”. Không có mục lục đã lưu để đối chiếu thêm.
 2. UC007–UC013 mang tên “Quản lý …” trong danh mục nhưng đặc tả chỉ là “Thêm …”.
-3. UC008–UC011 có tác nhân danh mục là “Quản lý” nhưng đặc tả ghi “Nhân viên bán hàng”.
+3. UC008–UC011 có tác nhân danh mục là “Quản lý” nhưng đặc tả ghi “Nhân viên bán hàng”. (UC009 đã chốt 2026-11-04 — xem §5.1)
 4. Phạm vi Chương 1 loại trừ phân hệ khuyến mãi, trong khi UC012 và luồng UC003 vẫn mô tả khuyến mãi. **Đã giải quyết ngày 2026-10-24:** khuyến mãi cơ bản thuộc phạm vi — xem §5.1.
 5. FR015/FR016/NFR011 yêu cầu sao lưu – phục hồi nhưng danh mục 19 UC không có use case tương ứng.
 6. Không có bảng ánh xạ tường minh FR ↔ UC trong nguồn; 16 FR và 19 UC không tương ứng một-một.
@@ -91,6 +91,8 @@ Các điểm dưới đây đã được kiểm chứng trong nguồn và đư�
 - **Phân bổ máy khi thanh toán (D14, chốt 2026-11-03):** chọn máy theo **FIFO** trên `SanPham.ngayNhapKhoBanDau` tăng dần, tie-break `soSerial` tăng dần; quy tắc này **không có trong tài liệu nguồn** — là quyết định mới của chủ dự án.
 - **Nở chi tiết hóa đơn (D15, chốt 2026-11-03):** giỏ có N đơn vị của một dòng → **N dòng `ChiTietHoaDon` với `soLuong = 1`**; làm tròn theo từng máy rồi cộng (`C-11`/`RB51`).
 - **Cưỡng chế RB37 (D16, chốt 2026-11-03):** `soLuongTon` được **tính lại** bởi trigger DB `trg_sanpham_cap_nhat_ton` (migration `V6__trigger_so_luong_ton.sql`) và bởi `SanPhamController`; **không nhập tay**.
+- **Tác nhân UC009 (C-03, chốt 2026-11-04):** **Nhân viên bán hàng** quản lý dòng sản phẩm (tạo mới, ngừng và kinh doanh lại); không thêm kiểm quyền chỉ-Quản-lý cho UC009; UC008/UC010/UC011 vẫn để mở. Chi tiết: [requirements §6 → C-03](requirements/scope-and-requirements.md#c-03--tác-nhân-uc008uc011-không-thống-nhất).
+- **Vị trí tính số ngày tồn (chốt 2026-11-04):** UC014 tính `soNgayTon` **trong SQL** (`CURRENT_DATE - "ngayNhapKhoBanDau"`) tại `BaoCaoTonKhoDao`; máy thiếu ngày nhập bị loại; ngưỡng do người dùng nhập. Chi tiết: [UC014](use-cases/UC014-inventory-report.md).
 
 Các mâu thuẫn **văn bản nguồn** còn lại (C-07 — mức hạt tồn kho serial hay số lượng) vẫn giữ nguyên trong tài liệu nguồn, nhưng **implementation đã chốt theo V1 serial** (xem [C-07](requirements/scope-and-requirements.md#c-07--mô-hình-tồn-kho-serial-hay-số-lượng)); từ **2026-11-03**, **mức hạt UI/giỏ đã chốt theo dòng sản phẩm (D12)**, còn **mức hạt tồn vẫn theo serial (V1)**.
 

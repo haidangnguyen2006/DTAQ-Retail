@@ -106,6 +106,7 @@ Nguồn: Chương 3, mục IV, `UC014`, các tiểu mục “a. Sequence diagram
   - Khi chọn một dòng sản phẩm, hệ thống phải hiển thị các máy thuộc dòng sản phẩm đó.
 - Bảng gốc không có mục “Error Flows” riêng; các nhánh xử lý không hợp lệ và không có dữ liệu nằm trong Luồng sự kiện phụ.
 - Trong phạm vi đặc tả UC014, nguồn không ấn định một giá trị ngưỡng mặc định hoặc giá trị ngưỡng cụ thể; ngưỡng do người dùng nhập. Nguồn cũng không quy định định dạng hiển thị của ngày nhập và số ngày tồn.
+- **Quyết định triển khai (chốt 2026-11-04):** `soNgayTon` được tính **trong SQL** của `BaoCaoTonKhoDao` bằng `CURRENT_DATE - "ngayNhapKhoBanDau"` (số ngày, PostgreSQL trừ hai `DATE`), không tính lại trong Java; máy có `ngayNhapKhoBanDau` NULL bị loại khỏi báo cáo vì không thỏa điều kiện ngưỡng. Công thức và ngưỡng do người dùng nhập không đổi.
 - Ngưỡng tham chiếu “trên 60 ngày” của [FR014](../requirements/scope-and-requirements.md#fr014--báo-cáo-hàng-tồn-kho-lâu-ngày), [BR-11](../requirements/scope-and-requirements.md#5-quy-tắc-nghiệp-vụ-chính) và [XBR-12](../business-rules/rules-and-exceptions.md#2-quy-tắc-cắt-ngang-nhiều-tính-năng) không phải giá trị mặc định; xem [Cảnh báo chưa được giải quyết](#cảnh-báo-chưa-được-giải-quyết).
 - Hai sơ đồ chỉ tồn tại dưới dạng hình nhúng trong DOCX; tài liệu này không vẽ lại, không suy diễn nội dung sơ đồ.
 
