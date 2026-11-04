@@ -40,6 +40,7 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import org.junit.jupiter.api.DisplayName;
@@ -158,6 +159,21 @@ class RetailInvoicePageTest {
     assertEquals("DSP-2026-000001", model.getValueAt(0, 0));
     assertEquals(3, model.getValueAt(0, 2));
     assertEquals(32340000L, model.getValueAt(0, 5));
+  }
+
+  @Test
+  @DisplayName("Thẻ thanh toán hiển thị dòng giảm giá do controller tính")
+  void hienThiDongGiamGia() {
+    RetailInvoicePage page = new RetailInvoicePage(nhanVienGia());
+
+    page.setCart(
+        List.of(new RetailInvoicePage.CartItem(
+            "DSP-2026-000001", "Máy giặt", 1, 1000000, "10%", 1180000, 5)),
+        new InvoiceTotals(1_000_000, 180_000, 1_180_000, 100_000));
+
+    JLabel giamGiaLabel = (JLabel) truong(page, "giamGiaLabel");
+
+    assertEquals("100.000 VNĐ", giamGiaLabel.getText());
   }
 
   private static FormField truongForm(RetailInvoicePage page, String tenTruong) {

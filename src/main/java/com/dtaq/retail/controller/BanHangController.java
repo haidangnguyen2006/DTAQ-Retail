@@ -1,13 +1,25 @@
 package com.dtaq.retail.controller;
 
+import com.dtaq.retail.dao.ChiTietHoaDonDao;
+import com.dtaq.retail.dao.HoaDonDao;
 import com.dtaq.retail.dao.HoaDonTamDao;
+import com.dtaq.retail.dao.KhuyenMaiDao;
 import com.dtaq.retail.dao.SanPhamDao;
+import com.dtaq.retail.entity.ChiTietHoaDon;
 import com.dtaq.retail.entity.DongSanPham;
+import com.dtaq.retail.entity.HoaDon;
 import com.dtaq.retail.entity.KhachHang;
+import com.dtaq.retail.entity.KhuyenMai;
+import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.entity.SanPham;
 import com.dtaq.retail.entity.TrangThaiSanPham;
+import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.util.MaGenerator;
 import com.dtaq.retail.util.TienUtil;
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -18,6 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import javax.sql.DataSource;
 
 /**
  * Xử lý nghiệp vụ lập hóa đơn bán hàng tại quầy (UC003, đợt W1).
@@ -29,48 +42,94 @@ import java.util.Optional;
  *
  * <p>Tiền được tính theo quy chuẩn C-11 (VND, 0 chữ số thập phân, {@code HALF_UP}) <b>trên từng
  * máy</b> rồi mới nhân với số lượng, nhờ vậy tổng của giỏ hàng luôn bằng tổng của N dòng {@code
- * ChiTietHoaDon} (mỗi dòng {@code soLuong = 1}) sẽ được ghi khi thanh toán. Đợt này chưa áp dụng
- * khuyến mãi.
+ * ChiTietHoaDon} (mỗi dòng {@code soLuong = 1}) sẽ được ghi khi thanh toán. Khuyến mãi đang hiệu lực
+ * của từng dòng sản phẩm được áp tại thời điểm tính tiền và được chốt lại trong 8 cột snapshot của
+ * chi tiết hóa đơn khi thanh toán (RB46).
  *
  * <p>Bộ điều khiển chỉ giữ trạng thái của một hóa đơn đang lập trong bộ nhớ; mọi thao tác đọc/ghi
- * kho và hóa đơn tạm đều đi qua lớp DAO được truyền vào.
+ * kho, khuyến mãi, hóa đơn và hóa đơn tạm đều đi qua lớp DAO được truyền vào. Việc ghi hóa đơn, ghi
+ * chi tiết và đánh dấu máy đã bán nằm trong một giao dịch duy nhất trên kết nối do bộ điều khiển mở.
  */
 public final class BanHangController {
 
   private static final BigDecimal KHONG = BigDecimal.ZERO.setScale(0);
+  private static final BigDecimal TRAM = BigDecimal.valueOf(100);
   private static final int SO_KET_QUA_TOI_DA = 20;
 
   private final SanPhamDao sanPhamDao;
   private final HoaDonTamDao hoaDonTamDao;
+  private final KhuyenMaiDao khuyenMaiDao;
+  private final HoaDonDao hoaDonDao;
+  private final ChiTietHoaDonDao chiTietHoaDonDao;
+  private final DataSource dataSource;
+  private final Clock clock;
   private final LinkedHashMap<String, Integer> soLuongTheoDong = new LinkedHashMap<>();
   private String maTamHienTai;
 
   /**
-   * Khởi tạo bộ điều khiển bán hàng.
+   * Khởi tạo bộ điều khiển chỉ dùng cho lập hóa đơn và hóa đơn tạm.
+   *
+   * <p>Các phụ thuộc phục vụ khuyến mãi và thanh toán được để {@code null}; gọi
+   * {@link #thanhToan(NhanVien, KhachHang, long)} trên bộ điều khiển này sẽ báo
+   * {@link IllegalStateException}.
    *
    * @param sanPhamDao lớp truy cập sản phẩm; không được {@code null}
    * @param hoaDonTamDao lớp lưu hóa đơn tạm; không được {@code null}
    */
   public BanHangController(SanPhamDao sanPhamDao, HoaDonTamDao hoaDonTamDao) {
+    this(sanPhamDao, null, null, null, hoaDonTamDao, null, Clock.systemDefaultZone());
+  }
+
+  /**
+   * Khởi tạo đầy đủ bộ điều khiển bán hàng cho luồng thanh toán.
+   *
+   * <p>Các DAO và nguồn dữ liệu có thể {@code null} khi chỉ cần lập hóa đơn trong bộ nhớ; khi đó
+   * khuyến mãi không được áp và {@link #thanhToan(NhanVien, KhachHang, long)} báo
+   * {@link IllegalStateException}.
+   *
+   * @param sanPhamDao lớp truy cập sản phẩm; không được {@code null}
+   * @param khuyenMaiDao lớp tra cứu khuyến mãi; có thể {@code null}
+   * @param hoaDonDao lớp ghi hóa đơn; có thể {@code null}
+   * @param chiTietHoaDonDao lớp ghi chi tiết hóa đơn; có thể {@code null}
+   * @param hoaDonTamDao lớp lưu hóa đơn tạm; không được {@code null}
+   * @param dataSource nguồn dữ liệu dùng để mở giao dịch thanh toán; có thể {@code null}
+   * @param clock đồng hồ xác định ngày áp khuyến mãi và ngày lập hóa đơn; {@code null} thì dùng
+   *     đồng hồ hệ thống
+   */
+  public BanHangController(
+      SanPhamDao sanPhamDao,
+      KhuyenMaiDao khuyenMaiDao,
+      HoaDonDao hoaDonDao,
+      ChiTietHoaDonDao chiTietHoaDonDao,
+      HoaDonTamDao hoaDonTamDao,
+      DataSource dataSource,
+      Clock clock) {
     this.sanPhamDao = Objects.requireNonNull(sanPhamDao, "sanPhamDao");
     this.hoaDonTamDao = Objects.requireNonNull(hoaDonTamDao, "hoaDonTamDao");
+    this.khuyenMaiDao = khuyenMaiDao;
+    this.hoaDonDao = hoaDonDao;
+    this.chiTietHoaDonDao = chiTietHoaDonDao;
+    this.dataSource = dataSource;
+    this.clock = clock;
   }
 
   /**
    * Tính tiền của một dòng hóa đơn theo đơn vị máy, sau đó nhân với số lượng.
    *
-   * <p>Đơn giá và tiền thuế được làm tròn <b>một lần cho một máy</b> rồi mới nhân với số lượng; không
-   * làm tròn lại tổng của dòng. Nhờ vậy tổng của dòng bằng đúng tổng của {@code soLuong} dòng chi tiết
-   * hóa đơn (mỗi dòng một máy) sẽ ghi khi thanh toán. Đợt W1 chưa có khuyến mãi nên tiền khuyến mãi
-   * luôn bằng {@code 0}.
+   * <p>Đơn giá, tiền giảm giá và tiền thuế được làm tròn <b>một lần cho một máy</b> rồi mới nhân
+   * với số lượng; không làm tròn lại tổng của dòng. Thuế được tính trên đơn giá <b>sau khuyến mãi</b>.
+   * Nhờ vậy tổng của dòng bằng đúng tổng của {@code soLuong} dòng chi tiết hóa đơn (mỗi dòng một máy)
+   * sẽ ghi khi thanh toán.
    *
    * @param donGiaTruocThue đơn giá bán trước thuế của một máy; không được {@code null}
    * @param thueSuat thuế suất tính theo phần trăm; không được {@code null}
    * @param soLuong số lượng máy của dòng; phải lớn hơn {@code 0}
+   * @param tyLeGiam tỷ lệ giảm giá theo phần trăm; {@code null} được coi là {@code 0}
    * @return tiền của dòng đã làm tròn
-   * @throws IllegalArgumentException nếu tham số {@code null} hoặc số lượng không hợp lệ
+   * @throws IllegalArgumentException nếu tham số bắt buộc {@code null} hoặc số lượng không hợp lệ
    */
-  public static DongTinh tinhDong(BigDecimal donGiaTruocThue, BigDecimal thueSuat, int soLuong) {
+  public static DongTinh tinhDong(
+      BigDecimal donGiaTruocThue, BigDecimal thueSuat, int soLuong, BigDecimal tyLeGiam) {
     if (donGiaTruocThue == null) {
       throw new IllegalArgumentException("Đơn giá trước thuế không được để trống");
     }
@@ -81,15 +140,29 @@ public final class BanHangController {
       throw new IllegalArgumentException("Số lượng phải lớn hơn 0");
     }
     BigDecimal soMay = BigDecimal.valueOf(soLuong);
+    BigDecimal tiLeGiam = tyLeGiam == null ? BigDecimal.ZERO : tyLeGiam;
     BigDecimal motMay = TienUtil.lamTron(donGiaTruocThue);
-    BigDecimal thueMotMay =
-        TienUtil.lamTron(motMay.multiply(thueSuat).divide(BigDecimal.valueOf(100)));
-    BigDecimal tienSauKhuyenMai = motMay.multiply(soMay);
+    BigDecimal giamMotMay = TienUtil.lamTron(motMay.multiply(tiLeGiam).divide(TRAM));
+    BigDecimal sauGiamMotMay = motMay.subtract(giamMotMay);
+    BigDecimal thueMotMay = TienUtil.lamTron(sauGiamMotMay.multiply(thueSuat).divide(TRAM));
     return new DongTinh(
-        tienSauKhuyenMai,
-        TienUtil.lamTron(BigDecimal.ZERO),
-        tienSauKhuyenMai,
+        motMay.multiply(soMay),
+        giamMotMay.multiply(soMay),
+        sauGiamMotMay.multiply(soMay),
         thueMotMay.multiply(soMay));
+  }
+
+  /**
+   * Tính tiền của một dòng hóa đơn không có khuyến mãi.
+   *
+   * @param donGiaTruocThue đơn giá bán trước thuế của một máy; không được {@code null}
+   * @param thueSuat thuế suất tính theo phần trăm; không được {@code null}
+   * @param soLuong số lượng máy của dòng; phải lớn hơn {@code 0}
+   * @return tiền của dòng đã làm tròn, tiền khuyến mãi bằng {@code 0}
+   * @throws IllegalArgumentException nếu tham số {@code null} hoặc số lượng không hợp lệ
+   */
+  public static DongTinh tinhDong(BigDecimal donGiaTruocThue, BigDecimal thueSuat, int soLuong) {
+    return tinhDong(donGiaTruocThue, thueSuat, soLuong, BigDecimal.ZERO);
   }
 
   /**
@@ -197,18 +270,25 @@ public final class BanHangController {
    * Tính hóa đơn đang lập từ giỏ hàng hiện tại.
    *
    * <p>Mỗi dòng giỏ hàng gồm dòng sản phẩm và số lượng; thành tiền của dòng là tiền của một máy (đã
-   * làm tròn) nhân với số lượng. Tổng tiền là tổng các giá trị đã làm tròn ở cấp dòng; không làm tròn
+   * làm tròn) nhân với số lượng. Khuyến mãi đang hiệu lực của từng dòng sản phẩm được tra theo ngày
+   * hiện tại của {@code clock}. Tổng tiền là tổng các giá trị đã làm tròn ở cấp dòng; không làm tròn
    * lại tổng (C-11).
    *
    * @return hóa đơn hiện tại; hóa đơn rỗng nếu giỏ hàng trống
+   * @throws DataAccessException nếu truy vấn khuyến mãi thất bại
    */
   public HoaDonTinh hoaDonHienTai() {
+    return tinhHoaDon(docMay());
+  }
+
+  private HoaDonTinh tinhHoaDon(List<SanPham> may) {
     if (soLuongTheoDong.isEmpty()) {
       return HoaDonTinh.rong();
     }
-    Map<String, DongBan> dongSanPham = docDongSanPham(docMay());
+    Map<String, DongBan> dongSanPham = docDongSanPham(may);
     List<DongGio> dongHang = new ArrayList<>(soLuongTheoDong.size());
     BigDecimal tongTruocThue = KHONG;
+    BigDecimal tongKhuyenMai = KHONG;
     BigDecimal tongThue = KHONG;
     for (Map.Entry<String, Integer> entry : soLuongTheoDong.entrySet()) {
       DongBan dong = dongSanPham.get(entry.getKey());
@@ -216,7 +296,10 @@ public final class BanHangController {
         continue;
       }
       int soLuong = entry.getValue();
-      DongTinh tien = tinhDong(dong.donGiaTruocThue(), dong.thueSuat(), soLuong);
+      KhuyenMai khuyenMai = timKhuyenMai(dong.maDongSP());
+      BigDecimal tyLeGiam = khuyenMai == null ? null : khuyenMai.tyLeGiam();
+      DongTinh tien =
+          tinhDong(dong.donGiaTruocThue(), dong.thueSuat(), soLuong, tyLeGiam);
       dongHang.add(new DongGio(
           dong.maDongSP(),
           dong.tenDongSP(),
@@ -224,15 +307,41 @@ public final class BanHangController {
           dong.tonKho(),
           dong.donGiaTruocThue(),
           dong.thueSuat(),
-          tien.tienSauKhuyenMai().add(tien.tienThue())));
-      tongTruocThue = tongTruocThue.add(tien.tienTruocKhuyenMai());
+          tien.tienSauKhuyenMai().add(tien.tienThue()),
+          khuyenMai,
+          tyLeGiam,
+          tien.tienKhuyenMai()));
+      tongTruocThue = tongTruocThue.add(tien.tienSauKhuyenMai());
+      tongKhuyenMai = tongKhuyenMai.add(tien.tienKhuyenMai());
       tongThue = tongThue.add(tien.tienThue());
     }
     if (dongHang.isEmpty()) {
       return HoaDonTinh.rong();
     }
     return new HoaDonTinh(
-        List.copyOf(dongHang), tongTruocThue, tongThue, tongTruocThue.add(tongThue));
+        List.copyOf(dongHang), tongTruocThue, tongKhuyenMai, tongThue,
+        tongTruocThue.add(tongThue));
+  }
+
+  /**
+   * Tra chương trình khuyến mãi đang hiệu lực của một dòng sản phẩm.
+   *
+   * <p>Nếu chưa cấu hình {@link KhuyenMaiDao} thì coi như dòng không có khuyến mãi. Lỗi truy cập dữ
+   * liệu được truyền nguyên vẹn cho bên gọi, không bị nuốt.
+   *
+   * @param maDongSP mã dòng sản phẩm cần tra
+   * @return chương trình khuyến mãi hiện hành, hoặc {@code null} nếu không có
+   * @throws DataAccessException nếu truy vấn khuyến mãi thất bại
+   */
+  private KhuyenMai timKhuyenMai(String maDongSP) {
+    if (khuyenMaiDao == null || maDongSP == null) {
+      return null;
+    }
+    return khuyenMaiDao.findHieuLuc(maDongSP, LocalDate.now(dongHo())).orElse(null);
+  }
+
+  private Clock dongHo() {
+    return clock == null ? Clock.systemDefaultZone() : clock;
   }
 
   /**
@@ -241,13 +350,15 @@ public final class BanHangController {
    * <p>Máy được chọn trong số máy {@link TrangThaiSanPham#SAN_SANG_BAN} của đúng dòng sản phẩm và
    * thuộc dòng còn kinh doanh, sắp xếp theo {@code ngayNhapKhoBanDau} tăng dần (ngày trống xếp cuối),
    * cùng ngày thì theo số serial tăng dần. Nếu không đủ máy cho một dòng thì mã dòng đó được báo lại
-   * trong {@link KetQuaPhanBo#dongThieu()}. Đợt W1 chưa dùng kết quả này để ghi hóa đơn; luồng thanh
-   * toán W2 sẽ dùng.
+   * trong {@link KetQuaPhanBo#dongThieu()}.
    *
    * @return danh sách máy được chọn và các dòng thiếu máy; không bao giờ {@code null}
    */
   public KetQuaPhanBo phanBoMay() {
-    List<SanPham> may = docMay();
+    return phanBoMay(docMay());
+  }
+
+  private KetQuaPhanBo phanBoMay(List<SanPham> may) {
     List<MayDuocChon> chon = new ArrayList<>();
     List<String> dongThieu = new ArrayList<>();
     Comparator<SanPham> thuTu = Comparator
@@ -274,6 +385,167 @@ public final class BanHangController {
       }
     }
     return new KetQuaPhanBo(List.copyOf(chon), List.copyOf(dongThieu));
+  }
+
+  /**
+   * Thanh toán hóa đơn đang lập bằng tiền mặt trong một giao dịch duy nhất.
+   *
+   * <p>Luồng xử lý: kiểm tra giỏ hàng, khách hàng và số tiền khách đưa; phân bổ máy theo FIFO; mở
+   * giao dịch trên nguồn dữ liệu đã cấu hình; sinh mã hóa đơn, ghi hóa đơn, ghi từng dòng chi tiết
+   * (mỗi máy một dòng, {@code soLuong = 1}) kèm 8 cột snapshot giá/thuế/khuyến mãi tại thời điểm bán,
+   * rồi đánh dấu máy đã bán bằng câu lệnh có điều kiện (chống bán trùng, RB40). Toàn bộ được cam kết
+   * hoặc quay lui cùng nhau; không cập nhật tay {@code DongSanPham.soLuongTon} vì trigger cơ sở dữ
+   * liệu tự tính lại.
+   *
+   * <p>Sau khi cam kết thành công, hóa đơn tạm đang gắn (nếu có) bị xóa và giỏ hàng được làm rỗng.
+   * Nếu thất bại, giỏ hàng được giữ nguyên để người dùng thử lại.
+   *
+   * @param nhanVien nhân viên lập hóa đơn
+   * @param khachHang khách hàng của hóa đơn; bắt buộc
+   * @param tienKhachDua số tiền mặt khách đưa, đơn vị VND
+   * @return kết quả thanh toán; không bao giờ {@code null}
+   * @throws IllegalStateException nếu bộ điều khiển chưa được cấu hình đủ DAO và nguồn dữ liệu
+   * @throws DataAccessException nếu ghi cơ sở dữ liệu thất bại
+   */
+  public KetQuaThanhToan thanhToan(NhanVien nhanVien, KhachHang khachHang, long tienKhachDua) {
+    if (khuyenMaiDao == null || hoaDonDao == null || chiTietHoaDonDao == null
+        || dataSource == null) {
+      throw new IllegalStateException("Chưa cấu hình thanh toán");
+    }
+    if (soLuongTheoDong.isEmpty()) {
+      return thatBai("Hóa đơn chưa có sản phẩm");
+    }
+    if (khachHang == null) {
+      return thatBai("Vui lòng chọn khách hàng");
+    }
+    List<SanPham> may = docMay();
+    HoaDonTinh hoaDon = tinhHoaDon(may);
+    if (hoaDon.dongHang().isEmpty()) {
+      return thatBai("Hóa đơn chưa có sản phẩm");
+    }
+    long tongThanhToan = hoaDon.tongThanhToan().longValue();
+    if (tienKhachDua < tongThanhToan) {
+      return thatBai("Số tiền khách đưa chưa đủ");
+    }
+    KetQuaPhanBo phanBo = phanBoMay(may);
+    if (!phanBo.dongThieu().isEmpty()) {
+      return thatBai(
+          "Dòng sản phẩm " + phanBo.dongThieu().getFirst() + " không đủ máy để bán");
+    }
+    Map<String, SanPham> mayTheoSerial = new HashMap<>();
+    for (SanPham sanPham : may) {
+      if (sanPham != null && sanPham.soSerial() != null) {
+        mayTheoSerial.put(sanPham.soSerial(), sanPham);
+      }
+    }
+    Map<String, DongGio> dongTheoMa = new HashMap<>();
+    for (DongGio dong : hoaDon.dongHang()) {
+      dongTheoMa.put(dong.maDongSP(), dong);
+    }
+    List<ChiTietHoaDon> daGhi = new ArrayList<>();
+    String maHD;
+    try {
+      maHD = ghiHoaDon(nhanVien, khachHang, phanBo, mayTheoSerial, dongTheoMa, daGhi);
+    } catch (MayVuaBanException e) {
+      return thatBai(e.getMessage());
+    }
+    long tongTruocThue = 0;
+    long tongGiamGia = 0;
+    long tongThue = 0;
+    for (ChiTietHoaDon chiTiet : daGhi) {
+      tongTruocThue += chiTiet.tienSauKhuyenMai().longValue();
+      tongGiamGia += chiTiet.tienKhuyenMaiThucTe().longValue();
+      tongThue += chiTiet.tienThue().longValue();
+    }
+    long tongPhaiTra = tongTruocThue + tongThue;
+    String maTam = maTamHienTai;
+    if (maTam != null) {
+      hoaDonTamDao.xoa(maTam);
+    }
+    xoaGio();
+    return new KetQuaThanhToan(
+        true,
+        "Thanh toán thành công",
+        maHD,
+        tongTruocThue,
+        tongGiamGia,
+        tongThue,
+        tongPhaiTra,
+        tienKhachDua,
+        tienKhachDua - tongPhaiTra,
+        List.copyOf(daGhi));
+  }
+
+  private String ghiHoaDon(
+      NhanVien nhanVien,
+      KhachHang khachHang,
+      KetQuaPhanBo phanBo,
+      Map<String, SanPham> mayTheoSerial,
+      Map<String, DongGio> dongTheoMa,
+      List<ChiTietHoaDon> daGhi) {
+    try (Connection ketNoi = dataSource.getConnection()) {
+      boolean autoCommitCu = ketNoi.getAutoCommit();
+      try {
+        ketNoi.setAutoCommit(false);
+        String maHD = MaGenerator.next(ketNoi, "HoaDon", "maHD", "HD");
+        HoaDon hoaDon = new HoaDon(
+            maHD, LocalDate.now(dongHo()), nhanVien, khachHang, true);
+        hoaDonDao.insert(ketNoi, hoaDon);
+        for (MayDuocChon chon : phanBo.mayDuocChon()) {
+          SanPham sanPham = mayTheoSerial.get(chon.soSerial());
+          DongGio dong = dongTheoMa.get(chon.maDongSP());
+          if (sanPham == null || dong == null) {
+            throw new IllegalStateException(
+                "Máy " + chon.soSerial() + " không còn trong kho");
+          }
+          DongTinh tien =
+              tinhDong(dong.donGiaTruocThue(), dong.thueSuat(), 1, dong.tyLeGiam());
+          ChiTietHoaDon chiTiet = new ChiTietHoaDon(
+              hoaDon,
+              sanPham,
+              1,
+              TienUtil.lamTron(dong.donGiaTruocThue()),
+              dong.thueSuat(),
+              dong.khuyenMai(),
+              dong.tyLeGiam(),
+              tien.tienKhuyenMai(),
+              tien.tienTruocKhuyenMai(),
+              tien.tienSauKhuyenMai(),
+              tien.tienThue());
+          chiTietHoaDonDao.insert(ketNoi, chiTiet);
+          if (!sanPhamDao.danhDauDaBan(ketNoi, chon.soSerial())) {
+            throw new MayVuaBanException(
+                "Máy " + chon.soSerial() + " vừa được bán, vui lòng chọn lại");
+          }
+          daGhi.add(chiTiet);
+        }
+        ketNoi.commit();
+        return maHD;
+      } catch (RuntimeException | SQLException e) {
+        try {
+          ketNoi.rollback();
+        } catch (SQLException loiQuayLui) {
+          e.addSuppressed(loiQuayLui);
+        }
+        if (e instanceof RuntimeException loi) {
+          throw loi;
+        }
+        throw new DataAccessException("Không thể thanh toán hóa đơn", e);
+      } finally {
+        try {
+          ketNoi.setAutoCommit(autoCommitCu);
+        } catch (SQLException ignored) {
+          // Kết nối được đóng ngay sau đây; không còn thao tác nào phụ thuộc chế độ cam kết.
+        }
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể thanh toán hóa đơn", e);
+    }
+  }
+
+  private static KetQuaThanhToan thatBai(String thongBao) {
+    return new KetQuaThanhToan(
+        false, thongBao, null, 0, 0, 0, 0, 0, 0, List.of());
   }
 
   /** Xóa toàn bộ giỏ hàng và quên mã hóa đơn tạm đang gắn với hóa đơn hiện tại. */
@@ -482,24 +754,29 @@ public final class BanHangController {
    * @param donGiaTruocThue đơn giá bán trước thuế của một máy
    * @param thueSuat thuế suất áp dụng
    * @param thanhTienSauThue thành tiền của dòng đã gồm thuế
+   * @param khuyenMai chương trình khuyến mãi đang áp cho dòng; có thể {@code null}
+   * @param tyLeGiam tỷ lệ giảm giá theo phần trăm đã áp; có thể {@code null}
+   * @param tienKhuyenMai tiền được giảm giá của cả dòng
    */
   public record DongGio(
       String maDongSP, String tenDongSP, int soLuong, int tonKho,
       BigDecimal donGiaTruocThue, BigDecimal thueSuat,
-      BigDecimal thanhTienSauThue) {
+      BigDecimal thanhTienSauThue, KhuyenMai khuyenMai, BigDecimal tyLeGiam,
+      BigDecimal tienKhuyenMai) {
   }
 
   /**
    * Hóa đơn đang lập cùng các tổng tiền.
    *
    * @param dongHang danh sách dòng hàng
-   * @param tongTruocThue tổng tiền trước thuế
+   * @param tongTruocThue tổng tiền trước thuế sau khuyến mãi
+   * @param tongKhuyenMai tổng tiền được giảm giá
    * @param tongThue tổng tiền thuế
    * @param tongThanhToan tổng tiền khách phải trả
    */
   public record HoaDonTinh(
       List<DongGio> dongHang, BigDecimal tongTruocThue,
-      BigDecimal tongThue, BigDecimal tongThanhToan) {
+      BigDecimal tongKhuyenMai, BigDecimal tongThue, BigDecimal tongThanhToan) {
 
     /**
      * Hóa đơn rỗng với mọi tổng tiền bằng {@code 0}.
@@ -507,7 +784,7 @@ public final class BanHangController {
      * @return hóa đơn không có dòng hàng
      */
     public static HoaDonTinh rong() {
-      return new HoaDonTinh(List.of(), KHONG, KHONG, KHONG);
+      return new HoaDonTinh(List.of(), KHONG, KHONG, KHONG, KHONG);
     }
   }
 
@@ -549,5 +826,33 @@ public final class BanHangController {
    */
   public record KetQuaKhoiPhuc(
       HoaDonTamDao.HoaDonTam banTam, List<String> dongDaDieuChinh, HoaDonTinh hoaDon) {
+  }
+
+  /**
+   * Kết quả thanh toán hóa đơn.
+   *
+   * @param thanhCong {@code true} nếu hóa đơn đã được ghi và cam kết
+   * @param thongBao thông báo tiếng Việt cho người dùng
+   * @param maHD mã hóa đơn vừa tạo; {@code null} khi thanh toán thất bại
+   * @param tongTruocThue tổng tiền trước thuế sau khuyến mãi của các dòng đã ghi
+   * @param tongGiamGia tổng tiền được giảm giá của các dòng đã ghi
+   * @param tongThue tổng tiền thuế của các dòng đã ghi
+   * @param tongThanhToan tổng tiền khách phải trả
+   * @param tienKhachDua số tiền khách đưa
+   * @param tienTraLai số tiền thối lại khách
+   * @param chiTiet các dòng chi tiết đã ghi
+   */
+  public record KetQuaThanhToan(
+      boolean thanhCong, String thongBao, String maHD,
+      long tongTruocThue, long tongGiamGia, long tongThue, long tongThanhToan,
+      long tienKhachDua, long tienTraLai, List<ChiTietHoaDon> chiTiet) {
+  }
+
+  /** Máy đã bị giao dịch khác bán trước khi kịp đánh dấu; giao dịch hiện tại phải quay lui. */
+  private static final class MayVuaBanException extends IllegalStateException {
+
+    MayVuaBanException(String thongBao) {
+      super(thongBao);
+    }
   }
 }

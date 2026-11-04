@@ -70,6 +70,10 @@ public final class SanPhamImpl implements SanPhamDao {
   private static final String UPDATE_TRANG_THAI =
       "UPDATE \"SanPham\" SET \"trangThai\" = ? WHERE \"soSerial\" = ?";
 
+  private static final String DANH_DAU_DA_BAN =
+      "UPDATE \"SanPham\" SET \"trangThai\" = 'DA_BAN'"
+          + " WHERE \"soSerial\" = ? AND \"trangThai\" = 'SAN_SANG_BAN'";
+
   private final DataSource dataSource;
 
   /**
@@ -183,6 +187,19 @@ public final class SanPhamImpl implements SanPhamDao {
       }
     } catch (SQLException e) {
       throw new DataAccessException("Không thể cập nhật trạng thái sản phẩm " + soSerial, e);
+    }
+  }
+
+  @Override
+  public boolean danhDauDaBan(Connection ketNoi, String soSerial) {
+    Objects.requireNonNull(ketNoi, "ketNoi");
+    Objects.requireNonNull(soSerial, "soSerial");
+    // Không đóng kết nối và không đổi auto-commit: giao dịch do bên gọi quản lý.
+    try (PreparedStatement statement = ketNoi.prepareStatement(DANH_DAU_DA_BAN)) {
+      statement.setString(1, soSerial);
+      return statement.executeUpdate() == 1;
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể đánh dấu máy đã bán " + soSerial, e);
     }
   }
 

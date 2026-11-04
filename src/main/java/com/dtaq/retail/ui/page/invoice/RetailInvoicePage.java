@@ -2,8 +2,11 @@ package com.dtaq.retail.ui.page.invoice;
 
 import com.dtaq.retail.controller.BanHangController;
 import com.dtaq.retail.dao.HoaDonTamDao.HoaDonTam;
+import com.dtaq.retail.entity.ChiTietHoaDon;
 import com.dtaq.retail.entity.KhachHang;
 import com.dtaq.retail.entity.NhanVien;
+import com.dtaq.retail.entity.SanPham;
+import com.dtaq.retail.exception.DataAccessException;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
@@ -42,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 import javax.swing.AbstractAction;
@@ -116,6 +120,7 @@ public class RetailInvoicePage implements Page {
   private final JPanel customerInfoContent = new JPanel(new MigLayout("fillx, insets 0, gapy 4", "[grow]", "[]"));
 
   private final JLabel subtotalLabel = new JLabel("0 VNĐ");
+  private final JLabel giamGiaLabel = new JLabel("0 VNĐ");
   private final JLabel taxLabel = new JLabel("0 VNĐ");
   private final JLabel totalAmountLabel = new JLabel("0");
   private final FormField cashField = FormField.money("Tiền khách đưa (VNĐ)", "0");
@@ -179,9 +184,8 @@ public class RetailInvoicePage implements Page {
   /**
    * Khởi tạo trang đã nối với bộ điều khiển bán hàng và bộ chọn khách hàng.
    *
-   * <p>Hàm dựng một tham số vẫn dùng được độc lập (mọi điều khiển bị tắt); hàm dựng này chỉ gắn
-   * thêm callback để trang thao tác được thật. Luồng thanh toán vẫn chưa nối nên nút thanh toán tiếp
-   * tục bị tắt.
+   * <p>Hàm dựng một tham số vẫn dùng được độc lập (mọi điều khiển bị tắt); hàm dựng này gắn thêm
+   * callback tra cứu khách hàng, tìm sản phẩm, giỏ hàng và thanh toán để trang thao tác được thật.
    *
    * @param nhanVien nhân viên đang lập hóa đơn; không được {@code null}
    * @param banHangController bộ điều khiển bán hàng; không được {@code null}
@@ -199,6 +203,7 @@ public class RetailInvoicePage implements Page {
     setOnChangeQuantity((ma, sl) -> apDungKetQua(banHangController.datSoLuong(ma, sl)));
     setOnRemoveFromCart(c -> apDungHoaDon(banHangController.boDong(c.maDongSP())));
     setOnNewInvoice(banHangController::xoaGio);
+    setOnProcessPayment(this::xuLyThanhToan);
     refreshView();
   }
 
@@ -259,7 +264,8 @@ public class RetailInvoicePage implements Page {
     InvoiceTotals invoiceTotals = new InvoiceTotals(
         hoaDon.tongTruocThue().longValueExact(),
         hoaDon.tongThue().longValueExact(),
-        hoaDon.tongThanhToan().longValueExact());
+        hoaDon.tongThanhToan().longValueExact(),
+        hoaDon.tongKhuyenMai().longValueExact());
     setCart(items, invoiceTotals);
   }
 
@@ -445,10 +451,12 @@ public class RetailInvoicePage implements Page {
     Card card = new Card(DtaqSpacing.CARD_PADDING_COMPACT, 14);
     card.add(Card.buildHeader("Thanh toán", null, null), "growx, wrap");
 
-    JPanel totalsPanel = new JPanel(new MigLayout("fillx, insets 0", "[grow][]", "[]8[]10[]10[]12[]12[]10[]"));
+    JPanel totalsPanel = new JPanel(new MigLayout(
+        "fillx, insets 0", "[grow][]", "[]8[]8[]10[]10[]12[]12[]10[]"));
     totalsPanel.setOpaque(false);
 
     addAmountRow(totalsPanel, "Tổng trước thuế:", subtotalLabel);
+    addAmountRow(totalsPanel, "Giảm giá:", giamGiaLabel);
     addAmountRow(totalsPanel, "Tổng tiền thuế:", taxLabel);
     totalsPanel.add(new JSeparator(), "growx, span, wrap");
 
@@ -745,6 +753,99 @@ public class RetailInvoicePage implements Page {
     onProcessPayment.accept(cash);
   }
 
+  /**
+   * Gửi yêu cầu thanh toán cho bộ điều khiển ở luồng nền, sau đó cập nhật giao diện trong {@code
+   * done()}.
+   *
+   * @param tienKhachDua số tiền mặt khách đưa (VNĐ)
+   */
+  private void xuLyThanhToan(long tienKhachDua) {
+    if (banHangController == null) {
+      showPaymentError(NOT_CONNECTED_TIP);
+      return;
+    }
+    KhachHang khachHang = khachHangHienTai();
+    if (khachHang == null) {
+      showPaymentError("Vui lòng chọn khách hàng trước khi thanh toán");
+      return;
+    }
+    showProcessing();
+    new SwingWorker<BanHangController.KetQuaThanhToan, Void>() {
+      @Override
+      protected BanHangController.KetQuaThanhToan doInBackground() {
+        return banHangController.thanhToan(nhanVien, khachHang, tienKhachDua);
+      }
+
+      @Override
+      protected void done() {
+        try {
+          BanHangController.KetQuaThanhToan kq = get();
+          if (kq.thanhCong()) {
+            showPaid(taoDuLieuHoaDon(kq));
+          } else {
+            showPaymentError(kq.thongBao());
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          showPaymentError("Thanh toán bị gián đoạn");
+        } catch (ExecutionException e) {
+          log.warn("Không thể thanh toán (exception={})", e.getCause() == null
+              ? e.getClass().getName() : e.getCause().getClass().getName());
+          showPaymentError(thongBaoLoiThanhToan(e.getCause()));
+        }
+      }
+    }.execute();
+  }
+
+  private static String thongBaoLoiThanhToan(Throwable nguyenNhan) {
+    if (nguyenNhan instanceof DataAccessException) {
+      return "Không thể ghi hóa đơn vào cơ sở dữ liệu";
+    }
+    if (nguyenNhan instanceof IllegalArgumentException
+        || nguyenNhan instanceof IllegalStateException) {
+      return "Không thể hoàn tất thanh toán";
+    }
+    return "Không thể hoàn tất thanh toán";
+  }
+
+  /** Chuyển kết quả thanh toán do controller trả về thành dữ liệu hiển thị của phiếu hóa đơn. */
+  private InvoiceReceiptDialog.ReceiptData taoDuLieuHoaDon(
+      BanHangController.KetQuaThanhToan kq) {
+    List<InvoiceReceiptDialog.ReceiptItem> items = new ArrayList<>();
+    int stt = 1;
+    for (ChiTietHoaDon chiTiet : kq.chiTiet()) {
+      SanPham sanPham = chiTiet.sanPham();
+      items.add(new InvoiceReceiptDialog.ReceiptItem(
+          stt++,
+          sanPham.soSerial(),
+          sanPham.dongSanPham().tenDongSP(),
+          sanPham.dongSanPham().donViTinh(),
+          1,
+          chiTiet.donGiaBanTaiLucBan().longValueExact(),
+          dinhDangThue(chiTiet.thueSuatTaiLucBan()),
+          chiTiet.tienSauKhuyenMai().add(chiTiet.tienThue()).longValueExact()));
+    }
+    CustomerInfo khachHang = currentCustomer;
+    return new InvoiceReceiptDialog.ReceiptData(
+        "DTAQ Retail",
+        null,
+        null,
+        kq.maHD(),
+        LocalDateTime.now(),
+        khachHang == null ? null : khachHang.hoTen(),
+        khachHang == null ? null : khachHang.maKH(),
+        khachHang == null ? null : khachHang.sdt(),
+        khachHang == null ? null : khachHang.diaChi(),
+        nhanVien.hoTen(),
+        items,
+        kq.tongTruocThue(),
+        kq.tongThue(),
+        kq.tongThanhToan(),
+        kq.tienKhachDua(),
+        kq.tienTraLai(),
+        kq.tongGiamGia());
+  }
+
   private boolean isLocked() {
     return processing || paid;
   }
@@ -901,6 +1002,7 @@ public class RetailInvoicePage implements Page {
   private void updatePayment() {
     long total = totals.tongThanhToan();
     subtotalLabel.setText(MoneyFormat.formatVnd(totals.tongTruocThue()));
+    giamGiaLabel.setText(MoneyFormat.formatVnd(totals.tongGiamGia()));
     taxLabel.setText(MoneyFormat.formatVnd(totals.tongThue()));
     totalAmountLabel.setText(MoneyFormat.format(total));
 
