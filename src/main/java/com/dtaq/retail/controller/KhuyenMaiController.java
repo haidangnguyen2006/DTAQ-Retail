@@ -60,6 +60,16 @@ public final class KhuyenMaiController {
     }
   }
 
+  /** Lấy các dòng sản phẩm để chọn bộ lọc và gắn khuyến mãi. */
+  public List<DongSanPham> layDanhSachDongSanPham() {
+    try {
+      return dongSanPhamDao.findAll();
+    } catch (DataAccessException e) {
+      log.error("Lỗi khi tải danh sách dòng sản phẩm cho khuyến mãi", e);
+      return Collections.emptyList();
+    }
+  }
+
   /**
    * Lấy danh sách khuyến mãi của một dòng sản phẩm cụ thể.
    *
