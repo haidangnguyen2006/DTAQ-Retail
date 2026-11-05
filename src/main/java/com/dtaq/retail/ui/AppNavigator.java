@@ -13,6 +13,8 @@ import com.dtaq.retail.controller.IncidentController;
 import com.dtaq.retail.controller.KhachHangController;
 import com.dtaq.retail.controller.KhuyenMaiController;
 import com.dtaq.retail.controller.NhanVienController;
+import com.dtaq.retail.controller.ThongKeNhanVienController;
+import com.dtaq.retail.controller.ThongKeSanPhamController;
 import com.dtaq.retail.controller.PasswordResetController;
 import com.dtaq.retail.controller.PheDuyetDoiTraController;
 import com.dtaq.retail.controller.SanPhamController;
@@ -23,7 +25,6 @@ import com.dtaq.retail.dao.DanhMucSanPhamDao;
 import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.dao.NhaCungCapDao;
 import com.dtaq.retail.dao.NhanVienDao;
-import com.dtaq.retail.dao.ThongKeSanPhamDao;
 import com.dtaq.retail.dao.PasswordResetDao;
 import com.dtaq.retail.dao.PhieuDuyet;
 import com.dtaq.retail.dao.SanPhamDao;
@@ -43,6 +44,7 @@ import com.dtaq.retail.dao.impl.PhieuDoiDaoImpl;
 import com.dtaq.retail.dao.impl.PhieuTraDaoImpl;
 import com.dtaq.retail.dao.impl.SanPhamImpl;
 import com.dtaq.retail.dao.impl.SanPhamLoiDaoImpl;
+import com.dtaq.retail.dao.impl.ThongKeNhanVienDaoImpl;
 import com.dtaq.retail.dao.impl.ThongKeSanPhamDaoImpl;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
@@ -71,6 +73,8 @@ import com.dtaq.retail.ui.page.product.ProductPage;
 import com.dtaq.retail.ui.page.promotion.PromotionsPage;
 import com.dtaq.retail.ui.page.report.LongStockReportPage;
 import com.dtaq.retail.ui.page.report.RevenueStatisticsPage;
+import com.dtaq.retail.ui.page.report.SalesByEmployeePage;
+import com.dtaq.retail.ui.page.report.SalesByProductPage;
 import com.dtaq.retail.ui.page.returns.ReturnsPage;
 import com.dtaq.retail.ui.shell.AppShellFrame;
 import com.dtaq.retail.ui.shell.NavigationModel;
@@ -195,9 +199,10 @@ public final class AppNavigator {
    * @param nhanVien nhân viên quản lý đang đăng nhập; không được {@code null}
    * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
    * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
-   * @return 11 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
+   * @return 13 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
    *     PageId#REVENUE_STATS}, {@link PageId#LONG_STOCK_REPORT}, {@link PageId#PRODUCT_LINES},
-   *     {@link PageId#DEFECTIVE_PRODUCTS}, {@link PageId#PROMOTIONS}, {@link PageId#EMPLOYEES},
+   *     {@link PageId#DEFECTIVE_PRODUCTS}, {@link PageId#PROMOTIONS}, {@link PageId#EMPLOYEES}, {@link PageId#SALES_BY_PRODUCT}, {@link
+   *     PageId#SALES_BY_EMPLOYEE},
    *     {@link PageId#RETURN_APPROVALS}, {@link PageId#PRICE_TAX}, {@link PageId#BACKUP}, {@link
    *     PageId#RESTORE}; mỗi {@code PageId} xuất hiện tối đa một lần
    */
@@ -215,9 +220,10 @@ public final class AppNavigator {
    * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
    * @param backupScheduler bộ lập lịch cần lập lại khi lưu cấu hình trên trang Sao lưu; có thể
    *     {@code null}
-   * @return 11 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
+   * @return 13 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
    *     PageId#REVENUE_STATS}, {@link PageId#LONG_STOCK_REPORT}, {@link PageId#PRODUCT_LINES},
-   *     {@link PageId#DEFECTIVE_PRODUCTS}, {@link PageId#PROMOTIONS}, {@link PageId#EMPLOYEES},
+   *     {@link PageId#DEFECTIVE_PRODUCTS}, {@link PageId#PROMOTIONS}, {@link PageId#EMPLOYEES}, {@link PageId#SALES_BY_PRODUCT}, {@link
+   *     PageId#SALES_BY_EMPLOYEE},
    *     {@link PageId#RETURN_APPROVALS}, {@link PageId#PRICE_TAX}, {@link PageId#BACKUP}, {@link
    *     PageId#RESTORE}; mỗi {@code PageId} xuất hiện tối đa một lần
    */
@@ -247,6 +253,10 @@ public final class AppNavigator {
         new KhuyenMaiController(new KhuyenMaiDaoImpl(dataSource), dongSanPhamDao, dataSource));
     EmployeePage employees = new EmployeePage(
         new NhanVienController(new NhanVienDaoImpl(dataSource), dataSource));
+    SalesByProductPage salesByProduct = new SalesByProductPage(
+        new ThongKeSanPhamController(new ThongKeSanPhamDaoImpl(dataSource)));
+    SalesByEmployeePage salesByEmployee = new SalesByEmployeePage(new ThongKeNhanVienController(
+        new ThongKeNhanVienDaoImpl(dataSource), new NhanVienDaoImpl(dataSource)));
     ReturnApprovalsPage returnApprovals = new ReturnApprovalsPage(pheDuyet);
     PriceTaxPage priceTax = new PriceTaxPage(
         new GiaThueController(dongSanPhamDao), dongSanPhamDao);
@@ -270,6 +280,8 @@ public final class AppNavigator {
         defective,
         promotions,
         employees,
+        salesByProduct,
+        salesByEmployee,
         returnApprovals,
         priceTax,
         backup,
