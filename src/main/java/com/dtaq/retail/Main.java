@@ -20,6 +20,7 @@ import com.dtaq.retail.util.Mailer;
 import com.dtaq.retail.util.SmtpMailer;
 import com.dtaq.retail.ui.theme.DtaqTheme;
 import javax.sql.DataSource;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,7 @@ public final class Main {
       log.error("Database migration failed; application startup aborted (exception={}, cause={})",
           e.getClass().getName(), causeType);
       ConnectDB.close();
+      baoLoiKhoiDong();
       return;
     }
 
@@ -98,5 +100,18 @@ public final class Main {
           new AppNavigator(nhanVienDao, passwordResetDao, mailer, uiDataSource, schedulerChoUi);
       navigator.showLogin();
     });
+  }
+
+  /** UC001 7.b: báo cho người dùng thay vì thoát im lặng khi không truy cập được dữ liệu. */
+  private static void baoLoiKhoiDong() {
+    try {
+      SwingUtilities.invokeAndWait(() -> JOptionPane.showMessageDialog(null,
+          "Không thể đăng nhập lúc này. Vui lòng thử lại sau.\n"
+              + "Không kết nối được cơ sở dữ liệu; kiểm tra PostgreSQL và tệp db.properties.",
+          AppInfo.APP_NAME, JOptionPane.ERROR_MESSAGE));
+    } catch (Exception e) {
+      log.warn("Không hiển thị được thông báo lỗi khởi động (exception={})", e.getClass().getName());
+    }
+    System.exit(1); // khung chủ ẩn của JOptionPane giữ EDT sống, JVM sẽ không tự thoát
   }
 }
