@@ -238,6 +238,9 @@ public final class NhanVienController {
       return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_MAT_KHAU,
           "Mật khẩu phải có ít nhất " + DO_DAI_MAT_KHAU_TOI_THIEU + " ký tự"));
     }
+    if (PasswordHasher.quaDai(matKhau)) {
+      return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_MAT_KHAU, "Mật khẩu quá dài"));
+    }
     return Optional.empty();
   }
 
