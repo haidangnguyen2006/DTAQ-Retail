@@ -13,6 +13,7 @@ import com.dtaq.retail.controller.IncidentController;
 import com.dtaq.retail.controller.KhachHangController;
 import com.dtaq.retail.controller.KhuyenMaiController;
 import com.dtaq.retail.controller.NhanVienController;
+import com.dtaq.retail.controller.ThongKeDoanhThuController;
 import com.dtaq.retail.controller.ThongKeNhanVienController;
 import com.dtaq.retail.controller.ThongKeSanPhamController;
 import com.dtaq.retail.controller.PasswordResetController;
@@ -44,6 +45,7 @@ import com.dtaq.retail.dao.impl.PhieuDoiDaoImpl;
 import com.dtaq.retail.dao.impl.PhieuTraDaoImpl;
 import com.dtaq.retail.dao.impl.SanPhamImpl;
 import com.dtaq.retail.dao.impl.SanPhamLoiDaoImpl;
+import com.dtaq.retail.dao.impl.ThongKeDoanhThuDaoImpl;
 import com.dtaq.retail.dao.impl.ThongKeNhanVienDaoImpl;
 import com.dtaq.retail.dao.impl.ThongKeSanPhamDaoImpl;
 import com.dtaq.retail.entity.LoaiQuyen;
@@ -242,7 +244,9 @@ public final class AppNavigator {
         Clock.systemDefaultZone());
 
     ManagerHomePage managerHome = new ManagerHomePage(nhanVien);
-    RevenueStatisticsPage revenueStats = new RevenueStatisticsPage();
+    RevenueStatisticsPage revenueStats = new RevenueStatisticsPage(
+        new ThongKeDoanhThuController(
+            new ThongKeDoanhThuDaoImpl(dataSource), new HoaDonDaoImpl(dataSource)));
     LongStockReportPage longStock = new LongStockReportPage(
         new BaoCaoTonKhoController(new BaoCaoTonKhoDaoImpl(dataSource)));
     ProductLinesPage productLines = new ProductLinesPage(

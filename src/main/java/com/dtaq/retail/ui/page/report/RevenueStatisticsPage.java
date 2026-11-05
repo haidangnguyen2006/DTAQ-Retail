@@ -18,6 +18,7 @@ import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqIcons;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
+import com.dtaq.retail.util.DateRange;
 import com.formdev.flatlaf.FlatClientProperties;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
@@ -25,6 +26,7 @@ import java.awt.event.MouseEvent;
 import java.time.LocalDate;
 import java.io.File;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.swing.JComponent;
@@ -63,6 +65,8 @@ public class RevenueStatisticsPage implements Page {
   private final JPanel view;
   private final ThongKeDoanhThuController controller;
   private ThongKeDoanhThuController.BaoCao baoCao;
+  private DateRange kyBaoCao = new DateRange(LocalDate.now().minusDays(29), LocalDate.now());
+  private int nhomThoiGian;
   private final DtaqButton periodButton = DtaqButton.secondary(PERIOD_PLACEHOLDER, "calendar-days");
   private final DtaqButton exportButton = DtaqButton.secondary("Xuất Excel", "download");
   private final JPanel alertBanner;
@@ -123,6 +127,65 @@ public class RevenueStatisticsPage implements Page {
 
     view.add(buildBarCard(), "growx, wrap");
     view.add(buildDonutCard(), "growx");
+
+    if (controller != null) {
+      setPeriod(kyBaoCao.tuNgay(), kyBaoCao.denNgay());
+      setOnPeriodChange((from, to) -> {
+        kyBaoCao = new DateRange(from, to);
+        taiBaoCao();
+      });
+      setOnGranularityChange(index -> {
+        nhomThoiGian = index;
+        taiBaoCao();
+      });
+    }
+  }
+
+  /** Tải báo cáo cho kỳ và mức gộp thời gian đang chọn; không chặn EDT. */
+  private void taiBaoCao() {
+    DateRange ky = kyBaoCao;
+    int nhom = nhomThoiGian;
+    showLoading();
+    exportButton.setEnabled(false);
+    new SwingWorker<ThongKeDoanhThuController.BaoCao, Void>() {
+      @Override
+      protected ThongKeDoanhThuController.BaoCao doInBackground() {
+        return controller.xem(ky, nhom);
+      }
+
+      @Override
+      protected void done() {
+        try {
+          ThongKeDoanhThuController.BaoCao ketQua = get();
+          baoCao = ketQua;
+          renderSummary(ketQua.kpi());
+          renderDailyRevenue(ketQua.doanhThuTheoThoiGian());
+          renderTopProductLines(ketQua.topDongSanPham());
+          exportButton.setEnabled(true);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          hienLoiTaiBaoCao();
+        } catch (ExecutionException e) {
+          if (e.getCause() instanceof SecurityException) {
+            showError("Chỉ Quản lý được xem thống kê doanh thu");
+          } else {
+            hienLoiTaiBaoCao();
+          }
+        } catch (SecurityException e) {
+          showError("Chỉ Quản lý được xem thống kê doanh thu");
+        }
+      }
+    }.execute();
+  }
+
+  /** Xóa số liệu cũ để không hiển thị nhầm báo cáo của kỳ trước khi tải thất bại. */
+  private void hienLoiTaiBaoCao() {
+    baoCao = null;
+    renderSummary(null);
+    renderDailyRevenue(null);
+    renderTopProductLines(null);
+    exportButton.setEnabled(false);
+    showError("Không thể tải dữ liệu thống kê doanh thu.");
   }
 
   private void exportReport() {
@@ -306,6 +369,13 @@ public class RevenueStatisticsPage implements Page {
       setPeriod(newFrom, newTo);
       onPeriodChangeListener.accept(newFrom, newTo);
     }).setVisible(true);
+  }
+
+  @Override
+  public void onShow() {
+    if (controller != null) {
+      taiBaoCao();
+    }
   }
 
   @Override
