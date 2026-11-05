@@ -1,6 +1,7 @@
 package com.dtaq.retail.ui.page.report;
 
 import com.dtaq.retail.ui.component.BarChartPanel;
+import com.dtaq.retail.controller.ThongKeDoanhThuController;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DonutChartPanel;
@@ -22,12 +23,17 @@ import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.time.LocalDate;
+import java.io.File;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JOptionPane;
+import javax.swing.SwingWorker;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -55,7 +61,10 @@ public class RevenueStatisticsPage implements Page {
   ) {}
 
   private final JPanel view;
+  private final ThongKeDoanhThuController controller;
+  private ThongKeDoanhThuController.BaoCao baoCao;
   private final DtaqButton periodButton = DtaqButton.secondary(PERIOD_PLACEHOLDER, "calendar-days");
+  private final DtaqButton exportButton = DtaqButton.secondary("Xuất Excel", "download");
   private final JPanel alertBanner;
   private final JLabel alertCountLabel = new JLabel();
   private final KpiCard kpiRevenue = new KpiCard("Tổng doanh thu trong kỳ", "—", null);
@@ -74,6 +83,11 @@ public class RevenueStatisticsPage implements Page {
   private Consumer<Integer> onGranularityChangeListener;
 
   public RevenueStatisticsPage() {
+    this(null);
+  }
+
+  public RevenueStatisticsPage(ThongKeDoanhThuController controller) {
+    this.controller = controller;
     view = new JPanel(new MigLayout(
         "fillx, insets " + DtaqSpacing.PAGE_PADDING,
         "[grow]",
@@ -86,10 +100,10 @@ public class RevenueStatisticsPage implements Page {
     periodButton.setToolTipText(NOT_CONNECTED_TIP);
     periodButton.setEnabled(false);
     periodButton.addActionListener(e -> openPeriodDialog());
-    DtaqButton exportBtn = DtaqButton.secondary("Xuất Excel", "download");
-    exportBtn.setEnabled(false);
-    exportBtn.setToolTipText("Chức năng xuất báo cáo Excel đang được hoàn thiện");
-    header.setTrailing(periodButton, exportBtn);
+    exportButton.setEnabled(false);
+    exportButton.setToolTipText(controller == null ? NOT_CONNECTED_TIP : null);
+    exportButton.addActionListener(e -> exportReport());
+    header.setTrailing(periodButton, exportButton);
     view.add(header, "growx, wrap");
 
     alertBanner = buildAlertBanner();
@@ -109,6 +123,26 @@ public class RevenueStatisticsPage implements Page {
 
     view.add(buildBarCard(), "growx, wrap");
     view.add(buildDonutCard(), "growx");
+  }
+
+  private void exportReport() {
+    if (controller == null || baoCao == null) return;
+    JFileChooser chooser = new JFileChooser();
+    chooser.setDialogTitle("Xuất thống kê doanh thu");
+    chooser.setFileFilter(new FileNameExtensionFilter("Excel Workbook (*.xlsx)", "xlsx"));
+    if (chooser.showSaveDialog(view) != JFileChooser.APPROVE_OPTION) return;
+    File selected = chooser.getSelectedFile();
+    File target = selected.getName().toLowerCase().endsWith(".xlsx") ? selected
+        : new File(selected.getParentFile(), selected.getName() + ".xlsx");
+    exportButton.setEnabled(false);
+    new SwingWorker<Void, Void>() {
+      @Override protected Void doInBackground() { controller.xuatExcel(target, baoCao); return null; }
+      @Override protected void done() {
+        exportButton.setEnabled(baoCao != null);
+        try { get(); JOptionPane.showMessageDialog(view,"Xuất báo cáo Excel thành công","Xuất báo cáo",JOptionPane.INFORMATION_MESSAGE); }
+        catch(Exception e) { JOptionPane.showMessageDialog(view,"Không thể ghi tệp Excel. Báo cáo vẫn được giữ trên màn hình.","Xuất báo cáo",JOptionPane.ERROR_MESSAGE); }
+      }
+    }.execute();
   }
 
   private Card buildBarCard() {

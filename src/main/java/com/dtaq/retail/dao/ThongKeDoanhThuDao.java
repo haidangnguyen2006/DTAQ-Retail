@@ -9,5 +9,6 @@ public interface ThongKeDoanhThuDao {
   record DongDoanhThu(LocalDate ngay, String maDongSP, String tenDongSP,
       BigDecimal truocThue, BigDecimal thue) {}
 
-  List<DongDoanhThu> find(LocalDate tuNgay, LocalDate denNgay);
+  List<DongDoanhThu> doanhThu(LocalDate tuNgay, LocalDate denNgay);
+  List<DongDoanhThu> dieuChinh(LocalDate tuNgay, LocalDate denNgay);
 }
