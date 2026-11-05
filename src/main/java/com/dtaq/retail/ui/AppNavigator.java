@@ -44,6 +44,7 @@ import com.dtaq.retail.dao.impl.SanPhamImpl;
 import com.dtaq.retail.dao.impl.SanPhamLoiDaoImpl;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
+import com.dtaq.retail.service.BackupScheduler;
 import com.dtaq.retail.service.BackupService;
 import com.dtaq.retail.service.RestoreService;
 import com.dtaq.retail.session.CurrentSession;
@@ -99,10 +100,11 @@ public final class AppNavigator {
   private final PasswordResetDao passwordResetDao;
   private final Mailer mailer;
   private final DataSource dataSource;
+  private final BackupScheduler backupScheduler;
   private JFrame current;
 
   /**
-   * Khởi tạo bộ điều phối màn hình.
+   * Khởi tạo bộ điều phối màn hình không gắn với bộ lập lịch sao lưu.
    *
    * @param nhanVienDao lớp truy cập tài khoản nhân viên; không được {@code null}
    * @param passwordResetDao lớp truy cập phiếu đặt lại mật khẩu; không được {@code null}
@@ -112,10 +114,26 @@ public final class AppNavigator {
   public AppNavigator(
       NhanVienDao nhanVienDao, PasswordResetDao passwordResetDao, Mailer mailer,
       DataSource dataSource) {
+    this(nhanVienDao, passwordResetDao, mailer, dataSource, null);
+  }
+
+  /**
+   * Khởi tạo bộ điều phối màn hình, có thể gắn với bộ lập lịch sao lưu tự động.
+   *
+   * @param nhanVienDao lớp truy cập tài khoản nhân viên; không được {@code null}
+   * @param passwordResetDao lớp truy cập phiếu đặt lại mật khẩu; không được {@code null}
+   * @param mailer bộ gửi email xác nhận; không được {@code null}
+   * @param dataSource nguồn dữ liệu dùng chung cho các màn hình nghiệp vụ; không được {@code null}
+   * @param backupScheduler bộ lập lịch cần lập lại khi Quản lý lưu cấu hình; có thể {@code null}
+   */
+  public AppNavigator(
+      NhanVienDao nhanVienDao, PasswordResetDao passwordResetDao, Mailer mailer,
+      DataSource dataSource, BackupScheduler backupScheduler) {
     this.nhanVienDao = Objects.requireNonNull(nhanVienDao, "nhanVienDao");
     this.passwordResetDao = Objects.requireNonNull(passwordResetDao, "passwordResetDao");
     this.mailer = Objects.requireNonNull(mailer, "mailer");
     this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
+    this.backupScheduler = backupScheduler;
   }
 
   /** Hiển thị màn hình đăng nhập; phải gọi trên EDT. */
@@ -146,7 +164,7 @@ public final class AppNavigator {
     AppShellFrame shell = new AppShellFrame(nhanVien, this::logout);
 
     List<Page> pages = nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY
-        ? managerPages(nhanVien, dataSource, shell::showPage)
+        ? managerPages(nhanVien, dataSource, shell::showPage, backupScheduler)
         : salesPages(nhanVien, dataSource, shell::showPage);
     pages.forEach(shell::registerPage);
     registerPlaceholders(shell, nhanVien, idsOf(pages));
@@ -183,6 +201,27 @@ public final class AppNavigator {
    */
   static List<Page> managerPages(
       NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate) {
+    return managerPages(nhanVien, dataSource, onNavigate, null);
+  }
+
+  /**
+   * Dựng danh sách trang thật dành cho vai trò quản lý, có gắn bộ lập lịch sao lưu tự động. Bên gọi
+   * chịu trách nhiệm đăng ký từng trang vào shell và đăng ký trang tạm cho các mục menu còn lại.
+   *
+   * @param nhanVien nhân viên quản lý đang đăng nhập; không được {@code null}
+   * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
+   * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
+   * @param backupScheduler bộ lập lịch cần lập lại khi lưu cấu hình trên trang Sao lưu; có thể
+   *     {@code null}
+   * @return 11 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
+   *     PageId#REVENUE_STATS}, {@link PageId#LONG_STOCK_REPORT}, {@link PageId#PRODUCT_LINES},
+   *     {@link PageId#DEFECTIVE_PRODUCTS}, {@link PageId#PROMOTIONS}, {@link PageId#EMPLOYEES},
+   *     {@link PageId#RETURN_APPROVALS}, {@link PageId#PRICE_TAX}, {@link PageId#BACKUP}, {@link
+   *     PageId#RESTORE}; mỗi {@code PageId} xuất hiện tối đa một lần
+   */
+  static List<Page> managerPages(
+      NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate,
+      BackupScheduler backupScheduler) {
     Objects.requireNonNull(nhanVien, "nhanVien");
     Objects.requireNonNull(dataSource, "dataSource");
     Objects.requireNonNull(onNavigate, "onNavigate");
@@ -211,7 +250,7 @@ public final class AppNavigator {
         new GiaThueController(dongSanPhamDao), dongSanPhamDao);
     BackupService backupService = BackupService.macDinh(dataSource);
     BackupController backupController = new BackupController(
-        backupService, RestoreService.macDinh(dataSource, backupService));
+        backupService, RestoreService.macDinh(dataSource, backupService), backupScheduler);
     BackupPage backup = new BackupPage(backupController);
     RestorePage restore = new RestorePage(backupController);
     revenueStats.setOnNavigate(onNavigate);

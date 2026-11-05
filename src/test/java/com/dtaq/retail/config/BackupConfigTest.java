@@ -36,11 +36,13 @@ class BackupConfigTest {
   @BeforeEach
   void setUp() {
     xoaSystemProperty();
+    BackupConfig.setBackupPropertiesFileForTest(tempDir.resolve("absent-backup.properties"));
   }
 
   @AfterEach
   void tearDown() {
     xoaSystemProperty();
+    BackupConfig.setBackupPropertiesFileForTest(null);
     BackupConfig.setPropertiesFileForTest(null);
   }
 
@@ -120,6 +122,98 @@ class BackupConfigTest {
         "DTAQ_PG_RESTORE=/usr/local/bin/my_pg_restore"));
     boQuaKhiCoBienMoiTruong();
     assertEquals(Path.of("/usr/local/bin/my_pg_restore"), BackupConfig.pgRestore());
+  }
+
+  @Test
+  void backupFileFromUiOverridesDbProperties() throws IOException {
+    BackupConfig.setPropertiesFileForTest(writeProperties("backup-db.properties", String.join("\n",
+        "DTAQ_BACKUP_TIME=23:00",
+        "DTAQ_BACKUP_INTERVAL_HOURS=24",
+        "")));
+    BackupConfig.setBackupPropertiesFileForTest(writeProperties("backup-ui.properties", String.join("\n",
+        "DTAQ_BACKUP_TIME=06:30",
+        "DTAQ_BACKUP_INTERVAL_HOURS=6",
+        "")));
+    boQuaKhiCoBienMoiTruong();
+
+    assertEquals(LocalTime.of(6, 30), BackupConfig.gioChay());
+    assertEquals(6, BackupConfig.chuKyGio());
+  }
+
+  @Test
+  void uiFileOnlyOverridesSchedulingKeys() throws IOException {
+    BackupConfig.setPropertiesFileForTest(writeProperties("backup-db-foreign.properties", String.join("\n",
+        "DTAQ_BACKUP_DIR=db-dir",
+        "DTAQ_BACKUP_TIME=23:00",
+        "DTAQ_BACKUP_INTERVAL_HOURS=24",
+        "")));
+    BackupConfig.setBackupPropertiesFileForTest(
+        writeProperties("backup-ui-foreign.properties", String.join("\n",
+            "DTAQ_BACKUP_DIR=ui-dir",
+            "DTAQ_BACKUP_TIME=06:30",
+            "DTAQ_BACKUP_INTERVAL_HOURS=6",
+            "")));
+    boQuaKhiCoBienMoiTruong();
+
+    assertEquals(Path.of("db-dir"), BackupConfig.thuMucBackup(),
+        "khóa lạ trong backup.properties không được ghi đè db.properties");
+    assertEquals(LocalTime.of(6, 30), BackupConfig.gioChay());
+    assertEquals(6, BackupConfig.chuKyGio());
+  }
+
+  @Test
+  void systemPropertyWinsOverBothFiles() throws IOException {
+    BackupConfig.setPropertiesFileForTest(writeProperties("backup-db-sys.properties", String.join("\n",
+        "DTAQ_BACKUP_TIME=23:00",
+        "DTAQ_BACKUP_INTERVAL_HOURS=24",
+        "")));
+    BackupConfig.setBackupPropertiesFileForTest(writeProperties("backup-ui-sys.properties", String.join("\n",
+        "DTAQ_BACKUP_TIME=06:30",
+        "DTAQ_BACKUP_INTERVAL_HOURS=6",
+        "")));
+    boQuaKhiCoBienMoiTruong();
+    System.setProperty(BackupConfig.KEY_GIO_CHAY, "08:15");
+
+    assertEquals(LocalTime.of(8, 15), BackupConfig.gioChay());
+  }
+
+  @Test
+  void reloadSeesUpdatedBackupFile() throws IOException {
+    Path file = writeProperties("backup-ui-reload.properties", String.join("\n",
+        "DTAQ_BACKUP_TIME=06:30",
+        "DTAQ_BACKUP_INTERVAL_HOURS=6",
+        ""));
+    BackupConfig.setBackupPropertiesFileForTest(file);
+    boQuaKhiCoBienMoiTruong();
+    assertEquals(LocalTime.of(6, 30), BackupConfig.gioChay());
+    assertEquals(6, BackupConfig.chuKyGio());
+
+    Files.writeString(file, String.join("\n",
+        "DTAQ_BACKUP_TIME=21:45",
+        "DTAQ_BACKUP_INTERVAL_HOURS=12",
+        ""));
+    assertEquals(LocalTime.of(6, 30), BackupConfig.gioChay());
+
+    BackupConfig.reload();
+
+    assertEquals(LocalTime.of(21, 45), BackupConfig.gioChay());
+    assertEquals(12, BackupConfig.chuKyGio());
+  }
+
+  @Test
+  void biGhiDeBoiMoiTruongTheoSystemProperty() {
+    boQuaKhiCoBienMoiTruong();
+    assertFalse(BackupConfig.biGhiDeBoiMoiTruong());
+
+    System.setProperty(BackupConfig.KEY_CHU_KY_GIO, "6");
+    assertTrue(BackupConfig.biGhiDeBoiMoiTruong());
+    System.clearProperty(BackupConfig.KEY_CHU_KY_GIO);
+    assertFalse(BackupConfig.biGhiDeBoiMoiTruong());
+
+    System.setProperty(BackupConfig.KEY_GIO_CHAY, "08:15");
+    assertTrue(BackupConfig.biGhiDeBoiMoiTruong());
+    System.clearProperty(BackupConfig.KEY_GIO_CHAY);
+    assertFalse(BackupConfig.biGhiDeBoiMoiTruong());
   }
 
   private void boQuaKhiCoBienMoiTruong() {

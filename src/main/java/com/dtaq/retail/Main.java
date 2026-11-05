@@ -50,10 +50,12 @@ public final class Main {
       return;
     }
 
+    BackupScheduler backupScheduler = null;
     try {
       BackupService backupService = BackupService.macDinh(dataSource);
       RestoreService restoreService = RestoreService.macDinh(dataSource, backupService);
-      BackupScheduler backupScheduler = new BackupScheduler(backupService, "SYSTEM");
+      BackupScheduler khoiTao = new BackupScheduler(backupService, "SYSTEM");
+      backupScheduler = khoiTao;
 
       // Kiểm tra sức khỏe ngay và bật giám sát trước khi lịch sao lưu chạy bù, để AppState phản
       // ánh đúng tình trạng dữ liệu khi bộ lập lịch quyết định có chạy hay không.
@@ -74,9 +76,9 @@ public final class Main {
         log.error("Không khởi động được giám sát sức khỏe: {}", e.getMessage());
       }
 
-      backupScheduler.start();
+      khoiTao.start();
       Runtime.getRuntime()
-          .addShutdownHook(new Thread(backupScheduler::close, "dtaq-backup-shutdown"));
+          .addShutdownHook(new Thread(khoiTao::close, "dtaq-backup-shutdown"));
     } catch (RuntimeException e) {
       log.error("Không khởi động được lịch sao lưu: {}", e.getMessage());
     }
@@ -84,13 +86,16 @@ public final class Main {
     // Lấy lại nguồn dữ liệu sau khối kiểm tra sức khỏe: một lần tự động phục hồi lúc khởi động đã
     // reset bể kết nối, nên biến dataSource ban đầu có thể trỏ tới bể đã đóng.
     DataSource uiDataSource = ConnectDB.getDataSource();
+    // Bộ lập lịch có thể chưa khởi động được (null); khi đó trang Sao lưu vẫn hoạt động nhưng lưu
+    // cấu hình không áp dụng tức thì.
+    final BackupScheduler schedulerChoUi = backupScheduler;
 
     SwingUtilities.invokeLater(() -> {
       NhanVienDaoImpl nhanVienDao = new NhanVienDaoImpl(uiDataSource);
       PasswordResetDaoImpl passwordResetDao = new PasswordResetDaoImpl(uiDataSource);
       Mailer mailer = new SmtpMailer();
       AppNavigator navigator =
-          new AppNavigator(nhanVienDao, passwordResetDao, mailer, uiDataSource);
+          new AppNavigator(nhanVienDao, passwordResetDao, mailer, uiDataSource, schedulerChoUi);
       navigator.showLogin();
     });
   }

@@ -23,8 +23,10 @@ import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -39,9 +41,10 @@ import org.slf4j.LoggerFactory;
 /**
  * Trang "Sao lưu dữ liệu" (PageId.BACKUP, FR015).
  *
- * <p>Trang hiển thị cấu hình sao lưu chỉ đọc, cho phép Quản lý tạo ngay một bản sao lưu toàn bộ cơ
- * sở dữ liệu và theo dõi lịch sử các bản sao lưu trên đĩa. Mọi thao tác nặng chạy trong
- * {@link SwingWorker}; giao diện chỉ được cập nhật trong {@code done()}. Không có SQL/JDBC ở đây.
+ * <p>Trang hiển thị cấu hình sao lưu, cho phép Quản lý chỉnh giờ chạy và chu kỳ tự động, tạo ngay
+ * một bản sao lưu toàn bộ cơ sở dữ liệu và theo dõi lịch sử các bản sao lưu trên đĩa. Mọi thao tác
+ * nặng chạy trong {@link SwingWorker}; giao diện chỉ được cập nhật trong {@code done()}. Không có
+ * SQL/JDBC ở đây.
  */
 public final class BackupPage implements Page {
 
@@ -49,17 +52,25 @@ public final class BackupPage implements Page {
 
   private static final String LOAD_ERROR = "Không thể tải danh sách bản sao lưu. Vui lòng thử lại";
   private static final String BACKUP_ERROR = "Không thể tạo bản sao lưu. Vui lòng thử lại";
+  private static final String SAVE_CONFIG_ERROR = "Không thể lưu cấu hình. Vui lòng thử lại";
+  private static final String SAVE_CONFIG_DONE = "Đã lưu cấu hình sao lưu";
+  private static final String SAI_DINH_DANG_GIO = "Giờ phải có dạng HH:mm";
+  private static final String SAI_CHU_KY = "Chu kỳ phải từ 1 đến 168 giờ";
   private static final ZoneId MUI_GIO = ZoneId.of("Asia/Ho_Chi_Minh");
   private static final DateTimeFormatter DINH_DANG_GIO = DateTimeFormatter.ofPattern("HH:mm");
 
   private final BackupController controller;
   private final JPanel view;
   private final DtaqButton backupBtn = DtaqButton.primary("Sao lưu ngay", "download");
+  private final DtaqButton saveConfigBtn = DtaqButton.secondary("Lưu cấu hình", "check");
   private final StatusPill countPill = StatusPill.neutral("0 bản sao lưu");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {
       "Tệp", "Thời điểm", "Kích thước", "Loại", "Trạng thái"});
   private final DataTable dataTable = new DataTable(tableModel, 48);
   private final StatefulView tableState;
+
+  private FormField runTimeField;
+  private FormField intervalField;
 
   private int loadRequest;
 
@@ -81,6 +92,7 @@ public final class BackupPage implements Page {
         "Sao lưu dữ liệu",
         "Tạo bản sao lưu toàn bộ cơ sở dữ liệu theo FR015 và theo dõi các bản sao lưu hiện có.");
     backupBtn.addActionListener(e -> saoLuuNgay());
+    saveConfigBtn.addActionListener(e -> luuCauHinh());
     header.setTrailing(backupBtn);
     view.add(header, "growx, wrap");
 
@@ -106,17 +118,27 @@ public final class BackupPage implements Page {
         "Thư mục sao lưu", BackupConfig.thuMucBackup().toAbsolutePath().toString());
     FormField keepDaysField = readOnlyField(
         "Số ngày giữ bản sao lưu", BackupConfig.soNgayGiu() + " ngày");
-    FormField runTimeField = readOnlyField(
-        "Giờ chạy tự động", DINH_DANG_GIO.format(BackupConfig.gioChay()));
-    FormField intervalField = readOnlyField(
-        "Chu kỳ chạy bù", BackupConfig.chuKyGio() + " giờ");
 
-    JPanel body = new JPanel(new MigLayout("fillx, insets 0", "[grow][grow]", "[]"));
+    runTimeField = FormField.text("Giờ chạy tự động", "HH:mm", "clock");
+    intervalField = FormField.text("Chu kỳ (giờ)", "1–168", null);
+    napLaiCauHinh();
+
+    JPanel body = new JPanel(new MigLayout(
+        "fillx, insets 0, gapy " + DtaqSpacing.FORM_FIELD_GAP, "[grow][grow]", "[]"));
     body.setOpaque(false);
     body.add(folderField, "growx, span 2, wrap");
     body.add(keepDaysField, "growx");
     body.add(runTimeField, "growx, wrap");
     body.add(intervalField, "growx, span 2, wrap");
+
+    if (BackupConfig.biGhiDeBoiMoiTruong()) {
+      body.add(new InfoCallout(InfoCallout.Kind.WARNING,
+          "Giờ chạy/chu kỳ đang bị ghi đè bởi biến môi trường hoặc -D; thay đổi trên giao diện "
+              + "sẽ được lưu nhưng không có hiệu lực."),
+          "growx, span 2, wrap");
+    }
+
+    body.add(saveConfigBtn, "align right, span 2, wrap");
     body.add(new InfoCallout(InfoCallout.Kind.INFO,
         "Bản sao lưu chứa toàn bộ cơ sở dữ liệu, bao gồm mã băm mật khẩu BCrypt của tài khoản. "
             + "Không chia sẻ tệp sao lưu cho người khác hoặc ra ngoài hệ thống."),
@@ -124,10 +146,84 @@ public final class BackupPage implements Page {
 
     Card card = Card.section(
         "Cấu hình sao lưu",
-        "Chỉ đọc trong ứng dụng; thay đổi bằng biến môi trường DTAQ_BACKUP_*.",
+        "Giờ chạy và chu kỳ có thể sửa rồi bấm “Lưu cấu hình”; các khóa khác đọc từ tệp cấu hình.",
         null);
     card.setBody(body);
     return card;
+  }
+
+  /** Nạp lại giờ chạy và chu kỳ đang có hiệu lực vào hai ô nhập. */
+  private void napLaiCauHinh() {
+    runTimeField.setText(DINH_DANG_GIO.format(BackupConfig.gioChay()));
+    intervalField.setText(Integer.toString(BackupConfig.chuKyGio()));
+  }
+
+  /** Giá trị cấu hình có hiệu lực sau khi lưu, đọc ở luồng nền để không chạm tệp trên EDT. */
+  private record CauHinhMoi(LocalTime gio, int chuKy) {
+  }
+
+  /** Lưu giờ chạy và chu kỳ ở luồng nền; không ghi tệp trên EDT. */
+  private void luuCauHinh() {
+    runTimeField.setError(null);
+    intervalField.setError(null);
+
+    LocalTime gioChay;
+    try {
+      gioChay = LocalTime.parse(runTimeField.getText().trim(), DINH_DANG_GIO);
+    } catch (DateTimeParseException e) {
+      runTimeField.setError(SAI_DINH_DANG_GIO);
+      return;
+    }
+
+    int chuKy;
+    try {
+      chuKy = Integer.parseInt(intervalField.getText().trim());
+    } catch (NumberFormatException e) {
+      intervalField.setError(SAI_CHU_KY);
+      return;
+    }
+    if (chuKy < 1 || chuKy > 168) {
+      intervalField.setError(SAI_CHU_KY);
+      return;
+    }
+
+    saveConfigBtn.setBusy(true);
+    new SwingWorker<CauHinhMoi, Void>() {
+      @Override
+      protected CauHinhMoi doInBackground() {
+        controller.luuCauHinh(gioChay, chuKy);
+        return new CauHinhMoi(BackupConfig.gioChay(), BackupConfig.chuKyGio());
+      }
+
+      @Override
+      protected void done() {
+        saveConfigBtn.setBusy(false);
+        try {
+          CauHinhMoi moi = get();
+          runTimeField.setText(DINH_DANG_GIO.format(moi.gio()));
+          intervalField.setText(Integer.toString(moi.chuKy()));
+          Toast.success(view, SAVE_CONFIG_DONE);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          Toast.error(view, SAVE_CONFIG_ERROR);
+        } catch (ExecutionException e) {
+          Throwable cause = e.getCause();
+          log.warn("Không thể lưu cấu hình sao lưu (exception={})",
+              cause == null ? "none" : cause.getClass().getName());
+          Toast.error(view, thongBaoLuu(cause));
+        }
+      }
+    }.execute();
+  }
+
+  private static String thongBaoLuu(Throwable cause) {
+    if (cause instanceof SecurityException || cause instanceof IllegalArgumentException) {
+      String message = cause.getMessage();
+      if (message != null && !message.isBlank()) {
+        return message;
+      }
+    }
+    return SAVE_CONFIG_ERROR;
   }
 
   private static FormField readOnlyField(String label, String value) {

@@ -155,8 +155,8 @@ Chức năng FR015/FR016 dùng `pg_dump -Fc` để sao lưu **toàn bộ cơ s�
 | --- | --- | --- |
 | `DTAQ_BACKUP_DIR` | `./backups` | Thư mục chứa `*.dump` + `*.meta.json` (đã nằm trong `.gitignore`) |
 | `DTAQ_BACKUP_KEEP_DAYS` | `7` | Số ngày giữ bản sao lưu trước khi dọn |
-| `DTAQ_BACKUP_TIME` | `00:00` | Giờ chạy sao lưu tự động (`HH:mm`, múi giờ `Asia/Ho_Chi_Minh`) |
-| `DTAQ_BACKUP_INTERVAL_HOURS` | `24` | Chu kỳ chạy bù khi khởi động, tính bằng giờ |
+| `DTAQ_BACKUP_TIME` | `00:00` | Giờ bắt đầu lịch sao lưu tự động (`HH:mm`, múi giờ `Asia/Ho_Chi_Minh`) |
+| `DTAQ_BACKUP_INTERVAL_HOURS` | `24` | Chu kỳ lặp lại của lịch sao lưu, đồng thời là ngưỡng chạy bù khi khởi động, tính bằng giờ |
 | `DTAQ_BACKUP_ENABLED` | `true` | Bật/tắt sao lưu tự động (`true`/`false`) |
 | `DTAQ_BACKUP_SECONDARY_DIR` | (không có) | Thư mục phụ tùy chọn để chép bản sao lưu (ví dụ ổ USB), để trống nếu không dùng |
 | `DTAQ_PG_BIN_DIR` | (PATH) | Thư mục chứa `pg_dump`, `pg_restore`, `createdb` |
@@ -167,6 +167,10 @@ Chức năng FR015/FR016 dùng `pg_dump -Fc` để sao lưu **toàn bộ cơ s�
 Yêu cầu: phiên bản `pg_dump`, `pg_restore`, `createdb` phải **>= phiên bản máy chủ PostgreSQL** (kiểm tra bằng `pg_dump --version` và `psql --version`); nếu không có trên `PATH` thì đặt `DTAQ_PG_BIN_DIR`.
 
 Thư mục mặc định `./backups` đã được thêm vào `.gitignore`. Tệp sao lưu chứa **hash BCrypt** của bảng `NhanVien` nên **không commit, không chia sẻ, không tải lên cloud**.
+
+### Cấu hình lịch trên giao diện
+
+Quản lý mở trang **Sao lưu dữ liệu**, sửa **Giờ chạy** (`HH:mm`) và **Chu kỳ** (`1–168` giờ), rồi bấm **Lưu cấu hình**. Giá trị được ghi vào `backup.properties` (đã gitignore, không chứa mật khẩu) và **áp dụng ngay** cho bộ lập lịch, không cần khởi động lại ứng dụng. Nếu `DTAQ_BACKUP_TIME` hoặc `DTAQ_BACKUP_INTERVAL_HOURS` đang đặt bằng biến môi trường hay `-D`, giá trị đó vẫn thắng tệp và giao diện hiển thị cảnh báo.
 
 ### Giám sát sức khỏe dữ liệu (HealthMonitor)
 

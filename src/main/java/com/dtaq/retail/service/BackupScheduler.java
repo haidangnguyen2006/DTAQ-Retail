@@ -5,6 +5,7 @@ import com.dtaq.retail.entity.BackupRecord;
 import com.dtaq.retail.exception.BackupException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -13,21 +14,23 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Lập lịch sao lưu tự động hằng ngày và chạy bù khi ứng dụng khởi động.
+ * Lập lịch sao lưu tự động theo chu kỳ cấu hình và chạy bù khi ứng dụng khởi động.
  *
- * <p>Mỗi ngày một lần vào giờ cấu hình {@code DTAQ_BACKUP_TIME} theo múi giờ
- * {@code Asia/Ho_Chi_Minh}. Ngay sau khi khởi động, nếu bản sao lưu thành công gần nhất đã cũ hơn
- * chu kỳ {@code DTAQ_BACKUP_INTERVAL_HOURS} thì chạy bù một lần. Công việc chạy trên một luồng nền
- * daemon duy nhất, không chặn luồng giao diện.
+ * <p>Lần chạy đầu tiên rơi vào giờ cấu hình {@code DTAQ_BACKUP_TIME} gần nhất chưa qua, sau đó lặp
+ * lại mỗi {@code DTAQ_BACKUP_INTERVAL_HOURS} giờ (mặc định 24 giờ), theo múi giờ
+ * {@code Asia/Ho_Chi_Minh}. Chính giá trị chu kỳ đó cũng là ngưỡng chạy bù: ngay sau khi khởi động,
+ * nếu bản sao lưu thành công gần nhất đã cũ hơn chu kỳ thì chạy bù một lần. Công việc chạy trên một
+ * luồng nền daemon duy nhất, không chặn luồng giao diện.
  *
  * <p>Lớp này không ném lỗi ra ngoài luồng lập lịch: lỗi sao lưu chỉ được ghi cảnh báo, còn lần chạy
- * kế tiếp vẫn được giữ.
+ * kế tiếp vẫn được giữ. Cấu hình đổi trên giao diện được áp dụng bằng {@link #lapLichLai()}.
  */
 public class BackupScheduler implements AutoCloseable {
 
@@ -47,6 +50,7 @@ public class BackupScheduler implements AutoCloseable {
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
   private ScheduledExecutorService executor;
+  private ScheduledFuture<?> nhiemVuDinhKy;
 
   /**
    * Khởi tạo bộ lập lịch; chưa có luồng nào được tạo cho tới khi gọi {@link #start()}.
@@ -60,7 +64,7 @@ public class BackupScheduler implements AutoCloseable {
   }
 
   /**
-   * Bật lịch sao lưu: chạy bù ngay nếu cần, rồi chạy hằng ngày vào giờ cấu hình.
+   * Bật lịch sao lưu: chạy bù ngay nếu cần, rồi lặp lại theo giờ và chu kỳ cấu hình.
    *
    * <p>Gọi nhiều lần chỉ có tác dụng ở lần đầu. Khi {@code DTAQ_BACKUP_ENABLED=false} thì chỉ ghi
    * thông tin và không tạo luồng nào.
@@ -85,17 +89,96 @@ public class BackupScheduler implements AutoCloseable {
     }
 
     moi.execute(this::chayBu);
+    lapLich(moi);
+  }
 
+  /**
+   * Lập lại lịch chạy theo cấu hình hiện tại, dùng khi Quản lý đổi giờ chạy hoặc chu kỳ.
+   *
+   * <p>Hủy lịch cũ (không ngắt lần chạy đang diễn ra) rồi đặt lịch mới trên cùng luồng nền. Không
+   * làm gì khi sao lưu tự động chưa bật hoặc đã dừng. Phương thức không bao giờ ném ngoại lệ.
+   */
+  public synchronized void lapLichLai() {
+    if (closed.get() || !started.get() || executor == null) {
+      return;
+    }
+    try {
+      lapLich(executor);
+    } catch (RuntimeException e) {
+      log.warn("Không lập lại được lịch sao lưu: {}", e.getMessage());
+    }
+  }
+
+  /**
+   * Đặt lịch chạy lặp lại: lần đầu vào giờ cấu hình kế tiếp, sau đó mỗi {@code chuKyGio} giờ.
+   *
+   * <p>Lịch cũ nếu có luôn bị hủy trước khi thay bằng lịch mới.
+   *
+   * @param executor luồng nền dùng để đặt lịch; không được {@code null}
+   */
+  private void lapLich(ScheduledExecutorService executor) {
     ZonedDateTime bayGio = ZonedDateTime.now(MUI_GIO);
-    ZonedDateTime lanToi = bayGio.toLocalDate().atTime(BackupConfig.gioChay()).atZone(MUI_GIO);
-    if (!lanToi.isAfter(bayGio)) {
+    LocalTime gio = BackupConfig.gioChay();
+    long delayMillis = delayMillis(gio, bayGio);
+    int chuKyGio = Math.max(1, BackupConfig.chuKyGio());
+    long periodMillis = chuKyMillis(chuKyGio);
+    ZonedDateTime lanToi = bayGio.plus(Duration.ofMillis(delayMillis));
+
+    synchronized (this) {
+      if (nhiemVuDinhKy != null) {
+        nhiemVuDinhKy.cancel(false);
+      }
+      nhiemVuDinhKy = executor.scheduleAtFixedRate(this::chayTheoLich, delayMillis, periodMillis,
+          TimeUnit.MILLISECONDS);
+    }
+    log.info("Đã lập lịch sao lưu lúc {} mỗi {} giờ; lần chạy kế tiếp: {}", gio, chuKyGio, lanToi);
+  }
+
+  /**
+   * Đặt lịch chạy lặp lại trên một luồng nền cho trước; dùng cho kiểm thử.
+   *
+   * @param executor luồng nền dùng để đặt lịch; không được {@code null}
+   */
+  void lapLichChoTest(ScheduledExecutorService executor) {
+    lapLich(executor);
+  }
+
+  /**
+   * Nhiệm vụ lặp lại hiện tại, hoặc {@code null} khi chưa lập lịch hoặc đã dừng.
+   *
+   * @return nhiệm vụ đang giữ lịch chạy theo định kỳ
+   */
+  synchronized ScheduledFuture<?> nhiemVuDinhKy() {
+    return nhiemVuDinhKy;
+  }
+
+  /**
+   * Đổi chu kỳ tính bằng giờ sang số mili giây, tối thiểu một giờ.
+   *
+   * @param chuKyGio chu kỳ mong đợi; giá trị không dương được nâng thành một giờ
+   * @return độ dài chu kỳ tính bằng mili giây
+   */
+  static long chuKyMillis(int chuKyGio) {
+    return TimeUnit.HOURS.toMillis(Math.max(1, chuKyGio));
+  }
+
+  /**
+   * Khoảng thời gian từ {@code now} tới lần xuất hiện kế tiếp của {@code gio} trong ngày.
+   *
+   * <p>Nếu {@code now} đã đúng {@code gio} thì lần kế tiếp là ngày mai, tránh vòng lặp delay 0.
+   *
+   * @param gio giờ chạy trong ngày
+   * @param now thời điểm hiện tại kèm múi giờ
+   * @return số mili giây phải chờ, luôn dương
+   */
+  static long delayMillis(LocalTime gio, ZonedDateTime now) {
+    Objects.requireNonNull(gio, "gio");
+    Objects.requireNonNull(now, "now");
+    ZonedDateTime lanToi = now.toLocalDate().atTime(gio).atZone(now.getZone());
+    if (!lanToi.isAfter(now)) {
       lanToi = lanToi.plusDays(1);
     }
-    long delayMillis = Duration.between(bayGio, lanToi).toMillis();
-    moi.scheduleAtFixedRate(this::chayTheoLich, delayMillis, TimeUnit.DAYS.toMillis(1),
-        TimeUnit.MILLISECONDS);
-    log.info("Đã lập lịch sao lưu tự động lúc {} mỗi ngày; lần chạy kế tiếp: {}",
-        BackupConfig.gioChay(), lanToi);
+    return Duration.between(now, lanToi).toMillis();
   }
 
   /**
@@ -179,6 +262,10 @@ public class BackupScheduler implements AutoCloseable {
     ScheduledExecutorService hienTai;
     synchronized (this) {
       hienTai = executor;
+      if (nhiemVuDinhKy != null) {
+        nhiemVuDinhKy.cancel(false);
+        nhiemVuDinhKy = null;
+      }
     }
     if (hienTai == null) {
       return;

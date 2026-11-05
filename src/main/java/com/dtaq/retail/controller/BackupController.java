@@ -1,11 +1,14 @@
 package com.dtaq.retail.controller;
 
+import com.dtaq.retail.config.BackupSettingsStore;
 import com.dtaq.retail.entity.BackupRecord;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
+import com.dtaq.retail.service.BackupScheduler;
 import com.dtaq.retail.service.BackupService;
 import com.dtaq.retail.service.RestoreService;
 import com.dtaq.retail.session.CurrentSession;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Objects;
 
@@ -24,16 +27,33 @@ public final class BackupController {
 
   private final BackupService backupService;
   private final RestoreService restoreService;
+  private final BackupScheduler backupScheduler;
 
   /**
-   * Khởi tạo bộ điều phối sao lưu/phục hồi.
+   * Khởi tạo bộ điều phối sao lưu/phục hồi không gắn với bộ lập lịch.
+   *
+   * <p>Dùng cho các ngữ cảnh chỉ cần sao lưu/phục hồi thủ công hoặc cho kiểm thử; cấu hình lưu từ
+   * giao diện sẽ không được áp dụng tức thì vì không có {@link BackupScheduler}.
    *
    * @param backupService dịch vụ sao lưu; không được {@code null}
    * @param restoreService dịch vụ phục hồi; không được {@code null}
    */
   public BackupController(BackupService backupService, RestoreService restoreService) {
+    this(backupService, restoreService, null);
+  }
+
+  /**
+   * Khởi tạo bộ điều phối sao lưu/phục hồi, có thể gắn với bộ lập lịch tự động.
+   *
+   * @param backupService dịch vụ sao lưu; không được {@code null}
+   * @param restoreService dịch vụ phục hồi; không được {@code null}
+   * @param backupScheduler bộ lập lịch cần lập lại sau khi lưu cấu hình; có thể {@code null}
+   */
+  public BackupController(
+      BackupService backupService, RestoreService restoreService, BackupScheduler backupScheduler) {
     this.backupService = Objects.requireNonNull(backupService, "backupService");
     this.restoreService = Objects.requireNonNull(restoreService, "restoreService");
+    this.backupScheduler = backupScheduler;
   }
 
   /**
@@ -89,6 +109,38 @@ public final class BackupController {
   public BackupRecord phucHoi(BackupRecord banGhi, boolean daXacNhan) {
     yeuCauQuanLy();
     return restoreService.phucHoi(banGhi, nhanVienHienTai().maNV(), daXacNhan);
+  }
+
+  /**
+   * Lưu giờ chạy và chu kỳ sao lưu tự động do Quản lý chọn trên giao diện.
+   *
+   * <p>Giá trị được ghi bền vào {@code backup.properties} (không chứa mật khẩu), sau đó bộ lập lịch
+   * được lập lại ngay để áp dụng giờ và chu kỳ mới mà không cần khởi động lại ứng dụng. Nếu một
+   * trong hai khóa {@code DTAQ_BACKUP_TIME}/{@code DTAQ_BACKUP_INTERVAL_HOURS} đang được đặt bằng
+   * system property hoặc biến môi trường thì giá trị đó vẫn thắng tệp và giao diện phải cảnh báo;
+   * phương thức này không kiểm tra điều đó và không ném lỗi vì lý do đó.
+   *
+   * <p>Việc ghi tệp là thao tác I/O nên bên gọi phải chạy nó ngoài luồng giao diện.
+   *
+   * @param gioChay giờ chạy trong ngày; không được {@code null}
+   * @param chuKyGio chu kỳ tính bằng giờ, từ {@code 1} đến {@code 168}
+   * @throws SecurityException khi phiên hiện tại không phải Nhân viên quản lý
+   * @throws IllegalArgumentException khi giờ trống hoặc chu kỳ ngoài khoảng {@code 1..168}
+   * @throws java.io.UncheckedIOException khi không ghi được tệp cấu hình
+   */
+  public void luuCauHinh(LocalTime gioChay, int chuKyGio) {
+    yeuCauQuanLy();
+    if (gioChay == null) {
+      throw new IllegalArgumentException("Giờ chạy không được để trống");
+    }
+    if (chuKyGio < 1 || chuKyGio > 168) {
+      throw new IllegalArgumentException("Chu kỳ phải từ 1 đến 168 giờ");
+    }
+
+    BackupSettingsStore.luu(gioChay, chuKyGio);
+    if (backupScheduler != null) {
+      backupScheduler.lapLichLai();
+    }
   }
 
   /**

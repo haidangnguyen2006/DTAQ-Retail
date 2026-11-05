@@ -19,11 +19,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Đọc cấu hình sao lưu cơ sở dữ liệu theo thứ tự ưu tiên: system property, biến môi trường, tệp
- * {@code db.properties}, rồi giá trị mặc định.
+ * {@code backup.properties} do Quản lý chỉnh sửa trên giao diện, tệp {@code db.properties}, rồi giá
+ * trị mặc định.
  *
  * <p>Các khóa {@code DTAQ_BACKUP_*} điều khiển thư mục, lịch chạy và thời hạn giữ bản sao lưu;
- * các khóa {@code DTAQ_PG_*} chỉ đường dẫn tới công cụ dòng lệnh PostgreSQL. Giá trị số hoặc giờ
- * không hợp lệ được ghi cảnh báo và thay bằng mặc định, không làm ứng dụng dừng.
+ * các khóa {@code DTAQ_PG_*} chỉ đường dẫn tới công cụ dòng lệnh PostgreSQL. Chỉ hai khóa lịch chạy
+ * {@link #KEY_GIO_CHAY} và {@link #KEY_CHU_KY_GIO} được đọc từ {@code backup.properties}; mọi khóa
+ * khác bỏ qua tệp này. Giá trị số hoặc giờ không hợp lệ được ghi cảnh báo và thay bằng mặc định,
+ * không làm ứng dụng dừng.
  */
 public final class BackupConfig {
 
@@ -38,7 +41,10 @@ public final class BackupConfig {
   /** Giờ chạy sao lưu tự động trong ngày, định dạng {@code HH:mm}. */
   public static final String KEY_GIO_CHAY = "DTAQ_BACKUP_TIME";
 
-  /** Chu kỳ chạy bù tính bằng giờ. */
+  /**
+   * Chu kỳ lặp lại của lịch sao lưu tự động, đồng thời là ngưỡng chạy bù khi khởi động, tính bằng
+   * giờ.
+   */
   public static final String KEY_CHU_KY_GIO = "DTAQ_BACKUP_INTERVAL_HOURS";
 
   /** Bật/tắt sao lưu tự động. */
@@ -72,6 +78,9 @@ public final class BackupConfig {
 
   private static Path propertiesPath = Paths.get("db.properties");
   private static volatile Properties fileProps;
+
+  private static Path backupPropertiesPath = Paths.get("backup.properties");
+  private static volatile Properties backupProps;
 
   private BackupConfig() {
   }
@@ -151,7 +160,10 @@ public final class BackupConfig {
   }
 
   /**
-   * Chu kỳ chạy bù tính bằng giờ.
+   * Chu kỳ lặp lại của lịch sao lưu tự động, đồng thời là ngưỡng chạy bù khi khởi động.
+   *
+   * <p>Giá trị này vừa quyết định khoảng cách giữa hai lần chạy theo lịch, vừa là tuổi tối đa của
+   * bản sao lưu thành công gần nhất trước khi ứng dụng chạy bù một lần lúc khởi động.
    *
    * @return số giờ dương, mặc định {@code 24}
    */
@@ -256,10 +268,40 @@ public final class BackupConfig {
     if (value == null) {
       value = System.getenv(key);
     }
+    if (value == null && laKhoaGiaoDien(key)) {
+      value = backupProperties().getProperty(key);
+    }
     if (value == null) {
       value = fileProperties().getProperty(key);
     }
     return value;
+  }
+
+  /**
+   * Cho biết khóa có được Quản lý chỉnh sửa trên giao diện hay không.
+   *
+   * <p>Chỉ hai khóa lịch chạy được đọc từ {@code backup.properties}; mọi khóa khác bỏ qua tệp này
+   * để một khóa lạ trong đó không âm thầm ghi đè {@code db.properties}.
+   *
+   * @param key tên khóa cấu hình
+   * @return {@code true} với {@link #KEY_GIO_CHAY} và {@link #KEY_CHU_KY_GIO}
+   */
+  private static boolean laKhoaGiaoDien(String key) {
+    return KEY_GIO_CHAY.equals(key) || KEY_CHU_KY_GIO.equals(key);
+  }
+
+  private static Properties backupProperties() {
+    Properties current = backupProps;
+    if (current == null) {
+      synchronized (BackupConfig.class) {
+        current = backupProps;
+        if (current == null) {
+          current = load(backupPropertiesPath);
+          backupProps = current;
+        }
+      }
+    }
+    return current;
   }
 
   private static Properties fileProperties() {
@@ -290,6 +332,46 @@ public final class BackupConfig {
           path.toAbsolutePath(), e.getMessage());
     }
     return properties;
+  }
+
+  /**
+   * Cho biết cấu hình giờ chạy hoặc chu kỳ đang bị system property/biến môi trường ghi đè.
+   *
+   * <p>Khi {@code true}, giá trị lưu từ giao diện vẫn được ghi xuống tệp nhưng không có hiệu lực
+   * cho tới khi bỏ system property/biến môi trường tương ứng.
+   *
+   * @return {@code true} nếu một trong hai khóa lịch chạy được đặt từ môi trường
+   */
+  public static boolean biGhiDeBoiMoiTruong() {
+    return coGiaTriMoiTruong(KEY_GIO_CHAY) || coGiaTriMoiTruong(KEY_CHU_KY_GIO);
+  }
+
+  private static boolean coGiaTriMoiTruong(String key) {
+    String property = System.getProperty(key);
+    if (property != null && !property.isBlank()) {
+      return true;
+    }
+    String env = System.getenv(key);
+    return env != null && !env.isBlank();
+  }
+
+  /**
+   * Xóa bộ nhớ đệm để lần đọc kế tiếp nạp lại {@code backup.properties} và {@code db.properties}.
+   */
+  public static synchronized void reload() {
+    fileProps = null;
+    backupProps = null;
+  }
+
+  /**
+   * Đổi tệp cấu hình sao lưu dùng cho kiểm thử; truyền {@code null} để quay lại
+   * {@code backup.properties}.
+   *
+   * @param path tệp cấu hình cần dùng, hoặc {@code null}
+   */
+  static synchronized void setBackupPropertiesFileForTest(Path path) {
+    backupPropertiesPath = path == null ? Paths.get("backup.properties") : path;
+    backupProps = null;
   }
 
   /**

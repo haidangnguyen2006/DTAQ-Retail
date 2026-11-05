@@ -24,8 +24,13 @@ DTAQ_SMTP_TIMEOUT_MS=
 # DTAQ_BACKUP_DIR là thư mục chứa cặp tệp *.dump + *.meta.json. Thư mục này đã
 # được .gitignore bỏ qua và chứa hash BCrypt của bảng "NhanVien": không commit,
 # không chia sẻ, không đưa lên cloud.
-# DTAQ_BACKUP_TIME theo định dạng HH:mm, múi giờ Asia/Ho_Chi_Minh.
-# DTAQ_BACKUP_INTERVAL_HOURS là chu kỳ chạy bù khi khởi động (24 = mỗi ngày).
+# DTAQ_BACKUP_TIME là giờ bắt đầu lịch chạy (HH:mm, múi giờ Asia/Ho_Chi_Minh).
+# DTAQ_BACKUP_INTERVAL_HOURS là chu kỳ lặp lại của lịch và cũng là ngưỡng chạy bù
+# khi khởi động (24 = mỗi ngày).
+# Hai khóa này có thể sửa ngay trên giao diện Sao lưu: khi Quản lý bấm "Lưu cấu hình",
+# ứng dụng ghi chúng vào backup.properties (đã gitignore). Với hai khóa này,
+# backup.properties thắng db.properties, còn biến môi trường và -D thắng cả hai
+# (giao diện sẽ cảnh báo).
 # DTAQ_BACKUP_ENABLED=false sẽ tắt hoàn toàn lịch sao lưu tự động.
 # DTAQ_BACKUP_SECONDARY_DIR để trống nếu không cần sao chép thêm một bản.
 # DTAQ_PG_BIN_DIR chỉ cần khi pg_dump/pg_restore/createdb không có trên PATH.
