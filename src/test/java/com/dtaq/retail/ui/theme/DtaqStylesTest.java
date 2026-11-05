@@ -12,16 +12,16 @@ class DtaqStylesTest {
   @Test
   @DisplayName("hex() trả về mã #RRGGBB viết hoa, không có kênh alpha")
   void testHex() {
-    assertEquals("#087F75", DtaqStyles.hex(DtaqColors.PRIMARY));
+    assertEquals("#2457F5", DtaqStyles.hex(DtaqColors.PRIMARY));
     assertEquals("#FFFFFF", DtaqStyles.hex(DtaqColors.SURFACE));
-    assertEquals("#087F75", DtaqStyles.hex(DtaqColors.FOCUS_RING));
+    assertEquals("#2457F5", DtaqStyles.hex(DtaqColors.FOCUS_RING));
   }
 
   @Test
   @DisplayName("Style nút chính dùng màu primary và bo góc chuẩn")
   void testPrimaryButtonStyle() {
-    assertTrue(DtaqStyles.BUTTON_PRIMARY.contains("background: #087F75"));
-    assertTrue(DtaqStyles.BUTTON_PRIMARY.contains("hoverBackground: #076F66"));
-    assertTrue(DtaqStyles.BUTTON_PRIMARY.contains("arc: 12"));
+    assertTrue(DtaqStyles.BUTTON_PRIMARY.contains("background: #2457F5"));
+    assertTrue(DtaqStyles.BUTTON_PRIMARY.contains("hoverBackground: #1F4FD8"));
+    assertTrue(DtaqStyles.BUTTON_PRIMARY.contains("arc: 16"));
   }
 }

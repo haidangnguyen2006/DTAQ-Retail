@@ -172,7 +172,7 @@ public class RetailInvoicePage implements Page {
         "Nhấn F3 để tìm sản phẩm và bắt đầu lập hóa đơn.");
 
     JPanel body = new JPanel(new MigLayout(
-        "fill, insets 0", "[grow,fill]20[" + RIGHT_COLUMN_WIDTH + "!,fill]", "[grow,fill]"));
+        "fill, insets 0", "[grow,fill]20[" + RIGHT_COLUMN_WIDTH + "px!,fill]", "[grow,fill]"));
     body.setOpaque(false);
     body.add(scroller(buildLeftColumn()));
     body.add(scroller(buildRightColumn()));
@@ -363,6 +363,18 @@ public class RetailInvoicePage implements Page {
 
     lookupCustomerBtn.addActionListener(e -> triggerCustomerLookup());
     searchRow.add(lookupCustomerBtn);
+    searchRow.addComponentListener(new java.awt.event.ComponentAdapter() {
+      @Override
+      public void componentResized(java.awt.event.ComponentEvent e) {
+        boolean narrow = searchRow.getWidth() < 560;
+        MigLayout layout = (MigLayout) searchRow.getLayout();
+        layout.setColumnConstraints(narrow ? "[0:pref,grow]" : "[0:pref,grow]12[]");
+        layout.setComponentConstraints(phoneLookupField, "cell 0 0, growx");
+        layout.setComponentConstraints(lookupCustomerBtn, narrow
+            ? "cell 0 1, align right, gaptop 8" : "cell 1 0, aligny bottom");
+        searchRow.revalidate();
+      }
+    });
     card.add(searchRow, "growx, wrap");
 
     customerLookupStatusPanel.setOpaque(false);
@@ -434,25 +446,24 @@ public class RetailInvoicePage implements Page {
   }
 
   private JPanel buildRightColumn() {
-    JPanel rightCol = new JPanel(new MigLayout("fillx, insets 0 6 0 0", "[grow]", "[]16[]"));
+    JPanel rightCol = new JPanel(new MigLayout("fillx, insets 0 6 0 0", "[grow]", "[]12[]"));
     rightCol.setOpaque(false);
 
-    Card customerInfoCard = new Card(DtaqSpacing.CARD_PADDING_COMPACT, 12);
+    Card customerInfoCard = new Card(12, 8);
     customerInfoCard.add(Card.buildHeader("Thông tin khách hàng", null, null), "growx, wrap");
     customerInfoContent.setOpaque(false);
     customerInfoCard.add(customerInfoContent, "growx");
-    rightCol.add(customerInfoCard, "growx, wrap");
-
-    rightCol.add(buildPaymentCard(), "growx");
+    rightCol.add(buildPaymentCard(), "growx, wrap");
+    rightCol.add(customerInfoCard, "growx");
     return rightCol;
   }
 
   private Card buildPaymentCard() {
-    Card card = new Card(DtaqSpacing.CARD_PADDING_COMPACT, 14);
+    Card card = new Card(12, 8);
     card.add(Card.buildHeader("Thanh toán", null, null), "growx, wrap");
 
     JPanel totalsPanel = new JPanel(new MigLayout(
-        "fillx, insets 0", "[grow][]", "[]8[]8[]10[]10[]12[]12[]10[]"));
+        "fillx, insets 0, gapy 6", "[grow][]", "[]"));
     totalsPanel.setOpaque(false);
 
     addAmountRow(totalsPanel, "Tổng trước thuế:", subtotalLabel);
@@ -462,7 +473,10 @@ public class RetailInvoicePage implements Page {
 
     JLabel totalTitle = new JLabel("Tổng thanh toán:");
     totalTitle.setFont(DtaqFonts.LABEL);
-    totalsPanel.add(totalTitle);
+    totalTitle.setForeground(DtaqColors.PRIMARY_STRONG);
+    JPanel totalBlock = new com.dtaq.retail.ui.component.Tile(DtaqColors.PRIMARY_SOFT, DtaqSpacing.RADIUS_CARD_SM);
+    totalBlock.setLayout(new MigLayout("fillx, insets 10 12", "[grow]", "[]4[]"));
+    totalBlock.add(totalTitle, "wrap");
     JPanel totalBig = new JPanel(new MigLayout("insets 0, gapx 4", "[][]", "[baseline]"));
     totalBig.setOpaque(false);
     totalAmountLabel.setFont(DtaqFonts.AMOUNT_XL);
@@ -472,7 +486,8 @@ public class RetailInvoicePage implements Page {
     vnd.setFont(DtaqFonts.CAPTION);
     vnd.setForeground(DtaqColors.TEXT_MUTED);
     totalBig.add(vnd);
-    totalsPanel.add(totalBig, "align right, wrap");
+    totalBlock.add(totalBig, "align right");
+    totalsPanel.add(totalBlock, "growx, span, wrap");
 
     cashField.getTextField().getDocument().addDocumentListener(new DocumentListener() {
       @Override

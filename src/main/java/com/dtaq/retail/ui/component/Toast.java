@@ -22,9 +22,9 @@ import net.miginfocom.swing.MigLayout;
 public final class Toast {
 
   public enum Kind {
-    SUCCESS("circle-check", DtaqColors.PRIMARY_SOFT_2),
-    ERROR("alert-circle", DtaqColors.DANGER_SOFT),
-    INFO("info", DtaqColors.PRIMARY_SOFT_2);
+    SUCCESS("circle-check", new Color(0x5DD39E)),
+    ERROR("alert-circle", new Color(0xFF8A85)),
+    INFO("info", DtaqColors.SIDEBAR_ACCENT);
 
     private final String icon;
     private final Color iconColor;
@@ -37,6 +37,32 @@ public final class Toast {
 
   private static final int MARGIN = 24;
   private static final int DURATION_MS = 3000;
+  private static final int SLIDE_PX = 18;
+  private static final int ENTER_MS = 180;
+  private static final int EXIT_MS = 140;
+
+  /** Trượt thông báo theo trục dọc từ {@code from} tới {@code to}; nhẹ, bỏ qua nếu hoạt ảnh bị tắt. */
+  private static void slide(JComponent toast, int from, int to, int ms, Runnable done) {
+    if (!com.formdev.flatlaf.util.Animator.useAnimation()) {
+      toast.setLocation(toast.getX(), to);
+      if (done != null) {
+        done.run();
+      }
+      return;
+    }
+    com.formdev.flatlaf.util.Animator animator = new com.formdev.flatlaf.util.Animator(ms, fraction -> {
+      toast.setLocation(toast.getX(), from + Math.round((to - from) * fraction));
+      if (toast.getParent() != null) {
+        toast.getParent().repaint();
+      }
+    }, () -> {
+      if (done != null) {
+        done.run();
+      }
+    });
+    animator.setInterpolator(com.formdev.flatlaf.util.CubicBezierEasing.EASE_OUT);
+    animator.start();
+  }
 
   private Toast() {
   }
@@ -50,19 +76,21 @@ public final class Toast {
 
     JPanel toast = new JPanel(new MigLayout("insets 12 16 12 18, gapx 10", "[][]", "[center]"));
     toast.setOpaque(true);
-    toast.setBackground(DtaqColors.TEXT);
+    toast.setBackground(new Color(0x1F2633));
     toast.putClientProperty(FlatClientProperties.STYLE, "arc: 20");
     toast.add(new JLabel(DtaqIcons.icon(kind.icon, 18, kind.iconColor)));
     JLabel label = new JLabel(message);
     label.setFont(DtaqFonts.BODY_13_MEDIUM);
-    label.setForeground(Color.WHITE);
+    label.setForeground(DtaqColors.SURFACE);
     toast.add(label);
 
     Dimension size = toast.getPreferredSize();
-    toast.setBounds(layered.getWidth() - size.width - MARGIN, layered.getHeight() - size.height - MARGIN,
-        size.width, size.height);
+    int x = layered.getWidth() - size.width - MARGIN;
+    int y = layered.getHeight() - size.height - MARGIN;
+    toast.setBounds(x, y + SLIDE_PX, size.width, size.height);
     layered.add(toast, JLayeredPane.POPUP_LAYER);
     layered.repaint();
+    slide(toast, y + SLIDE_PX, y, ENTER_MS, null);
 
     Timer timer = new Timer(DURATION_MS, e -> dismiss(layered, toast));
     timer.setRepeats(false);
@@ -78,8 +106,10 @@ public final class Toast {
   }
 
   private static void dismiss(JLayeredPane layered, JComponent toast) {
-    layered.remove(toast);
-    layered.revalidate();
-    layered.repaint();
+    slide(toast, toast.getY(), toast.getY() + SLIDE_PX, EXIT_MS, () -> {
+      layered.remove(toast);
+      layered.revalidate();
+      layered.repaint();
+    });
   }
 }

@@ -60,6 +60,9 @@ public class FormField extends JPanel {
       input.putClientProperty(FlatClientProperties.STYLE, DtaqStyles.TEXT_FIELD);
     }
     input.setPreferredSize(new Dimension(input.getPreferredSize().width, DtaqSpacing.CONTROL_H));
+    input.setMinimumSize(new Dimension(0, DtaqSpacing.CONTROL_H));
+    labelComponent.setLabelFor(input);
+    input.getAccessibleContext().setAccessibleName(labelText);
 
     JPanel labelRow = new JPanel(new MigLayout("insets 0, gapx 3", "[][]", "[]"));
     labelRow.setOpaque(false);

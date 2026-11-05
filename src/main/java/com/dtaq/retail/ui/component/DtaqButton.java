@@ -176,6 +176,14 @@ public class DtaqButton extends JButton {
     putClientProperty(FlatClientProperties.STYLE, style);
   }
 
+  /** Không cho bố cục ép nút thấp hơn chiều cao chuẩn (cửa sổ thấp sẽ cuộn/thu bảng thay vì cắt chữ nút). */
+  @Override
+  public Dimension getMinimumSize() {
+    Dimension d = super.getMinimumSize();
+    d.height = Math.max(d.height, getPreferredSize().height);
+    return d;
+  }
+
   @Override
   public Dimension getPreferredSize() {
     Dimension d = super.getPreferredSize();

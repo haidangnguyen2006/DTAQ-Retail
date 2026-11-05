@@ -48,6 +48,14 @@ public class DonutChartPanel extends JPanel {
     legendPanel.setOpaque(false);
     add(canvas, "align center");
     add(legendPanel, "growx, aligny center");
+    Responsive.onSizeChange(this, size -> {
+      MigLayout layout = (MigLayout) getLayout();
+      boolean stacked = size == Responsive.Size.S;
+      layout.setColumnConstraints(stacked ? "[0:pref,grow]" : "[240!]32[0:pref,grow]");
+      layout.setComponentConstraints(canvas, "cell 0 0, align center");
+      layout.setComponentConstraints(legendPanel, stacked
+          ? "cell 0 1, growx, gaptop 16" : "cell 1 0, growx, aligny center");
+    });
   }
 
   /** Hiển thị giá trị là số lượng (ví dụ "máy") thay vì tiền, kèm nhãn ở tâm biểu đồ. */
@@ -76,7 +84,29 @@ public class DonutChartPanel extends JPanel {
       }
     }
     updateLegend();
-    canvas.repaint();
+    startSweep();
+  }
+
+  private float sweep = 1f;
+  private com.formdev.flatlaf.util.Animator sweepAnimator;
+
+  /** Vòng quét dần theo chiều kim đồng hồ khi có dữ liệu mới (≈180ms). */
+  private void startSweep() {
+    if (sweepAnimator != null) {
+      sweepAnimator.cancel();
+    }
+    if (slices.isEmpty() || !com.formdev.flatlaf.util.Animator.useAnimation() || !canvas.isShowing()) {
+      sweep = 1f;
+      canvas.repaint();
+      return;
+    }
+    sweep = 0f;
+    sweepAnimator = new com.formdev.flatlaf.util.Animator(180, fraction -> {
+      sweep = fraction;
+      canvas.repaint();
+    });
+    sweepAnimator.setInterpolator(com.formdev.flatlaf.util.CubicBezierEasing.EASE_OUT);
+    sweepAnimator.start();
   }
 
   private void updateLegend() {
@@ -89,7 +119,7 @@ public class DonutChartPanel extends JPanel {
       legendPanel.add(swatch);
 
       JLabel nameLbl = new JLabel(s.name());
-      nameLbl.setFont(DtaqFonts.BODY_14);
+      nameLbl.setFont(DtaqFonts.BODY_13);
       nameLbl.setForeground(DtaqColors.TEXT);
       legendPanel.add(nameLbl);
 
@@ -174,10 +204,21 @@ public class DonutChartPanel extends JPanel {
 
       double startAngle = 90.0;
       for (DonutSlice slice : slices) {
-        double extent = -((slice.amount() * 360.0) / totalAmount);
+        double extent = -((slice.amount() * 360.0 * sweep) / totalAmount);
         g2.setColor(slice.color());
         g2.fill(new Arc2D.Double(x, y, size, size, startAngle, extent, Arc2D.PIE));
         startAngle += extent;
+      }
+      // Khe 2px giữa các lát bằng màu nền để các lát tách bạch.
+      g2.setColor(DtaqColors.SURFACE);
+      g2.setStroke(new java.awt.BasicStroke(2f));
+      double a = 90.0;
+      for (DonutSlice slice : slices) {
+        double ext = -((slice.amount() * 360.0 * sweep) / totalAmount);
+        g2.draw(new java.awt.geom.Line2D.Double(x + size / 2.0, y + size / 2.0,
+            x + size / 2.0 + Math.cos(Math.toRadians(a)) * size / 2.0,
+            y + size / 2.0 - Math.sin(Math.toRadians(a)) * size / 2.0));
+        a += ext;
       }
 
       g2.setColor(DtaqColors.SURFACE);

@@ -38,6 +38,13 @@ public class SegmentedControl extends JPanel {
           d.height = Math.max(d.height, DtaqSpacing.BUTTON_H_SM);
           return d;
         }
+
+        @Override
+        public Dimension getMinimumSize() {
+          Dimension d = super.getMinimumSize();
+          d.height = Math.max(d.height, getPreferredSize().height);
+          return d;
+        }
       };
       btn.setFont(DtaqFonts.SMALL_BUTTON);
       btn.setFocusPainted(false);

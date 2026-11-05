@@ -3,6 +3,7 @@ package com.dtaq.retail.ui.component.table;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.format.MoneyFormat;
 import com.dtaq.retail.ui.theme.DtaqColors;
+import com.dtaq.retail.ui.theme.DtaqStyles;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import java.awt.Color;
 import java.awt.Component;
@@ -81,7 +82,8 @@ public final class TableRenderers {
     public Component getTableCellRendererComponent(
         JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
       super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-      setFont(DtaqFonts.BODY_13_MEDIUM);
+      setFont(DtaqFonts.CODE);
+      setForeground(DtaqColors.PRIMARY_STRONG);
       return this;
     }
   }
@@ -97,6 +99,14 @@ public final class TableRenderers {
   public static class MoneyRenderer extends TextRenderer {
     public MoneyRenderer() {
       setHorizontalAlignment(SwingConstants.RIGHT);
+    }
+
+    @Override
+    public Component getTableCellRendererComponent(
+        JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+      super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+      setFont(DtaqFonts.MONEY_TABLE);
+      return this;
     }
 
     @Override
@@ -161,10 +171,29 @@ public final class TableRenderers {
       panel.setOpaque(true);
       for (RowAction action : actions) {
         DtaqButton button = switch (action.style()) {
-          case PRIMARY -> DtaqButton.primarySmall(action.label());
-          case DANGER -> DtaqButton.dangerSmall(action.label());
+          case PRIMARY -> DtaqButton.secondarySmall(action.label());
+          case DANGER -> DtaqButton.secondarySmall(action.label());
           case SECONDARY -> DtaqButton.secondarySmall(action.label());
         };
+        // Trong bảng dùng nút nhẹ (viền/ghost) để các hành động không lấn át dữ liệu.
+        button.putClientProperty(com.formdev.flatlaf.FlatClientProperties.STYLE,
+            switch (action.style()) {
+              case PRIMARY -> "background: " + DtaqStyles.hex(DtaqColors.SURFACE)
+                  + "; foreground: " + DtaqStyles.hex(DtaqColors.PRIMARY_STRONG)
+                  + "; borderColor: " + DtaqStyles.hex(DtaqColors.PRIMARY_BORDER_SOFT)
+                  + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.PRIMARY_SOFT)
+                  + "; borderWidth: 1";
+              case DANGER -> "background: " + DtaqStyles.hex(DtaqColors.SURFACE)
+                  + "; foreground: " + DtaqStyles.hex(DtaqColors.DANGER)
+                  + "; borderColor: " + DtaqStyles.hex(DtaqColors.DANGER_SOFT_HOVER)
+                  + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.DANGER_SOFT)
+                  + "; borderWidth: 1";
+              case SECONDARY -> "background: " + DtaqStyles.hex(DtaqColors.SURFACE)
+                  + "; foreground: " + DtaqStyles.hex(DtaqColors.TEXT_MUTED)
+                  + "; borderColor: " + DtaqStyles.hex(DtaqColors.BORDER)
+                  + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.DISABLED_BG)
+                  + "; borderWidth: 1";
+            } + DtaqStyles.SMALL_BUTTON_EXTRA + "; arc: 12");
         if (live) {
           button.addActionListener(e -> fire(action));
         }

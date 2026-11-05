@@ -124,6 +124,7 @@ public class RevenueStatisticsPage implements Page {
         "[grow,fill]" + DtaqSpacing.KPI_GAP_COMPACT + "[grow,fill]" + DtaqSpacing.KPI_GAP_COMPACT
             + "[grow,fill]" + DtaqSpacing.KPI_GAP_COMPACT + "[grow,fill]", "[]"));
     kpiRow.setOpaque(false);
+    com.dtaq.retail.ui.component.Responsive.grid(kpiRow, 220, 4);
     kpiRow.add(kpiRevenue);
     kpiRow.add(kpiPretax);
     kpiRow.add(kpiTax);
