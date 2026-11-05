@@ -49,12 +49,20 @@ public final class ThongKeDoanhThuController {
         DongDoanhThu::maDongSP, LinkedHashMap::new,
         Collectors.mapping(r -> r.truocThue().add(r.thue()),
             Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))));
-    List<DonutChartPanel.DonutSlice> donut = theoDong.entrySet().stream()
+    Map<String, String> tenDong = new LinkedHashMap<>();
+    tatCa.forEach(r -> tenDong.putIfAbsent(r.maDongSP(), r.tenDongSP()));
+    java.awt.Color[] mau = {DtaqColors.CHART_1, DtaqColors.CHART_2, DtaqColors.CHART_3,
+        DtaqColors.CHART_4, DtaqColors.CHART_5};
+    List<Map.Entry<String, BigDecimal>> top = theoDong.entrySet().stream()
         .filter(e -> e.getValue().signum() > 0)
         .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
-        .limit(5)
-        .map(e -> new DonutChartPanel.DonutSlice(e.getKey(), e.getValue().longValue(), DtaqColors.PRIMARY))
+        .limit(mau.length)
         .toList();
+    List<DonutChartPanel.DonutSlice> donut = new ArrayList<>();
+    for (int i = 0; i < top.size(); i++) {
+      donut.add(new DonutChartPanel.DonutSlice(
+          tenDong.get(top.get(i).getKey()), top.get(i).getValue().longValue(), mau[i]));
+    }
     long soHoaDon = hoaDonDao.findDaThanhToanTrongKy(ky.tuNgay(), ky.denNgay()).size();
     RevenueSummary kpi = new RevenueSummary(truocThue.add(thue).longValue(), truocThue.longValue(), thue.longValue(),
         Math.toIntExact(soHoaDon), maPhieu.size(), null, null);

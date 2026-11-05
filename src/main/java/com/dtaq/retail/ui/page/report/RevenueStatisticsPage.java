@@ -67,13 +67,18 @@ public class RevenueStatisticsPage implements Page {
   private ThongKeDoanhThuController.BaoCao baoCao;
   private DateRange kyBaoCao = new DateRange(LocalDate.now().minusDays(29), LocalDate.now());
   private int nhomThoiGian;
+  /** Tăng mỗi lần tải; kết quả của lần tải cũ hơn bị bỏ qua để không ghi đè kỳ mới chọn. */
+  private int maYeuCau;
   private final DtaqButton periodButton = DtaqButton.secondary(PERIOD_PLACEHOLDER, "calendar-days");
   private final DtaqButton exportButton = DtaqButton.secondary("Xuất Excel", "download");
   private final JPanel alertBanner;
   private final JLabel alertCountLabel = new JLabel();
   private final KpiCard kpiRevenue = new KpiCard("Tổng doanh thu trong kỳ", "—", null);
-  private final KpiCard kpiPretax = new KpiCard("Tổng tiền hàng trước thuế", "—", "Đã trừ hoàn trả và đổi hàng");
-  private final KpiCard kpiTax = new KpiCard("Tổng tiền thuế phát sinh", "—", "Thuế VAT theo từng nhóm hàng");
+  private static final String CAPTION_PRETAX = "Đã trừ hoàn trả và đổi hàng";
+  private static final String CAPTION_TAX = "Thuế VAT theo từng nhóm hàng";
+  private static final String KHONG_PHAT_SINH = "Không có phát sinh trong kỳ";
+  private final KpiCard kpiPretax = new KpiCard("Tổng tiền hàng trước thuế", "—", CAPTION_PRETAX);
+  private final KpiCard kpiTax = new KpiCard("Tổng tiền thuế phát sinh", "—", CAPTION_TAX);
   private final KpiCard kpiOrders = new KpiCard("Hóa đơn bán lẻ thành công", "—", null);
   private final JLabel barTitle = new JLabel(GRANULARITY_TITLES[0]);
   private final BarChartPanel barChart = new BarChartPanel();
@@ -145,6 +150,7 @@ public class RevenueStatisticsPage implements Page {
   private void taiBaoCao() {
     DateRange ky = kyBaoCao;
     int nhom = nhomThoiGian;
+    int yeuCau = ++maYeuCau;
     showLoading();
     exportButton.setEnabled(false);
     new SwingWorker<ThongKeDoanhThuController.BaoCao, Void>() {
@@ -155,13 +161,19 @@ public class RevenueStatisticsPage implements Page {
 
       @Override
       protected void done() {
+        if (yeuCau != maYeuCau) {
+          return;
+        }
         try {
           ThongKeDoanhThuController.BaoCao ketQua = get();
           baoCao = ketQua;
+          boolean rong = ketQua.dongExcel().isEmpty(); // 6.a: không có giao dịch phù hợp
+          barChart.setEmptyText(rong ? KHONG_PHAT_SINH : "Chưa có dữ liệu thống kê");
+          donutChart.setEmptyText(rong ? KHONG_PHAT_SINH : "Chưa có dữ liệu");
           renderSummary(ketQua.kpi());
           renderDailyRevenue(ketQua.doanhThuTheoThoiGian());
           renderTopProductLines(ketQua.topDongSanPham());
-          exportButton.setEnabled(true);
+          exportButton.setEnabled(!rong);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           hienLoiTaiBaoCao();
@@ -294,6 +306,8 @@ public class RevenueStatisticsPage implements Page {
 
   /** Hiển thị 4 chỉ tiêu tổng hợp; {@code null} đưa về trạng thái rỗng. */
   public void renderSummary(RevenueSummary summary) {
+    kpiPretax.setCaption(CAPTION_PRETAX); // showLoading() ghi đè chú thích bằng "Đang tải…"
+    kpiTax.setCaption(CAPTION_TAX);
     if (summary == null) {
       kpiRevenue.setValue(null);
       kpiRevenue.setCaption("");
