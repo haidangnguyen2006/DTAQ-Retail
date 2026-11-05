@@ -89,12 +89,12 @@ public final class KhachHangPicker {
       tenLabel.setForeground(DtaqColors.TEXT);
       chiTietLabel.setFont(DtaqFonts.BODY_13);
       chiTietLabel.setForeground(DtaqColors.TEXT_MUTED);
-      hoSo.add(tenLabel, "growx, wrap");
-      hoSo.add(chiTietLabel, "growx");
+      hoSo.add(tenLabel, "growx, wmin 0, wrap");
+      hoSo.add(chiTietLabel, "growx, wmin 0"); // địa chỉ dài không được nới rộng hộp thoại
 
       ketQuaView = new StatefulView(hoSo, "search", "Chưa tra cứu", "Nhập số điện thoại để tìm khách hàng.");
       getBody().add(timRow, "growx, wrap, gapbottom 12");
-      getBody().add(ketQuaView, "growx");
+      getBody().add(ketQuaView, "growx, wmin 0");
 
       DtaqButton huyButton = DtaqButton.secondary("Hủy");
       huyButton.addActionListener(e -> requestClose());
@@ -155,6 +155,7 @@ public final class KhachHangPicker {
         tenLabel.setText(khachHang.hoTen());
         String sdt = khachHang.maKH() + " • " + PhoneFormat.format(khachHang.soDienThoai());
         chiTietLabel.setText(khachHang.diaChi() == null ? sdt : sdt + " • " + khachHang.diaChi());
+        chiTietLabel.setToolTipText(chiTietLabel.getText());
         ketQuaView.showContent();
         setPrimaryAction(chonButton);
       }

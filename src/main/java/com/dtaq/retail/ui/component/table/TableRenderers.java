@@ -173,6 +173,11 @@ public final class TableRenderers {
       return panel;
     }
 
+    /** Độ rộng đủ hiển thị trọn các nút của ô. */
+    public int doRongToiThieu() {
+      return renderPanel.getPreferredSize().width;
+    }
+
     private void fire(RowAction action) {
       JTable table = editingTable;
       int viewRow = editingRow;

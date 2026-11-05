@@ -10,6 +10,7 @@ import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.StatefulView;
+import com.dtaq.retail.ui.component.Toast;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
@@ -141,6 +142,7 @@ public final class PriceTaxPage implements Page {
           BigDecimal.valueOf(priceField.getMoney()),
           BigDecimal.valueOf(taxField.getMoney()));
       if (ketQua.thanhCong()) {
+        Toast.success(view, ketQua.thongBao()); // bước 12; bảng tải lại hiển thị giá/thuế mới
         clearErrors();
         productBox.setSelectedIndex(-1);
         priceField.setText("");

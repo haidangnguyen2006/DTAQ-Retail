@@ -218,6 +218,8 @@ public class DataTable extends JPanel {
     TableRenderers.ActionCell cell = new TableRenderers.ActionCell(List.of(actions));
     table.getColumnModel().getColumn(colIndex).setCellRenderer(cell);
     table.getColumnModel().getColumn(colIndex).setCellEditor(cell);
+    // Bảng tự co cột theo chiều rộng còn lại; không cho cột thao tác co đến mức cắt mất nút.
+    table.getColumnModel().getColumn(colIndex).setMinWidth(cell.doRongToiThieu());
   }
 
   /** Cho phép bấm tiêu đề cột để sắp xếp. */
