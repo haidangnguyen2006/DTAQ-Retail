@@ -2,6 +2,8 @@ package com.dtaq.retail.config;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import javax.sql.DataSource;
@@ -20,6 +22,20 @@ public final class ConnectDB {
           + "WHERE datname = current_database() AND pid <> pg_backend_pid()";
 
   private static HikariDataSource dataSource;
+
+  /**
+   * Nguồn dữ liệu giao cho DAO và trang: mỗi lời gọi lấy bể hiện tại, nên sau {@link #reset()} (phục
+   * hồi dữ liệu) các đối tượng đã tạo từ trước vẫn dùng được bể mới thay vì bể đã đóng.
+   */
+  private static final DataSource SHARED = (DataSource) Proxy.newProxyInstance(
+      DataSource.class.getClassLoader(), new Class<?>[] {DataSource.class},
+      (proxy, method, args) -> {
+        try {
+          return method.invoke(dataSource(), args);
+        } catch (InvocationTargetException e) {
+          throw e.getCause();
+        }
+      });
   private static boolean shutdownHookRegistered;
 
   private ConnectDB() {
@@ -44,7 +60,7 @@ public final class ConnectDB {
   }
 
   public static DataSource getDataSource() {
-    return dataSource();
+    return SHARED;
   }
 
   public static boolean isAvailable() {
