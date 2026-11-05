@@ -27,4 +27,18 @@ public interface ThongKeSanPhamDao {
    * @return danh sách doanh số đã tổng hợp, sắp xếp theo mã dòng sản phẩm
    */
   List<DongThongKe> thongKe(LocalDate tuNgay, LocalDate denNgay, String maDongSP);
+
+  /**
+   * Một giao dịch dùng để tổng hợp dòng sản phẩm (UC015 9.a): một máy bán ({@code laTra = false},
+   * giá trị dương) hoặc một máy trả hoàn tất ({@code laTra = true}, giá trị âm).
+   */
+  record GiaoDichDoiChieu(
+      boolean laTra, String maChungTu, String maHD, LocalDate ngay, String soSerial, BigDecimal giaTri) {}
+
+  /**
+   * Liệt kê các giao dịch đã dùng để tính dòng {@code maDongSP} trong kỳ, cùng điều kiện với
+   * {@link #thongKe}: tổng {@code giaTri} bằng doanh số sau điều chỉnh, số dòng bán/trả bằng số lượng
+   * bán/trả.
+   */
+  List<GiaoDichDoiChieu> doiChieu(LocalDate tuNgay, LocalDate denNgay, String maDongSP);
 }
