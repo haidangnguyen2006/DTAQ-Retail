@@ -52,7 +52,7 @@ class NavigationModelTest {
   }
 
   @Test
-  @DisplayName("Nhân viên quản lý có đúng 13 mục menu theo Figma")
+  @DisplayName("Nhân viên quản lý có đúng 13 mục menu, trong đó sales-by-product đang là placeholder")
   void testManagerNavEntries() {
     List<NavigationModel.NavEntry> entries = managerEntries();
     assertEquals(13, entries.size());
