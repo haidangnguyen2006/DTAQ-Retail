@@ -342,7 +342,15 @@ class ReturnsPageTest {
     DoiTraController.KetQuaTinh traHang = new DoiTraController.KetQuaTinh(
         true, "", new BigDecimal("3500000"), BigDecimal.ZERO, new BigDecimal("-3500000"),
         new BigDecimal("3500000"), true);
-    assertEquals("Xác nhận hoàn tiền", ReturnsPage.tieuDeXacNhan(false, traHang));
+    assertEquals("Xác nhận gửi phê duyệt", ReturnsPage.tieuDeXacNhan(false, traHang));
+    assertTrue(ReturnsPage.noiDungXacNhan(false, traHang).contains("Chưa hoàn tiền"),
+        "XBR-07: phiếu chờ duyệt không được yêu cầu xác nhận đã hoàn tiền");
+
+    DoiTraController.KetQuaTinh traNho = new DoiTraController.KetQuaTinh(
+        true, "", new BigDecimal("2000000"), BigDecimal.ZERO, new BigDecimal("-2000000"),
+        new BigDecimal("2000000"), false);
+    assertEquals("Xác nhận hoàn tiền", ReturnsPage.tieuDeXacNhan(false, traNho));
+    assertTrue(ReturnsPage.noiDungXacNhan(false, traNho).contains("Xác nhận đã hoàn tiền"));
   }
 
   @Test
