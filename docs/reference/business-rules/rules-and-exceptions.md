@@ -88,7 +88,7 @@ Hai nhóm công thức cùng tồn tại; **Ch.4 mở rộng Ch.1 bằng khuyế
 | Ch.4 (chi tiết) | `tienTruocKhuyenMai = soLuong × đơnGiáTrướcThuếTạiLúcBán`; `tienSauKhuyenMai = tienTruocKhuyenMai − tiềnKhuyếnMãiThựcTế`; `tiềnKhuyếnMãiThựcTế = làmTròn(tienTruocKhuyenMai × tyLeGiam / 100)` | Ch.4 §I.3 (`ChiTietHoaDon`) |
 | Ch.4 (hóa đơn) | `tongTienTruocThue = Σ tienSauKhuyenMai`; `tongTienThue = Σ làmTròn(Sᵢ × rᵢ / 100)`; `tongTienThanhToan = tongTienTruocThue + tongTienThue` | Ch.4 §I.3 (`HoaDon`); `RB44`, `RB45` |
 | Hoàn tiền | `tienHoanTra = tiềnSauKhuyếnMãiGốcCủaMáy + tiềnThuếGốcCủaMáy`; `tongTienHoanTra = Σ tienHoanTra` | Ch.4 §I.3 (`ChiTietPhieuTra`, `PhieuTra`); `RB47` |
-| Chênh lệch đổi | `tienChenhLech = giáTrịMáyThayThếSauThuế − giáTrịĐãThanhToánGốc`; `tongTienChenhLech = Σ tienChenhLech`; `tongTienThuThem = max(0, tongTienChenhLech)`; khoản hoàn `= max(0, −tongTienChenhLech)` | Ch.4 §I.3 (`ChiTietPhieuDoi`, `PhieuDoi`); `RB48`, `RB49` |
+| Chênh lệch đổi | `tienChenhLech = giáTrịMáyThayThếSauThuế − giáTrịĐãThanhToánGốc`; `tongTienChenhLech = Σ tienChenhLech`; `tongTienThuThem = max(0, tongTienChenhLech)`; khoản hoàn `= max(0, −tongTienChenhLech)`. **Thu hẹp bởi D17 (2026-11-05):** implementation chỉ cho chênh lệch `<= 0`; phiếu đổi không hoàn và không thu thêm, chênh lệch lưu ở `PhieuDoi.tienChenhLech`; công thức `max(0, …)` của nguồn chỉ còn giá trị tham chiếu. | Ch.4 §I.3 (`ChiTietPhieuDoi`, `PhieuDoi`); `RB48`, `RB49` |
 
 > Ch.1 không nêu khuyến mãi trong công thức; Ch.4 đưa khuyến mãi vào `tienSauKhuyenMai`. Xem mục 6.
 
@@ -132,7 +132,7 @@ Không tự dung hòa. Các xung đột phạm vi/vai trò đã được lập m
 |---|---|---|---|
 | BR-C01 | Công thức Ch.1 không có khuyến mãi; Ch.4 tính `tienSauKhuyenMai` trước thuế. | Ch.1 §I.2.b vs Ch.4 §I.3 | **Đã chọn công thức Ch.4 cho hóa đơn có khuyến mãi (2026-10-24, theo quyết định `C-04`)** — khớp `RB42`–`RB46` và V1 `ChiTietHoaDon`; `làmTròn` theo `C-11` (VND, 0 chữ số thập phân, `HALF_UP`) |
 | BR-C02 | Ch.1 nói “mỗi sản phẩm có một mức thuế suất”; Ch.4 đặt `thue` trên `DongSanPham`. | Ch.1 §II.3 vs Ch.4 §I.3 | Khác mức hạt dữ liệu; cần xác nhận cấp lưu thuế suất |
-| BR-C03 | Ngưỡng duyệt tính trên “số tiền hoàn”; `RB54` quy định với phiếu đổi kiểm tra sau bù trừ toàn phiếu. | Ch.1 §I.2.c vs Ch.4 §II.3.7 | Cần xác nhận cách tính khi có nhiều chi tiết âm/dương |
+| BR-C03 | Ngưỡng duyệt tính trên “số tiền hoàn”; `RB54` quy định với phiếu đổi kiểm tra sau bù trừ toàn phiếu. | Ch.1 §I.2.c vs Ch.4 §II.3.7 | **Đã chốt 2026-11-05 (D17):** đổi hàng **không phát sinh hoàn/thu tiền** nên không còn trường hợp bù trừ nhiều chi tiết; ngưỡng 3.000.000 chỉ áp cho **số tiền hoàn của phiếu trả**; `RB54` giữ nguyên câu chữ nguồn làm tham chiếu. |
 | BR-C04 | Không có quy tắc làm tròn cụ thể (đơn vị, thứ tự) dù yêu cầu thống nhất. | NFR017; `RB51` vs toàn bộ công thức | **Đã chốt 2026-10-24:** VND, 0 chữ số thập phân, `HALF_UP`, một điểm làm tròn (`TienUtil`), tròn ở cấp chi tiết rồi cộng; DB lưu giá trị đã tròn; hiển thị dạng `1.250.000 VND`. Xem `C-11`. |
 | BR-C05 | UC007, luồng 8.a.1 bị cắt giữa câu: “Phát hiện số điện thoạ”. | Ch.3 §IV UC007 | Văn bản nguồn không đầy đủ; không suy đoán |
 | BR-C06 | UC017 bỏ qua bước `10.a.4` trong luồng xuất Excel. | Ch.3 §IV UC017 | Thiếu số bước; nội dung 10.a.3 → 10.a.5 vẫn đọc được |

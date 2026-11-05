@@ -25,6 +25,7 @@
 | D14 | **Phân bổ máy khi thanh toán**: FIFO theo `SanPham.ngayNhapKhoBanDau` tăng dần, tie-break `soSerial` tăng dần | phiên duyệt 2026-11-03 (D12 khớp UC003 bước 4–8; D14 không có trong nguồn) |
 | D15 | **Nở chi tiết hóa đơn**: giỏ N đơn vị → N dòng `ChiTietHoaDon` với `soLuong = 1`; làm tròn theo từng máy rồi cộng (C-11/RB51) | phiên duyệt 2026-11-03 (D12 khớp UC003 bước 4–8; D14 không có trong nguồn) |
 | D16 | **Cưỡng chế RB37**: `soLuongTon` tính lại bởi trigger `trg_sanpham_cap_nhat_ton` (migration `V6__trigger_so_luong_ton.sql`) và `SanPhamController`; không nhập tay | phiên duyệt 2026-11-03 (D12 khớp UC003 bước 4–8; D14 không có trong nguồn) |
+| D17 | **Đổi hàng không hoàn tiền**: chỉ đổi sang máy có giá trị sau thuế ngang bằng hoặc thấp hơn; không hoàn, không thu thêm; chênh lệch `<= 0` lưu ở `PhieuDoi.tienChenhLech` (CHECK `V10`: `tienChenhLech <= 0`, `tienKhachDuaThem = 0`); phiếu đổi không cần duyệt, ngưỡng 3.000.000 chỉ áp cho phiếu trả | phiên chốt 2026-11-05 |
 
 ## 2. Tổng quan phân công
 
@@ -46,7 +47,7 @@
 | UC/FR | Nội dung chính | Module mở rộng |
 |---|---|---|
 | UC003 | Chọn khách + serial → áp khuyến mãi → tính tiền/thuế → nháp → thanh toán tiền mặt → lưu + snapshot + trừ tồn | Hủy nháp; chặn thiếu tiền/máy vừa bán; rollback; **hóa đơn giả lập**; snapshot 8 cột; KM hết hạn |
-| UC006 | Đổi/trả theo HĐ gốc, tính hoàn theo giá trị thực tế, ngưỡng **3.000.000đ** | `PhieuTra`/`PhieuDoi`; chênh lệch; `CHO_DUYET`; mở lại sau duyệt; hàng lỗi → `SanPhamLoi`; máy thay thế |
+| UC006 | Đổi/trả theo HĐ gốc, tính hoàn theo giá trị thực tế, ngưỡng **3.000.000đ** | `PhieuTra`/`PhieuDoi`; chênh lệch `<= 0`, không hoàn/thu tiền (D17); `CHO_DUYET`; mở lại sau duyệt; hàng lỗi → `SanPhamLoi`; máy thay thế |
 | UC018 | Danh sách chờ duyệt → duyệt/từ chối + ý kiến/lý do | Chống ghi đè; không tự hoàn tiền/đổi tồn |
 | FR015/FR016 | Sao lưu 14 bảng (gồm `NhanVien`), cron 00:00 + chạy bù; nén zip; phục hồi có xác nhận 2 bước | `manifest.json` + SHA-256; transaction; tự backup trước khi restore; `DTAQ_BACKUP_DIR=./backups`, `DTAQ_BACKUP_KEEP_DAYS=7` |
 
@@ -183,3 +184,4 @@ Kèm rà soát UC001/UC002 (phiên, tài khoản khóa, thông báo tiếng Vi�
 | 2026-10-25 | **v3.2:** chốt D8–D11 — duyệt POI 5.4.1, cấu hình backup (./backups, 7 bản, zip, gồm `NhanVien`), định nghĩa "còn tồn" của UC014, chỉ Quản lý sửa giá/thuế (C-08), thời hạn đổi/trả để trống = không chặn, chồng lấn KM chỉ chặn khi cả hai đang áp dụng |
 | 2026-11-03 | **v3.3:** chốt D12–D16 — UC003 theo dòng sản phẩm + số lượng (giỏ/tìm theo `maDongSP`/`tenDongSP`), hóa đơn tạm cục bộ, phân bổ máy FIFO khi thanh toán, nở chi tiết hóa đơn `soLuong = 1`, trigger RB37 (`trg_sanpham_cap_nhat_ton`); đăng ký toàn bộ trang đã có vào `AppNavigator` |
 | 2026-11-04 | **v3.4:** chốt C-03 cho UC009 (Nhân viên bán hàng quản lý dòng sản phẩm); chốt vị trí tính `soNgayTon` của UC014 trong SQL |
+| 2026-11-05 | **v3.5:** chốt D17 — đổi hàng không hoàn tiền, chỉ ngang bằng hoặc thấp hơn; V10 cưỡng chế `tienChenhLech <= 0`, `tienKhachDuaThem = 0`; phiếu đổi không cần duyệt |
