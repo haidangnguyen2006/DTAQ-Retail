@@ -16,7 +16,8 @@ public class EmptyState extends JPanel {
   }
 
   public EmptyState(String iconName, String titleText, String hintText, DtaqButton action) {
-    super(new MigLayout("fill, insets 28 32 28 32", "[center]", "[]12[]4[]"));
+    // Căn cả cụm vào giữa thay vì "fill": "fill" chia đều chiều cao thừa cho từng hàng, đẩy chữ xa icon.
+    super(new MigLayout("insets 28 32 28 32, align 50% 50%", "[center]", "[]12[]4[]"));
     setOpaque(false);
 
     add(Tile.icon(iconName, 23, DtaqColors.TEXT_SUBTLE, DtaqColors.BG_APP, 46, Tile.OVAL), "center, wrap");

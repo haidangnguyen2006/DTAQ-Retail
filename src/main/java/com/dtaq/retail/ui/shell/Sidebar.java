@@ -7,7 +7,6 @@ import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
 import com.dtaq.retail.ui.theme.DtaqTheme;
-import com.dtaq.retail.util.AppInfo;
 import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,22 +53,19 @@ public class Sidebar extends JPanel {
   private static final int LOGO_H = 34;
   private final JLabel logoLabel = new JLabel();
   private final JPanel brandText = new JPanel(new MigLayout("insets 0, gapy 0", "[]", "[]"));
-  private final JPanel sessionTextBlock = new JPanel(new MigLayout("insets 0, gapy 1", "[]", "[]"));
-  private final JLabel versionLabel = new JLabel("Nội bộ DTAQ · Phiên bản " + AppInfo.version());
   private Consumer<PageId> onNavigateListener;
   private boolean compact;
   private int expandedWidth = DtaqSpacing.SIDEBAR_W;
 
   public Sidebar(NhanVien nhanVien) {
-    super(new MigLayout("fill, insets 0, hidemode 3", "[grow,fill]", "[]0[grow,fill]0[]"));
+    super(new MigLayout("fill, insets 0, hidemode 3", "[grow,fill]", "[]0[grow,fill]"));
     this.nhanVien = Objects.requireNonNull(nhanVien, "nhanVien");
 
     setBackground(DtaqColors.SIDEBAR_BG);
     applyWidth();
 
     add(buildBrandBlock(), "growx, h " + DtaqSpacing.TOPBAR_H + "!, wrap");
-    add(buildNavScroll(), "grow, wrap");
-    add(buildFooter(), "growx");
+    add(buildNavScroll(), "grow");
   }
 
   public void selectPage(PageId pageId) {
@@ -92,8 +88,6 @@ public class Sidebar extends JPanel {
     applyWidth();
     brandText.setVisible(!compact);
     logoLabel.setIcon(compact ? DtaqTheme.logoMark(LOGO_H) : DtaqTheme.logo(LOGO_H));
-    sessionTextBlock.setVisible(!compact);
-    versionLabel.setVisible(!compact);
     groupLabels.forEach(l -> l.setVisible(!compact));
     groupDividers.forEach(d -> d.setVisible(compact));
     navItems.forEach(i -> i.setCompact(compact));
@@ -186,41 +180,4 @@ public class Sidebar extends JPanel {
         com.formdev.flatlaf.FlatClientProperties.STYLE, "thumb: #323B4B; hoverThumbColor: #465062");
     return scroll;
   }
-
-  /** Thẻ phiên (tên + vai trò, chỉ dữ liệu thật) và dòng phiên bản. */
-  private JPanel buildFooter() {
-    JPanel footer = new JPanel(new MigLayout("fillx, insets 12 12 12 12, gapy 8, hidemode 3", "[grow,fill]", "[]"));
-    footer.setOpaque(false);
-    footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, DtaqColors.SIDEBAR_DIVIDER));
-
-    Tile card = new Tile(DtaqColors.SIDEBAR_HOVER, 10);
-    card.setLayout(new MigLayout("fillx, insets 10 10 10 10, hidemode 3", "[]10[grow]", "[center]"));
-
-    Tile avatar = new Tile(DtaqColors.SIDEBAR_ACTIVE_BG, Tile.OVAL);
-    avatar.setPreferredSize(new Dimension(32, 32));
-    JLabel initials = new JLabel(PersonNames.initials(nhanVien.hoTen()));
-    initials.setFont(DtaqFonts.PILL);
-    initials.setForeground(DtaqColors.SIDEBAR_ACCENT);
-    avatar.add(initials);
-    avatar.setToolTipText(nhanVien.hoTen() + " · " + nhanVien.moTaQuyen());
-    card.add(avatar);
-
-    sessionTextBlock.setOpaque(false);
-    JLabel name = new JLabel(nhanVien.hoTen());
-    name.setFont(DtaqFonts.TABLE_HEADER);
-    name.setForeground(DtaqColors.SIDEBAR_ACTIVE_TEXT);
-    sessionTextBlock.add(name, "wrap");
-    JLabel role = new JLabel(nhanVien.moTaQuyen());
-    role.setFont(DtaqFonts.CAPTION);
-    role.setForeground(DtaqColors.SIDEBAR_TEXT_MUTED);
-    sessionTextBlock.add(role);
-    card.add(sessionTextBlock, "growx");
-    footer.add(card, "wrap");
-
-    versionLabel.setFont(DtaqFonts.MICRO);
-    versionLabel.setForeground(DtaqColors.SIDEBAR_TEXT_MUTED);
-    footer.add(versionLabel, "center");
-    return footer;
-  }
-
 }

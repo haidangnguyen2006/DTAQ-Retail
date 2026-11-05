@@ -22,15 +22,11 @@ public class KyBaoCaoFilter extends JPanel {
 
   private static final String NHAN_TU_NGAY = "Từ ngày";
   private static final String NHAN_DEN_NGAY = "Đến ngày";
-  private static final String GOI_Y_NGAY = "dd/MM/yyyy";
-  private static final String BIEU_TUONG_NGAY = "calendar-days";
   private static final int SO_NGAY_MAC_DINH = 7;
 
-  private final FormField tuNgayField =
-      FormField.text(NHAN_TU_NGAY, GOI_Y_NGAY, BIEU_TUONG_NGAY);
-  private final FormField denNgayField =
-      FormField.text(NHAN_DEN_NGAY, GOI_Y_NGAY, BIEU_TUONG_NGAY);
-  private final DtaqButton apDungButton = DtaqButton.primarySmall("Áp dụng");
+  private final DatePicker tuNgayPicker = new DatePicker(NHAN_TU_NGAY);
+  private final DatePicker denNgayPicker = new DatePicker(NHAN_DEN_NGAY);
+  private final DtaqButton apDungButton = DtaqButton.primary("Áp dụng");
 
   private Consumer<DateRange> onApply;
 
@@ -57,13 +53,16 @@ public class KyBaoCaoFilter extends JPanel {
   }
 
   private static MigLayout boCuc() {
-    return new MigLayout("fillx, insets 0", "[grow,fill]16[grow,fill]16[push][]", "[bottom]");
+    return new MigLayout("fillx, insets 0", "[grow,fill]16[grow,fill]16[]", "[top]");
   }
 
   private void dungGiaoDien() {
-    add(tuNgayField, "growx");
-    add(denNgayField, "growx");
-    add(apDungButton, "skip 1");
+    add(tuNgayPicker.field(), "growx");
+    add(denNgayPicker.field(), "growx");
+    // Bọc nút trong FormField nhãn trống: cùng cấu trúc nhãn – ô – dòng thông báo với hai ô ngày
+    // nên nút thẳng hàng với ô nhập, không bị dòng thông báo dành sẵn đẩy lệch xuống.
+    add(new FormField(" ", apDungButton));
+    apDungButton.getAccessibleContext().setAccessibleName("Áp dụng");
     apDungButton.addActionListener(e -> apply());
   }
 
@@ -74,10 +73,10 @@ public class KyBaoCaoFilter extends JPanel {
    * @param denNgay ngày kết thúc; {@code null} để trống ô nhập
    */
   public void setDateRange(LocalDate tuNgay, LocalDate denNgay) {
-    tuNgayField.setText(DateFormats.formatDate(tuNgay));
-    denNgayField.setText(DateFormats.formatDate(denNgay));
-    tuNgayField.setError(null);
-    denNgayField.setError(null);
+    tuNgayPicker.setDate(tuNgay);
+    denNgayPicker.setDate(denNgay);
+    tuNgayPicker.setError(null);
+    denNgayPicker.setError(null);
   }
 
   /**
@@ -87,7 +86,7 @@ public class KyBaoCaoFilter extends JPanel {
    */
   public Optional<DateRange> getDateRange() {
     try {
-      return Optional.of(DateRange.parse(tuNgayField.getText(), denNgayField.getText()));
+      return Optional.of(DateRange.parse(tuNgayPicker.getText(), denNgayPicker.getText()));
     } catch (IllegalArgumentException e) {
       return Optional.empty();
     }
@@ -111,11 +110,11 @@ public class KyBaoCaoFilter extends JPanel {
    * @return {@code true} nếu kỳ hợp lệ và đã trao cho listener; {@code false} nếu ngược lại
    */
   public boolean apply() {
-    tuNgayField.setError(null);
-    denNgayField.setError(null);
+    tuNgayPicker.setError(null);
+    denNgayPicker.setError(null);
     DateRange ky;
     try {
-      ky = DateRange.parse(tuNgayField.getText(), denNgayField.getText());
+      ky = DateRange.parse(tuNgayPicker.getText(), denNgayPicker.getText());
     } catch (IllegalArgumentException e) {
       hienThiLoi(e.getMessage());
       return false;
@@ -132,15 +131,15 @@ public class KyBaoCaoFilter extends JPanel {
    */
   private void hienThiLoi(String thongDiep) {
     if (thongDiep == null) {
-      denNgayField.setError(null);
+      denNgayPicker.setError(null);
     } else if (thongDiep.startsWith(NHAN_TU_NGAY)) {
-      tuNgayField.setError(thongDiep);
+      tuNgayPicker.setError(thongDiep);
     } else if (thongDiep.startsWith(NHAN_DEN_NGAY)) {
-      denNgayField.setError(thongDiep);
-    } else if (!docDuoc(tuNgayField.getText())) {
-      tuNgayField.setError(thongDiep);
+      denNgayPicker.setError(thongDiep);
+    } else if (!docDuoc(tuNgayPicker.getText())) {
+      tuNgayPicker.setError(thongDiep);
     } else {
-      denNgayField.setError(thongDiep);
+      denNgayPicker.setError(thongDiep);
     }
   }
 
@@ -157,8 +156,8 @@ public class KyBaoCaoFilter extends JPanel {
   @Override
   public void setEnabled(boolean enabled) {
     super.setEnabled(enabled);
-    tuNgayField.getInputComponent().setEnabled(enabled);
-    denNgayField.getInputComponent().setEnabled(enabled);
+    tuNgayPicker.textField().setEnabled(enabled);
+    denNgayPicker.textField().setEnabled(enabled);
     apDungButton.setEnabled(enabled);
   }
 }
