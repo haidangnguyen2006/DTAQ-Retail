@@ -14,7 +14,8 @@ import java.time.LocalDate;
  * @param maHDGoc mã hóa đơn gốc mà phiếu trả/phiếu đổi tham chiếu
  * @param tenKhachHang họ tên khách hàng của hóa đơn gốc
  * @param soDienThoai số điện thoại khách hàng của hóa đơn gốc
- * @param hoanDuKien số tiền dự kiến hoàn cho khách; với phiếu đổi hàng luôn bằng {@code 0}
+ * @param hoanDuKien số tiền dự kiến hoàn cho khách: phiếu trả lấy {@code tienKhachDua}; phiếu đổi
+ *     luôn bằng {@code 0} vì đổi hàng không hoàn tiền (D17, 2026-11-05)
  * @param tenNhanVienLap họ tên nhân viên đã lập phiếu
  * @param lyDo lý do trả/đổi do nhân viên ghi nhận, nhiều dòng chi tiết được nối bằng {@code "; "}
  * @param ngayTao ngày lập phiếu

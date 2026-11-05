@@ -145,7 +145,7 @@ public final class SanPhamLoiController {
         : null;
 
     PhieuDoi phieuDoi = (maPhieuDoi != null && !maPhieuDoi.isBlank())
-        ? new PhieuDoi(maPhieuDoi.trim(), null, null, null, null, null, null, null, null, null, null)
+        ? new PhieuDoi(maPhieuDoi.trim(), null, null, null, null, null, null, null, null, null, null, null)
         : null;
 
     try (Connection conn = dataSource.getConnection()) {

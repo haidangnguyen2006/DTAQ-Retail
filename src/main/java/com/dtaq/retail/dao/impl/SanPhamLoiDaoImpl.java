@@ -274,7 +274,7 @@ public class SanPhamLoiDaoImpl implements SanPhamLoiDao {
 
     String maPhieuDoi = rs.getString("maPhieuDoi");
     PhieuDoi phieuDoi = (maPhieuDoi != null) ? new PhieuDoi(
-        maPhieuDoi, null, null, null, null, null, null, null, null, null, null) : null;
+        maPhieuDoi, null, null, null, null, null, null, null, null, null, null, null) : null;
 
     return new SanPhamLoi(
         rs.getString("maLoi"),

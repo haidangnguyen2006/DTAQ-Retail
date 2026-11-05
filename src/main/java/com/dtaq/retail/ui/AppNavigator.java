@@ -1,9 +1,11 @@
 package com.dtaq.retail.ui;
 
+import com.dtaq.retail.config.ReturnConfig;
 import com.dtaq.retail.controller.AuthController;
 import com.dtaq.retail.controller.BanHangController;
 import com.dtaq.retail.controller.BaoCaoTonKhoController;
 import com.dtaq.retail.controller.DanhMucController;
+import com.dtaq.retail.controller.DoiTraController;
 import com.dtaq.retail.controller.DongSanPhamController;
 import com.dtaq.retail.controller.GiaThueController;
 import com.dtaq.retail.controller.KhachHangController;
@@ -59,6 +61,7 @@ import com.dtaq.retail.ui.page.product.ProductPage;
 import com.dtaq.retail.ui.page.promotion.PromotionsPage;
 import com.dtaq.retail.ui.page.report.LongStockReportPage;
 import com.dtaq.retail.ui.page.report.RevenueStatisticsPage;
+import com.dtaq.retail.ui.page.returns.ReturnsPage;
 import com.dtaq.retail.ui.shell.AppShellFrame;
 import com.dtaq.retail.ui.shell.NavigationModel;
 import com.dtaq.retail.ui.shell.Page;
@@ -292,11 +295,11 @@ public final class AppNavigator {
    * @param nhanVien nhân viên bán hàng đang đăng nhập; không được {@code null}
    * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
    * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
-   * @return 9 trang thật theo đúng thứ tự menu: {@link PageId#SALES_HOME}, {@link
+   * @return 10 trang thật theo đúng thứ tự menu: {@link PageId#SALES_HOME}, {@link
    *     PageId#CUSTOMERS}, {@link PageId#RETAIL_INVOICE}, {@link PageId#PRODUCT_LOOKUP}, {@link
-   *     PageId#CUSTOMER_LOOKUP}, {@link PageId#PRODUCTS}, {@link PageId#PRODUCT_LINES}, {@link
-   *     PageId#CATEGORIES}, {@link PageId#DEFECTIVE_PRODUCTS}; mỗi {@code PageId} xuất hiện tối đa
-   *     một lần
+   *     PageId#CUSTOMER_LOOKUP}, {@link PageId#RETURNS}, {@link PageId#PRODUCTS}, {@link
+   *     PageId#PRODUCT_LINES}, {@link PageId#CATEGORIES}, {@link PageId#DEFECTIVE_PRODUCTS}; mỗi
+   *     {@code PageId} xuất hiện tối đa một lần
    */
   static List<Page> salesPages(
       NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate) {
@@ -338,6 +341,18 @@ public final class AppNavigator {
         new DanhMucController(danhMucDao, dataSource));
     DefectiveProductsPage defective = new DefectiveProductsPage(
         new SanPhamLoiController(sanPhamLoiDao, sanPhamDao, dataSource));
+    DoiTraController doiTra = new DoiTraController(
+        new PhieuTraDaoImpl(dataSource),
+        new PhieuDoiDaoImpl(dataSource),
+        sanPhamLoiDao,
+        new HoaDonDaoImpl(dataSource),
+        new ChiTietHoaDonDaoImpl(dataSource),
+        sanPhamDao,
+        dongSanPhamDao,
+        dataSource,
+        ReturnConfig.soNgayDoiTra(),
+        Clock.systemDefaultZone());
+    ReturnsPage returns = new ReturnsPage(doiTra);
 
     salesHome.setOnNavigate(onNavigate);
 
@@ -347,6 +362,7 @@ public final class AppNavigator {
         invoice,
         productLookup,
         customerLookup,
+        returns,
         products,
         productLines,
         categories,

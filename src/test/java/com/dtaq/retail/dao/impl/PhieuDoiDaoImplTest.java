@@ -62,8 +62,8 @@ class PhieuDoiDaoImplTest {
 
     for (PhieuDuyet phieu : danhSach) {
       assertEquals(PhieuDuyet.LoaiPhieu.PHIEU_DOI, phieu.loai());
-      assertEquals(BigDecimal.ZERO, phieu.hoanDuKien(),
-          "Phiếu đổi hàng không phát sinh hoàn tiền nên hoàn dự kiến luôn bằng 0");
+      assertEquals(0, BigDecimal.ZERO.compareTo(phieu.hoanDuKien()),
+          "Đổi hàng không hoàn tiền (D17) nên hoàn dự kiến luôn bằng 0");
       assertNotNull(phieu.lyDo(), "Phải gộp lý do đổi từ chi tiết phiếu");
       assertFalse(phieu.lyDo().isBlank());
     }

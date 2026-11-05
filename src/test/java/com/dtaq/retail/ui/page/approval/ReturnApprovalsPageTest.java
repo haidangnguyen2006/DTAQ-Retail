@@ -8,20 +8,28 @@ import com.dtaq.retail.controller.PheDuyetDoiTraController;
 import com.dtaq.retail.dao.PhieuDoiDao;
 import com.dtaq.retail.dao.PhieuDuyet;
 import com.dtaq.retail.dao.PhieuTraDao;
+import com.dtaq.retail.entity.ChiTietPhieuDoi;
+import com.dtaq.retail.entity.ChiTietPhieuTra;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
+import com.dtaq.retail.entity.PhieuDoi;
+import com.dtaq.retail.entity.PhieuTra;
 import com.dtaq.retail.entity.TrangThaiDuyet;
 import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.ui.component.StatefulView;
 import com.dtaq.retail.ui.shell.PageId;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.sql.Connection;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
@@ -196,6 +204,43 @@ class ReturnApprovalsPageTest {
         String yKien) {
       return true;
     }
+
+    @Override
+    public Set<String> findSerialsDaDoiTra(String maHD, Collection<String> soSerials) {
+      return Set.of();
+    }
+
+    @Override
+    public Optional<PhieuTra> findById(String maPhieuTra) {
+      return Optional.empty();
+    }
+
+    @Override
+    public List<ChiTietPhieuTra> findChiTiet(String maPhieuTra) {
+      return List.of();
+    }
+
+    @Override
+    public List<PhieuDuyet> findChoHoanTat() {
+      return List.of();
+    }
+
+    @Override
+    public String taoPhieuTra(
+        Connection ketNoi, PhieuTra phieuTra, List<ChiTietPhieuTra> chiTiet) {
+      return null;
+    }
+
+    @Override
+    public int danhDauMayNhanLai(Connection ketNoi, List<ChiTietPhieuTra> chiTiet) {
+      return 0;
+    }
+
+    @Override
+    public boolean capNhatHoanTat(
+        Connection ketNoi, String maPhieuTra, LocalDate ngayHoanTat) {
+      return false;
+    }
   }
 
   /** DAO phiếu đổi giả trả về danh sách cấu hình sẵn. */
@@ -216,6 +261,48 @@ class ReturnApprovalsPageTest {
         LocalDate ngayDuyet,
         String yKien) {
       return true;
+    }
+
+    @Override
+    public Set<String> findSerialsDaDoiTra(String maHD, Collection<String> soSerials) {
+      return Set.of();
+    }
+
+    @Override
+    public Optional<PhieuDoi> findById(String maPhieuDoi) {
+      return Optional.empty();
+    }
+
+    @Override
+    public List<ChiTietPhieuDoi> findChiTiet(String maPhieuDoi) {
+      return List.of();
+    }
+
+    @Override
+    public List<PhieuDuyet> findChoHoanTat() {
+      return List.of();
+    }
+
+    @Override
+    public String taoPhieuDoi(
+        Connection ketNoi, PhieuDoi phieuDoi, List<ChiTietPhieuDoi> chiTiet) {
+      return null;
+    }
+
+    @Override
+    public int danhDauMayNhanLai(Connection ketNoi, List<ChiTietPhieuDoi> chiTiet) {
+      return 0;
+    }
+
+    @Override
+    public int danhDauMayThayThe(Connection ketNoi, List<ChiTietPhieuDoi> chiTiet) {
+      return 0;
+    }
+
+    @Override
+    public boolean capNhatHoanTat(
+        Connection ketNoi, String maPhieuDoi, LocalDate ngayHoanTat) {
+      return false;
     }
   }
 }

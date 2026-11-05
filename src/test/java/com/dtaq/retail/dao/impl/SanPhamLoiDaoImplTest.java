@@ -150,7 +150,7 @@ class SanPhamLoiDaoImplTest {
   void insertWithInvalidOriginThrowsException() {
     // SERIAL_TEST (SAM-TV-0002) nhưng gán nhầm vào PHIEU_DOI_SEED (PD-2026-000001 của PAN-AC-0013)
     SanPham sp = new SanPham(SERIAL_TEST, null, null, null, null, null, 0, 0);
-    PhieuDoi pd = new PhieuDoi(PHIEU_DOI_SEED, null, null, null, null, null, null, null, null, null, null);
+    PhieuDoi pd = new PhieuDoi(PHIEU_DOI_SEED, null, null, null, null, null, null, null, null, null, null, null);
     SanPhamLoi spl = new SanPhamLoi(
         MA_LOI_TEST,
         sp,
