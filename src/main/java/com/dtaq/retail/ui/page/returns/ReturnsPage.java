@@ -885,6 +885,9 @@ public final class ReturnsPage implements Page {
     if (doiMay) {
       return "Xác nhận đổi hàng";
     }
+    if (ketQua.canDuyet()) {
+      return "Xác nhận gửi phê duyệt";
+    }
     if (ketQua.soTienHoan() != null && ketQua.soTienHoan().signum() > 0) {
       return "Xác nhận hoàn tiền";
     }
@@ -902,6 +905,12 @@ public final class ReturnsPage implements Page {
             + "Xác nhận lập phiếu đổi?";
       }
       return "Đổi ngang giá, không hoàn tiền và không thu thêm. Xác nhận lập phiếu đổi?";
+    }
+    if (ketQua.canDuyet()) {
+      // XBR-07: phiếu chờ duyệt chưa được hoàn tiền; tiền chỉ hoàn khi hoàn tất sau khi được duyệt.
+      return "Số tiền hoàn " + MoneyFormat.formatVnd(ketQua.soTienHoan())
+          + " cần Quản lý phê duyệt. Chưa hoàn tiền cho khách cho đến khi phiếu được duyệt"
+          + " và hoàn tất. Xác nhận lập phiếu?";
     }
     if (ketQua.soTienHoan() != null && ketQua.soTienHoan().signum() > 0) {
       return "Hoàn trả khách " + MoneyFormat.formatVnd(ketQua.soTienHoan())

@@ -35,6 +35,10 @@ class LichSuSaoLuuDaoImplTest {
   /** Thời điểm cố định cho bản ghi kiểm thử, cắt về mili giây để đọc lại khớp tuyệt đối. */
   private static final Instant THOI_DIEM = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
+  /** Chuỗi thật của "pg_dump --version" trên Ubuntu: 56 ký tự (V14). */
+  private static final String PHIEN_BAN_PG =
+      "pg_dump (PostgreSQL) 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)";
+
   private static LichSuSaoLuuDaoImpl dao;
   private static BackupRecord banGhi;
 
@@ -53,7 +57,7 @@ class LichSuSaoLuuDaoImplTest {
         "Bản ghi kiểm thử DAO",
         THOI_DIEM,
         "TEST",
-        "16.13",
+        PHIEN_BAN_PG,
         "dtaq_db");
     dao.insert(banGhi);
   }
@@ -79,7 +83,7 @@ class LichSuSaoLuuDaoImplTest {
     assertEquals("Bản ghi kiểm thử DAO", docLai.thongBao());
     assertEquals(THOI_DIEM, docLai.createdAt());
     assertEquals("TEST", docLai.createdBy());
-    assertEquals("16.13", docLai.phienBanPg());
+    assertEquals(PHIEN_BAN_PG, docLai.phienBanPg());
     assertEquals("dtaq_db", docLai.tenCsdl());
 
     for (int i = 1; i < danhSach.size(); i++) {

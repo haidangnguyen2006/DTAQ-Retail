@@ -13,6 +13,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.text.AbstractDocument;
@@ -54,7 +55,8 @@ public class FormField extends JPanel {
     messageLabel.setForeground(DtaqColors.TEXT_MUTED);
     messageLabel.setVisible(false);
 
-    if (input.getClientProperty(FlatClientProperties.STYLE) == null) {
+    // JScrollPane (ô nhập nhiều dòng) tự vẽ viền và FlatLaf không nhận style "arc" cho nó.
+    if (input.getClientProperty(FlatClientProperties.STYLE) == null && !(input instanceof JScrollPane)) {
       input.putClientProperty(FlatClientProperties.STYLE, DtaqStyles.TEXT_FIELD);
     }
     input.setPreferredSize(new Dimension(input.getPreferredSize().width, DtaqSpacing.CONTROL_H));

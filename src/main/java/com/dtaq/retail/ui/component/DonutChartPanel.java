@@ -36,6 +36,9 @@ public class DonutChartPanel extends JPanel {
   private final List<DonutSlice> slices = new ArrayList<>();
   private long totalAmount;
   private String emptyText = "Chưa có dữ liệu";
+  /** {@code null}: giá trị là tiền VND; khác {@code null}: giá trị là số lượng với đơn vị này. */
+  private String donViSoLuong;
+  private String tieuDeTong = "Tổng doanh thu";
   private final JPanel legendPanel = new JPanel(new MigLayout("fillx, insets 0", "[10!]10[grow]20[]20[]", "[]10[]"));
   private final Canvas canvas = new Canvas();
 
@@ -45,6 +48,17 @@ public class DonutChartPanel extends JPanel {
     legendPanel.setOpaque(false);
     add(canvas, "align center");
     add(legendPanel, "growx, aligny center");
+  }
+
+  /** Hiển thị giá trị là số lượng (ví dụ "máy") thay vì tiền, kèm nhãn ở tâm biểu đồ. */
+  public void setSoLuong(String donVi, String tieuDeTong) {
+    this.donViSoLuong = donVi;
+    this.tieuDeTong = tieuDeTong;
+    canvas.repaint();
+  }
+
+  private String dinhDang(long giaTri) {
+    return donViSoLuong == null ? MoneyFormat.formatVnd(giaTri) : giaTri + " " + donViSoLuong;
   }
 
   public void setEmptyText(String emptyText) {
@@ -79,7 +93,7 @@ public class DonutChartPanel extends JPanel {
       nameLbl.setForeground(DtaqColors.TEXT);
       legendPanel.add(nameLbl);
 
-      JLabel amtLbl = new JLabel(MoneyFormat.formatVnd(s.amount()));
+      JLabel amtLbl = new JLabel(dinhDang(s.amount()));
       amtLbl.setFont(DtaqFonts.BUTTON);
       amtLbl.setForeground(DtaqColors.TEXT);
       legendPanel.add(amtLbl, "align right");
@@ -125,7 +139,7 @@ public class DonutChartPanel extends JPanel {
       for (DonutSlice s : slices) {
         acc += s.amount();
         if (target <= acc) {
-          return s.name() + ": " + MoneyFormat.formatVnd(s.amount());
+          return s.name() + ": " + dinhDang(s.amount());
         }
       }
       return null;
@@ -169,7 +183,8 @@ public class DonutChartPanel extends JPanel {
       g2.setColor(DtaqColors.SURFACE);
       g2.fill(new Ellipse2D.Double(innerX, innerY, innerSize, innerSize));
 
-      String totalStr = (totalAmount >= 1_000_000)
+      String totalStr = donViSoLuong != null ? String.valueOf(totalAmount)
+          : (totalAmount >= 1_000_000)
           ? (totalAmount / 1_000_000) + "M"
           : MoneyFormat.format(totalAmount);
       g2.setFont(DtaqFonts.DONUT_CENTER);
@@ -179,7 +194,7 @@ public class DonutChartPanel extends JPanel {
 
       g2.setFont(DtaqFonts.CAPTION);
       g2.setColor(DtaqColors.TEXT_MUTED);
-      String subStr = "Tổng doanh thu";
+      String subStr = tieuDeTong;
       g2.drawString(subStr, (getWidth() - g2.getFontMetrics().stringWidth(subStr)) / 2, cy + 18);
 
       g2.dispose();

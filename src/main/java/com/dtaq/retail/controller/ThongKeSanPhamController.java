@@ -51,6 +51,24 @@ public final class ThongKeSanPhamController {
     }
   }
 
+  /** UC015 9.a: các giao dịch đã dùng để tổng hợp một dòng sản phẩm trong kỳ. */
+  public KetQua<List<ThongKeSanPhamDao.GiaoDichDoiChieu>> doiChieu(
+      LocalDate tuNgay, LocalDate denNgay, String maDongSP) {
+    yeuCauQuanLy();
+    if (tuNgay == null || denNgay == null || tuNgay.isAfter(denNgay)) {
+      return KetQua.loi("Kỳ báo cáo không hợp lệ");
+    }
+    if (maDongSP == null || maDongSP.isBlank()) {
+      return KetQua.loi("Vui lòng chọn dòng sản phẩm cần đối chiếu");
+    }
+    try {
+      return KetQua.thanhCong(thongKeSanPhamDao.doiChieu(tuNgay, denNgay, maDongSP), null);
+    } catch (DataAccessException e) {
+      log.error("Lỗi khi tải giao dịch đối chiếu của {}", maDongSP, e);
+      return KetQua.loi("Không thể tải giao dịch đối chiếu: " + e.getMessage());
+    }
+  }
+
   public KetQua<Void> xuatExcel(File tep, List<ThongKeSanPhamDao.DongThongKe> danhSachHienThi) {
     yeuCauQuanLy();
     if (tep == null) {

@@ -4,21 +4,27 @@ import com.dtaq.retail.controller.ThongKeSanPhamController;
 import com.dtaq.retail.dao.ThongKeSanPhamDao;
 import com.dtaq.retail.ui.component.BarChartPanel;
 import com.dtaq.retail.ui.component.Card;
+import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DonutChartPanel;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.KpiCard;
 import com.dtaq.retail.ui.component.KyBaoCaoFilter;
+import com.dtaq.retail.ui.component.ModalDialog;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.StatefulView;
+import com.dtaq.retail.ui.format.DateFormats;
 import com.dtaq.retail.ui.format.MoneyFormat;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqColors;
+import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
 import com.dtaq.retail.util.DateRange;
+import com.dtaq.retail.util.TienUtil;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Frame;
 import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -98,6 +104,8 @@ public final class SalesByProductPage implements Page {
     dataTable.setMoneyColumn(4);
     dataTable.setNumberColumn(5);
     dataTable.setMoneyColumn(6);
+    dataTable.setOnRowDoubleClick(modelRow -> moDoiChieu((String) tableModel.getValueAt(modelRow, 0)));
+    dataTable.getTable().setToolTipText("Nhấp đúp một dòng để xem các giao dịch dùng để tính");
     dataTable.setCustomRenderer(7, new RecommendationBadgeRenderer());
     dataTable.setSortable(true);
     dataTable.setColumnWidths(120, 240, 150, 90, 160, 90, 160, 220);
@@ -140,11 +148,14 @@ public final class SalesByProductPage implements Page {
     JPanel analyticsPanel = new JPanel(new MigLayout("fillx, insets 0", "[grow,fill]16[grow,fill]", "[]"));
     analyticsPanel.setOpaque(false);
 
-    Card salesCard = Card.section("Doanh thu theo dòng sản phẩm", null, focusLabel);
+    JLabel topLabel = new JLabel("Top 6 trong kỳ");
+    topLabel.setForeground(DtaqColors.TEXT_MUTED);
+    Card salesCard = Card.section("Doanh thu theo dòng sản phẩm", null, topLabel);
     salesCard.setBody(salesChart);
     analyticsPanel.add(salesCard, "growx");
 
-    Card mixCard = Card.section("Tỉ lệ giữ số sản phẩm đã bán & tồn kho", null, null);
+    Card mixCard = Card.section("Tỉ lệ giữa số sản phẩm đã bán & tồn kho", null, focusLabel);
+    revenueMixChart.setSoLuong("máy", "Tổng số máy");
     mixCard.setBody(revenueMixChart);
     analyticsPanel.add(mixCard, "growx");
     return analyticsPanel;
@@ -185,7 +196,9 @@ public final class SalesByProductPage implements Page {
 
   private void renderRows() {
     tableModel.setRowCount(0);
-    if (rows.isEmpty()) {
+    // DAO liệt kê mọi dòng sản phẩm (kể cả dòng bằng 0), nên "không phát sinh" là không dòng nào có
+    // bán hoặc trả trong kỳ (6.a).
+    if (rows.stream().allMatch(r -> r.soLuongBan() == 0 && r.soLuongTra() == 0)) {
       kpiUnits.setValue("0");
       kpiRevenue.setValue(MoneyFormat.format(0L));
       kpiReturned.setValue("0");
@@ -239,7 +252,7 @@ public final class SalesByProductPage implements Page {
     }
 
     salesChart.setUnit("Triệu ₫", "tr");
-    salesChart.setData(buildPeriodRevenueChart(sortedRows, selectedProductCode));
+    salesChart.setData(buildPeriodRevenueChart(sortedRows));
 
     List<Color> palette = List.of(
         DtaqColors.CHART_1,
@@ -282,18 +295,21 @@ public final class SalesByProductPage implements Page {
     return "🔴 Xả kho / Ngừng nhập";
   }
 
-  private List<BarChartPanel.BarPoint> buildPeriodRevenueChart(List<ThongKeSanPhamDao.DongThongKe> source, String selectedCode) {
-    ThongKeSanPhamDao.DongThongKe selected = source.stream()
-        .filter(row -> selectedCode.equals(row.maDongSP()))
-        .findFirst()
-        .orElse(source.getFirst());
-    long total = selected.doanhSoSauDieuChinh().longValue();
-    double quarterValue = Math.max(0D, total / 4.0);
-    return List.of(
-        new BarChartPanel.BarPoint("tháng 1 - tháng 3", quarterValue / 1_000_000.0),
-        new BarChartPanel.BarPoint("tháng 4 - tháng 6", quarterValue / 1_000_000.0),
-        new BarChartPanel.BarPoint("tháng 7 - tháng 9", quarterValue / 1_000_000.0),
-        new BarChartPanel.BarPoint("tháng 10 - tháng 12", quarterValue / 1_000_000.0));
+  /** Doanh số sau điều chỉnh thật của các dòng dẫn đầu trong kỳ đang xem (đơn vị triệu đồng). */
+  private static List<BarChartPanel.BarPoint> buildPeriodRevenueChart(
+      List<ThongKeSanPhamDao.DongThongKe> source) {
+    return source.stream()
+        .filter(row -> row.doanhSoSauDieuChinh().signum() > 0)
+        .sorted(Comparator.comparing(ThongKeSanPhamDao.DongThongKe::doanhSoSauDieuChinh).reversed())
+        .limit(6)
+        .map(row -> new BarChartPanel.BarPoint(nhanNgan(row.tenDongSP()),
+            row.doanhSoSauDieuChinh().movePointLeft(6).doubleValue()))
+        .toList();
+  }
+
+  /** Tên đầy đủ nằm trong bảng; trục biểu đồ chỉ đủ chỗ cho khoảng 14 ký tự mỗi cột. */
+  private static String nhanNgan(String ten) {
+    return ten == null || ten.length() <= 14 ? ten : ten.substring(0, 13) + "…";
   }
 
   private static final class RecommendationBadgeRenderer extends DefaultTableCellRenderer {
@@ -312,6 +328,71 @@ public final class SalesByProductPage implements Page {
       return raw.replace("&", "&amp;")
           .replace("<", "&lt;")
           .replace(">", "&gt;");
+    }
+  }
+
+  /** UC015 9.a: hiển thị hóa đơn và phiếu trả đã dùng để tổng hợp dòng sản phẩm đang chọn. */
+  private void moDoiChieu(String maDongSP) {
+    DateRange ky = currentRange;
+    ThongKeSanPhamDao.DongThongKe dong = rows.stream()
+        .filter(r -> r.maDongSP().equals(maDongSP)).findFirst().orElse(null);
+    if (controller == null || ky == null || dong == null) {
+      return;
+    }
+    new SwingWorker<ThongKeSanPhamController.KetQua<List<ThongKeSanPhamDao.GiaoDichDoiChieu>>, Void>() {
+      @Override
+      protected ThongKeSanPhamController.KetQua<List<ThongKeSanPhamDao.GiaoDichDoiChieu>> doInBackground() {
+        return controller.doiChieu(ky.tuNgay(), ky.denNgay(), maDongSP);
+      }
+
+      @Override
+      protected void done() {
+        try {
+          var ketQua = get();
+          if (!ketQua.thanhCong()) {
+            JOptionPane.showMessageDialog(view, ketQua.thongBao(), "Đối chiếu", JOptionPane.ERROR_MESSAGE);
+            return;
+          }
+          new DoiChieuDialog(ConfirmDialog.frameOf(view), dong, ky, ketQua.duLieu()).setVisible(true);
+        } catch (Exception e) {
+          JOptionPane.showMessageDialog(view, "Không thể tải giao dịch đối chiếu.", "Đối chiếu",
+              JOptionPane.ERROR_MESSAGE);
+        }
+      }
+    }.execute();
+  }
+
+  private static final class DoiChieuDialog extends ModalDialog {
+
+    DoiChieuDialog(Frame parent, ThongKeSanPhamDao.DongThongKe dong, DateRange ky,
+        List<ThongKeSanPhamDao.GiaoDichDoiChieu> giaoDichs) {
+      super(parent, "Đối chiếu " + dong.maDongSP(), dong.tenDongSP() + " • "
+          + DateFormats.formatDate(ky.tuNgay()) + " – " + DateFormats.formatDate(ky.denNgay()), 880);
+
+      DefaultTableModel model = DataTable.readOnlyModel(new String[] {
+          "Loại", "Chứng từ", "Hóa đơn", "Ngày", "Số serial", "Giá trị trước thuế (VND)"});
+      for (ThongKeSanPhamDao.GiaoDichDoiChieu gd : giaoDichs) {
+        model.addRow(new Object[] {gd.laTra() ? "Trả" : "Bán", gd.maChungTu(), gd.maHD(),
+            DateFormats.formatDate(gd.ngay()), gd.soSerial(), gd.giaTri()});
+      }
+      DataTable table = new DataTable(model);
+      table.setCodeColumn(1);
+      table.setMoneyColumn(5);
+      table.setVisibleRows(3, 10);
+
+      JLabel tomTat = new JLabel("Bán " + dong.soLuongBan() + " • Trả " + dong.soLuongTra()
+          + " • Sau điều chỉnh " + TienUtil.dinhDang(dong.doanhSoSauDieuChinh()));
+      tomTat.setFont(DtaqFonts.CARD_TITLE);
+      tomTat.setForeground(DtaqColors.TEXT);
+      getBody().add(tomTat, "growx, wrap, gapbottom 8");
+      getBody().add(new StatefulView(table, "receipt-text", "Không có giao dịch trong kỳ", null) {
+        { if (!giaoDichs.isEmpty()) showContent(); }
+      }, "growx");
+
+      DtaqButton dongBtn = DtaqButton.primary("Đóng");
+      dongBtn.addActionListener(e -> dispose());
+      setPrimaryAction(dongBtn);
+      setActions(dongBtn);
     }
   }
 
