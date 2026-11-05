@@ -46,11 +46,12 @@ public final class NhanVienController {
   private static final Logger log = LoggerFactory.getLogger(NhanVienController.class);
 
   private static final String TIEN_TO_MA = "NVBANHANG";
-  private static final String EMAIL_HOP_LE = "[^\\s@]+@[^\\s@]+\\.[^\\s@]+";
+  private static final int SO_NGAY_VAO_LAM_TRUOC = 30;
   private static final String SQLSTATE_TRUNG_KHOA = "23505";
   private static final String RANG_BUOC_TEN_DANG_NHAP = "uq_nhanvien_tendangnhap";
   private static final String LOI_QUYEN = "Chức năng này chỉ dành cho nhân viên quản lý";
-  private static final String LOI_TRUNG_TEN_DANG_NHAP = "Tên đăng nhập đã tồn tại";
+  private static final String LOI_TRUNG_TEN_DANG_NHAP =
+      "Tên đăng nhập tự sinh trùng với một tài khoản có sẵn. Vui lòng lưu lại hoặc kiểm tra dữ liệu";
   private static final String LOI_TRUNG_MA = "Mã nhân viên vừa cấp đã tồn tại. Vui lòng lưu lại";
   private static final String LOI_LUU = "Không thể lưu nhân viên. Vui lòng thử lại";
   private static final String LOI_DOI_TRANG_THAI = "Không thể cập nhật trạng thái tài khoản. Vui lòng thử lại";
@@ -112,36 +113,92 @@ public final class NhanVienController {
   }
 
   /**
+   * Tìm nhân viên theo từ khoá (họ tên có dấu hay không dấu, mã, tên đăng nhập, email hoặc một phần
+   * số điện thoại) trong phạm vi trạng thái tài khoản.
+   *
+   * @param tuKhoa từ khoá; rỗng để lấy tất cả
+   * @param dangHoatDong như {@link #danhSach(Boolean)}
+   * @return danh sách nhân viên khớp, có thể rỗng
+   * @throws SecurityException nếu phiên hiện tại không phải nhân viên quản lý
+   */
+  public List<NhanVien> tim(String tuKhoa, Boolean dangHoatDong) {
+    return danhSach(dangHoatDong).stream()
+        .filter(nv -> KiemTraHoSo.khop(
+            tuKhoa, nv.soDienThoai(), nv.hoTen(), nv.maNV(), nv.tenDangNhap(), nv.email()))
+        .toList();
+  }
+
+  /**
+   * Cập nhật họ tên, số điện thoại, email và ngày vào làm. Mã, tên đăng nhập, mật khẩu, quyền và
+   * trạng thái tài khoản không đổi.
+   *
+   * @return kết quả lưu; không bao giờ {@code null}
+   * @throws SecurityException nếu phiên hiện tại không phải nhân viên quản lý
+   */
+  public KetQuaLuuNhanVien capNhatNhanVien(String maNV, String hoTen, String soDienThoai,
+      String email, LocalDate ngayVaoLam) {
+    yeuCauQuanLy();
+    Optional<KetQuaLuuNhanVien> loi = kiemTraHoSo(hoTen, soDienThoai, email, ngayVaoLam);
+    if (loi.isPresent()) {
+      return loi.get();
+    }
+    try {
+      NhanVien cu = nhanVienDao.findByMa(maNV).orElse(null);
+      if (cu == null) {
+        return KetQuaLuuNhanVien.loi(null, "Không tìm thấy nhân viên " + maNV);
+      }
+      NhanVien moi = new NhanVien(maNV, KiemTraHoSo.chuanHoaHoTen(hoTen), chuanHoaSdt(soDienThoai),
+          email == null || email.isBlank() ? null : email.trim(), ngayVaoLam, cu.tenDangNhap(),
+          cu.matKhau(), cu.loaiQuyen(), cu.trangThaiHoatDong());
+      nhanVienDao.update(moi);
+      return KetQuaLuuNhanVien.thanhCong(moi);
+    } catch (DataAccessException e) {
+      log.warn("Không thể cập nhật nhân viên (exception={})", e.getClass().getName());
+      return KetQuaLuuNhanVien.loi(null, LOI_LUU);
+    }
+  }
+
+  /**
+   * Tên đăng nhập tự sinh, đồng bộ với mã nhân viên (thiết kế lớp NhanVien mục 1.6): "NVBH" hoặc
+   * "NVQL" + năm của mã + số thứ tự (tối thiểu 3 chữ số). Ví dụ "NVBANHANG-2026-000006" thành
+   * "NVBH2026006"; khớp dạng dữ liệu mẫu "NVBH2025001".
+   */
+  public static String tenDangNhapTuMa(String maNV) {
+    String[] phan = maNV.split("-");
+    if (phan.length != 3) {
+      throw new IllegalArgumentException("Mã nhân viên không đúng dạng TIỀN_TỐ-YYYY-NNN: " + maNV);
+    }
+    String tienTo = "NVQUANLY".equals(phan[0]) ? "NVQL" : "NVBH";
+    return tienTo + phan[1] + String.format("%03d", Integer.parseInt(phan[2]));
+  }
+
+  /**
    * Thêm nhân viên bán hàng mới cùng tài khoản đang hoạt động (UC013). Mã nhân viên được cấp và
-   * ghi trong cùng một giao dịch; mật khẩu chỉ được lưu dưới dạng băm. Mảng mật khẩu được xóa
+   * ghi trong cùng một giao dịch; tên đăng nhập được sinh từ mã ({@link #tenDangNhapTuMa}). Mật
+   * khẩu chỉ được lưu dưới dạng băm. Mảng mật khẩu được xóa
    * trắng sau khi dùng.
    *
    * @param hoTen họ tên nhân viên
    * @param soDienThoai số điện thoại liên hệ
    * @param email email liên hệ; có thể để trống
    * @param ngayVaoLam ngày vào làm
-   * @param tenDangNhap tên đăng nhập; không được trùng
    * @param matKhau mật khẩu khởi tạo dạng thô
    * @return kết quả lưu; không bao giờ {@code null}
    * @throws SecurityException nếu phiên hiện tại không phải nhân viên quản lý
    */
   public KetQuaLuuNhanVien themNhanVien(String hoTen, String soDienThoai, String email,
-      LocalDate ngayVaoLam, String tenDangNhap, char[] matKhau) {
+      LocalDate ngayVaoLam, char[] matKhau) {
     try {
       yeuCauQuanLy();
       Optional<KetQuaLuuNhanVien> loi =
-          kiemTraDuLieu(hoTen, soDienThoai, email, ngayVaoLam, tenDangNhap, matKhau);
+          kiemTraDuLieu(hoTen, soDienThoai, email, ngayVaoLam, matKhau);
       if (loi.isPresent()) {
         return loi.get();
-      }
-      String ten = tenDangNhap.trim();
-      if (nhanVienDao.existsTenDangNhap(ten)) {
-        return KetQuaLuuNhanVien.loi(TRUONG_TEN_DANG_NHAP, LOI_TRUNG_TEN_DANG_NHAP);
       }
       String matKhauBam = PasswordHasher.hash(matKhau);
       try (Connection ketNoi = dataSource.getConnection()) {
         return KetQuaLuuNhanVien.thanhCong(ghiNhanVienMoi(ketNoi,
-            hoTen, soDienThoai, email, ngayVaoLam, ten, matKhauBam));
+            hoTen, soDienThoai, email, ngayVaoLam, matKhauBam));
       }
     } catch (DataAccessException e) {
       if (laTrungKhoa(e)) {
@@ -198,12 +255,12 @@ public final class NhanVienController {
   }
 
   private NhanVien ghiNhanVienMoi(Connection ketNoi, String hoTen, String soDienThoai, String email,
-      LocalDate ngayVaoLam, String tenDangNhap, String matKhauBam) throws SQLException {
+      LocalDate ngayVaoLam, String matKhauBam) throws SQLException {
     ketNoi.setAutoCommit(false);
     try {
       String maNV = MaGenerator.next(ketNoi, "NhanVien", "maNV", TIEN_TO_MA);
-      NhanVien nhanVien = new NhanVien(maNV, hoTen.trim(), chuanHoaSdt(soDienThoai),
-          email == null || email.isBlank() ? null : email.trim(), ngayVaoLam, tenDangNhap,
+      NhanVien nhanVien = new NhanVien(maNV, KiemTraHoSo.chuanHoaHoTen(hoTen), chuanHoaSdt(soDienThoai),
+          email == null || email.isBlank() ? null : email.trim(), ngayVaoLam, tenDangNhapTuMa(maNV),
           matKhauBam, LoaiQuyen.NHAN_VIEN_BAN_HANG, true);
       nhanVienDao.insert(ketNoi, nhanVien);
       ketNoi.commit();
@@ -217,22 +274,10 @@ public final class NhanVienController {
   }
 
   private static Optional<KetQuaLuuNhanVien> kiemTraDuLieu(String hoTen, String soDienThoai,
-      String email, LocalDate ngayVaoLam, String tenDangNhap, char[] matKhau) {
-    if (hoTen == null || hoTen.isBlank()) {
-      return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_HO_TEN, "Họ tên không được để trống"));
-    }
-    String loiSdt = KhachHangController.kiemTraSdt(soDienThoai);
-    if (loiSdt != null) {
-      return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_SDT, loiSdt));
-    }
-    if (email != null && !email.isBlank() && !email.trim().matches(EMAIL_HOP_LE)) {
-      return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_EMAIL, "Email không đúng định dạng"));
-    }
-    if (ngayVaoLam == null) {
-      return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_NGAY_VAO_LAM, "Ngày vào làm không được để trống"));
-    }
-    if (tenDangNhap == null || tenDangNhap.isBlank()) {
-      return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_TEN_DANG_NHAP, "Tên đăng nhập không được để trống"));
+      String email, LocalDate ngayVaoLam, char[] matKhau) {
+    Optional<KetQuaLuuNhanVien> loiHoSo = kiemTraHoSo(hoTen, soDienThoai, email, ngayVaoLam);
+    if (loiHoSo.isPresent()) {
+      return loiHoSo;
     }
     if (matKhau == null || matKhau.length < DO_DAI_MAT_KHAU_TOI_THIEU) {
       return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_MAT_KHAU,
@@ -244,6 +289,42 @@ public final class NhanVienController {
     return Optional.empty();
   }
 
+  private static Optional<KetQuaLuuNhanVien> kiemTraHoSo(
+      String hoTen, String soDienThoai, String email, LocalDate ngayVaoLam) {
+    String loiHoTen = KiemTraHoSo.kiemTraHoTen(hoTen);
+    if (loiHoTen != null) {
+      return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_HO_TEN, loiHoTen));
+    }
+    String loiSdt = KiemTraHoSo.kiemTraSdt(soDienThoai);
+    if (loiSdt != null) {
+      return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_SDT, loiSdt));
+    }
+    // Bắt buộc: quên mật khẩu chỉ gửi mã qua email (chốt 2026-11-06, lệch NhanVien 1.4 "nếu có nhập").
+    String loiEmail = email == null || email.isBlank()
+        ? "Email không được để trống (dùng để nhận mã đặt lại mật khẩu)" : KiemTraHoSo.kiemTraEmail(email);
+    if (loiEmail != null) {
+      return Optional.of(KetQuaLuuNhanVien.loi(TRUONG_EMAIL, loiEmail));
+    }
+    String loiNgay = kiemTraNgayVaoLam(ngayVaoLam);
+    return loiNgay == null
+        ? Optional.empty()
+        : Optional.of(KetQuaLuuNhanVien.loi(TRUONG_NGAY_VAO_LAM, loiNgay));
+  }
+
+  /**
+   * Ngày vào làm không trống, không sau hôm nay quá {@value #SO_NGAY_VAO_LAM_TRUOC} ngày (cho phép
+   * tạo tài khoản trước cho người sắp nhận việc) và không trước năm 2000.
+   */
+  public static String kiemTraNgayVaoLam(LocalDate ngayVaoLam) {
+    if (ngayVaoLam == null) {
+      return "Ngày vào làm không được để trống";
+    }
+    if (ngayVaoLam.isAfter(LocalDate.now().plusDays(SO_NGAY_VAO_LAM_TRUOC))) {
+      return "Ngày vào làm không được sau hôm nay quá " + SO_NGAY_VAO_LAM_TRUOC + " ngày";
+    }
+    return ngayVaoLam.getYear() < 2000 ? "Ngày vào làm không hợp lệ (trước năm 2000)" : null;
+  }
+
   /** Lỗi trùng khóa khi hai lần lưu chạy cùng lúc, lọt qua bước kiểm tra trước khi ghi. */
   private static boolean laTrungKhoa(DataAccessException e) {
     return e.getCause() instanceof SQLException sql && SQLSTATE_TRUNG_KHOA.equals(sql.getSQLState());
@@ -252,13 +333,13 @@ public final class NhanVienController {
   private static KetQuaLuuNhanVien chuyenLoiTrungKhoa(DataAccessException e) {
     String chiTiet = e.getCause().getMessage();
     if (chiTiet != null && chiTiet.contains(RANG_BUOC_TEN_DANG_NHAP)) {
-      return KetQuaLuuNhanVien.loi(TRUONG_TEN_DANG_NHAP, LOI_TRUNG_TEN_DANG_NHAP);
+      return KetQuaLuuNhanVien.loi(null, LOI_TRUNG_TEN_DANG_NHAP);
     }
     return KetQuaLuuNhanVien.loi(null, LOI_TRUNG_MA);
   }
 
   private static String chuanHoaSdt(String soDienThoai) {
-    return soDienThoai == null ? "" : soDienThoai.replaceAll("\\s", "");
+    return KiemTraHoSo.chuanHoaSdt(soDienThoai);
   }
 
   private static NhanVien yeuCauQuanLy() {
