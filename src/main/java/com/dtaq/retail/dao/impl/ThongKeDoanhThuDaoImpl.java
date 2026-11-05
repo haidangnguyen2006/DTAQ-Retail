@@ -16,21 +16,26 @@ import javax.sql.DataSource;
 
 /** JDBC implementation UC017. Return adjustments use the original invoice snapshots. */
 public final class ThongKeDoanhThuDaoImpl implements ThongKeDoanhThuDao {
-  private static final String SQL_DOANH_THU = "SELECT hd.\"ngayLap\", ct.\"maDongSP\", dsp.\"tenDongSP\","
+  private static final String SQL_DOANH_THU = "SELECT hd.\"ngayLap\", ct.\"maDongSP\", dsp.\"tenDongSP\", NULL::VARCHAR,"
       + " SUM(ct.\"tienSauKhuyenMai\"), SUM(ct.\"tienThue\")"
       + " FROM \"HoaDon\" hd JOIN \"ChiTietHoaDon\" ct ON ct.\"maHD\"=hd.\"maHD\""
       + " JOIN \"DongSanPham\" dsp ON dsp.\"maDongSP\"=ct.\"maDongSP\""
       + " WHERE hd.\"trangThaiThanhToan\"=true AND hd.\"ngayLap\" BETWEEN ? AND ?"
       + " GROUP BY hd.\"ngayLap\", ct.\"maDongSP\", dsp.\"tenDongSP\" ORDER BY 1,3";
   private static final String SQL_DIEU_CHINH = "SELECT pt.\"ngayHoanTat\", ct.\"maDongSP\", dsp.\"tenDongSP\","
-      + " -SUM(ct.\"tienSauKhuyenMai\"), -SUM(ct.\"tienThue\")"
+      + " pt.\"maPhieuTra\", -ct.\"tienSauKhuyenMai\", -ct.\"tienThue\""
       + " FROM \"PhieuTra\" pt JOIN \"ChiTietPhieuTra\" cpt ON cpt.\"maPhieuTra\"=pt.\"maPhieuTra\""
       + " JOIN \"ChiTietHoaDon\" ct ON ct.\"maHD\"=cpt.\"maHD\" AND ct.\"soSerial\"=cpt.\"soSerial\""
       + " JOIN \"DongSanPham\" dsp ON dsp.\"maDongSP\"=ct.\"maDongSP\""
       + " WHERE pt.\"trangThaiXuLyPhieu\"='HOAN_TAT'"
       + " AND pt.\"trangThaiDuyet\" IN ('KHONG_CAN_DUYET','DA_DUYET')"
       + " AND pt.\"ngayHoanTat\" BETWEEN ? AND ?"
-      + " GROUP BY pt.\"ngayHoanTat\", ct.\"maDongSP\", dsp.\"tenDongSP\" ORDER BY 1,3";
+      + " UNION ALL SELECT pd.\"ngayHoanTat\", ct.\"maDongSP\", dsp.\"tenDongSP\", pd.\"maPhieuDoi\", 0, 0"
+      + " FROM \"PhieuDoi\" pd JOIN \"ChiTietPhieuDoi\" cpd ON cpd.\"maPhieuDoi\"=pd.\"maPhieuDoi\""
+      + " JOIN \"ChiTietHoaDon\" ct ON ct.\"maHD\"=cpd.\"maHD\" AND ct.\"soSerial\"=cpd.\"soSerial\""
+      + " JOIN \"DongSanPham\" dsp ON dsp.\"maDongSP\"=ct.\"maDongSP\""
+      + " WHERE pd.\"trangThaiXuLyPhieu\"='HOAN_TAT' AND pd.\"trangThaiDuyet\" IN ('KHONG_CAN_DUYET','DA_DUYET')"
+      + " AND pd.\"ngayHoanTat\" BETWEEN ? AND ? ORDER BY 1,3";
   private final DataSource dataSource;
   public ThongKeDoanhThuDaoImpl(DataSource dataSource) { this.dataSource=Objects.requireNonNull(dataSource); }
 
@@ -52,6 +57,10 @@ public final class ThongKeDoanhThuDaoImpl implements ThongKeDoanhThuDao {
         PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setDate(1, Date.valueOf(tuNgay));
       statement.setDate(2, Date.valueOf(denNgay));
+      if (sql == SQL_DIEU_CHINH) {
+        statement.setDate(3, Date.valueOf(tuNgay));
+        statement.setDate(4, Date.valueOf(denNgay));
+      }
       try (ResultSet resultSet = statement.executeQuery()) {
         List<DongDoanhThu> result = new ArrayList<>();
         while (resultSet.next()) {
@@ -59,8 +68,9 @@ public final class ThongKeDoanhThuDaoImpl implements ThongKeDoanhThuDao {
               resultSet.getObject(1, LocalDate.class),
               resultSet.getString(2),
               resultSet.getString(3),
-              resultSet.getBigDecimal(4),
-              resultSet.getBigDecimal(5)));
+              resultSet.getString(4),
+              resultSet.getBigDecimal(5),
+              resultSet.getBigDecimal(6)));
         }
         return result;
       }
