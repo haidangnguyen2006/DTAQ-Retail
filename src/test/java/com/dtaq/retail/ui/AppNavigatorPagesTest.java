@@ -62,8 +62,8 @@ class AppNavigatorPagesTest {
   }
 
   @Test
-  @DisplayName("Vai trò quản lý đăng ký đúng 9 trang thật theo thứ tự menu")
-  void managerDangKyDung9TrangThat() {
+  @DisplayName("Vai trò quản lý đăng ký đúng 11 trang thật theo thứ tự menu")
+  void managerDangKyDung11TrangThat() {
     List<Page> pages = AppNavigator.managerPages(NV_QUAN_LY, DS, KHONG_DIEU_HUONG);
 
     Set<PageId> ids = idsOf(pages);
@@ -76,8 +76,10 @@ class AppNavigatorPagesTest {
         PageId.PROMOTIONS,
         PageId.EMPLOYEES,
         PageId.RETURN_APPROVALS,
-        PageId.PRICE_TAX), ids);
-    assertEquals(9, pages.size(), "không được đăng ký trùng PageId");
+        PageId.PRICE_TAX,
+        PageId.BACKUP,
+        PageId.RESTORE), ids);
+    assertEquals(11, pages.size(), "không được đăng ký trùng PageId");
     assertEquals(List.of(
         PageId.MANAGER_HOME,
         PageId.REVENUE_STATS,
@@ -87,7 +89,9 @@ class AppNavigatorPagesTest {
         PageId.PROMOTIONS,
         PageId.EMPLOYEES,
         PageId.RETURN_APPROVALS,
-        PageId.PRICE_TAX), idsTheoThuTu(pages), "đúng thứ tự menu của vai trò quản lý");
+        PageId.PRICE_TAX,
+        PageId.BACKUP,
+        PageId.RESTORE), idsTheoThuTu(pages), "đúng thứ tự menu của vai trò quản lý");
   }
 
   @Test
@@ -128,12 +132,10 @@ class AppNavigatorPagesTest {
     kiemTraPhuMenu(
         LoaiQuyen.NHAN_VIEN_QUAN_LY,
         AppNavigator.managerPages(NV_QUAN_LY, DS, KHONG_DIEU_HUONG),
-        4,
+        2,
         Set.of(
             PageId.SALES_BY_PRODUCT,
-            PageId.SALES_BY_EMPLOYEE,
-            PageId.BACKUP,
-            PageId.RESTORE));
+            PageId.SALES_BY_EMPLOYEE));
 
     kiemTraPhuMenu(
         LoaiQuyen.NHAN_VIEN_BAN_HANG,

@@ -2,12 +2,14 @@ package com.dtaq.retail.ui;
 
 import com.dtaq.retail.config.ReturnConfig;
 import com.dtaq.retail.controller.AuthController;
+import com.dtaq.retail.controller.BackupController;
 import com.dtaq.retail.controller.BanHangController;
 import com.dtaq.retail.controller.BaoCaoTonKhoController;
 import com.dtaq.retail.controller.DanhMucController;
 import com.dtaq.retail.controller.DoiTraController;
 import com.dtaq.retail.controller.DongSanPhamController;
 import com.dtaq.retail.controller.GiaThueController;
+import com.dtaq.retail.controller.IncidentController;
 import com.dtaq.retail.controller.KhachHangController;
 import com.dtaq.retail.controller.KhuyenMaiController;
 import com.dtaq.retail.controller.NhanVienController;
@@ -42,8 +44,13 @@ import com.dtaq.retail.dao.impl.SanPhamImpl;
 import com.dtaq.retail.dao.impl.SanPhamLoiDaoImpl;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
+import com.dtaq.retail.service.BackupService;
+import com.dtaq.retail.service.RestoreService;
 import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.ui.page.approval.ReturnApprovalsPage;
+import com.dtaq.retail.ui.page.backup.BackupPage;
+import com.dtaq.retail.ui.page.backup.IncidentDialog;
+import com.dtaq.retail.ui.page.backup.RestorePage;
 import com.dtaq.retail.ui.page.category.CategoriesPage;
 import com.dtaq.retail.ui.page.customer.CustomerListPage;
 import com.dtaq.retail.ui.page.customer.CustomerLookupPage;
@@ -78,10 +85,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import javax.sql.DataSource;
 import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Điều phối việc chuyển đổi giữa màn hình đăng nhập, quên mật khẩu và khung giao diện chính AppShell. */
 public final class AppNavigator {
+
+  private static final Logger log = LoggerFactory.getLogger(AppNavigator.class);
 
   private final NhanVienDao nhanVienDao;
   private final PasswordResetDao passwordResetDao;
@@ -142,6 +154,18 @@ public final class AppNavigator {
     shell.showPage(NavigationModel.getDefaultPageFor(nhanVien.loaiQuyen()));
     current = shell;
     shell.setVisible(true);
+
+    if (nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY) {
+      SwingUtilities.invokeLater(() -> {
+        try {
+          IncidentController incidentController = IncidentController.macDinh(dataSource);
+          incidentController.suCoDangCho().ifPresent(i ->
+              new IncidentDialog(shell, incidentController, i, shell::showPage).setVisible(true));
+        } catch (RuntimeException e) {
+          log.warn("Không hiển thị được sự cố dữ liệu: {}", e.getMessage());
+        }
+      });
+    }
   }
 
   /**
@@ -151,11 +175,11 @@ public final class AppNavigator {
    * @param nhanVien nhân viên quản lý đang đăng nhập; không được {@code null}
    * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
    * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
-   * @return 9 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
+   * @return 11 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
    *     PageId#REVENUE_STATS}, {@link PageId#LONG_STOCK_REPORT}, {@link PageId#PRODUCT_LINES},
    *     {@link PageId#DEFECTIVE_PRODUCTS}, {@link PageId#PROMOTIONS}, {@link PageId#EMPLOYEES},
-   *     {@link PageId#RETURN_APPROVALS}, {@link PageId#PRICE_TAX}; mỗi {@code PageId} xuất hiện
-   *     tối đa một lần
+   *     {@link PageId#RETURN_APPROVALS}, {@link PageId#PRICE_TAX}, {@link PageId#BACKUP}, {@link
+   *     PageId#RESTORE}; mỗi {@code PageId} xuất hiện tối đa một lần
    */
   static List<Page> managerPages(
       NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate) {
@@ -185,6 +209,11 @@ public final class AppNavigator {
     ReturnApprovalsPage returnApprovals = new ReturnApprovalsPage(pheDuyet);
     PriceTaxPage priceTax = new PriceTaxPage(
         new GiaThueController(dongSanPhamDao), dongSanPhamDao);
+    BackupService backupService = BackupService.macDinh(dataSource);
+    BackupController backupController = new BackupController(
+        backupService, RestoreService.macDinh(dataSource, backupService));
+    BackupPage backup = new BackupPage(backupController);
+    RestorePage restore = new RestorePage(backupController);
     revenueStats.setOnNavigate(onNavigate);
 
     managerHome.setOnApprove(
@@ -201,7 +230,9 @@ public final class AppNavigator {
         promotions,
         employees,
         returnApprovals,
-        priceTax);
+        priceTax,
+        backup,
+        restore);
     taiDanhSachChoDuyet(pheDuyet, managerHome);
     return pages;
   }

@@ -237,6 +237,10 @@ Hệ quả trong phạm vi ảnh chụp:
 
 Tất cả khóa ngoại dùng `ON DELETE RESTRICT`; không có `ON DELETE CASCADE`. Tên bảng/cột dùng identifier được quote để giữ đúng camelCase nguồn.
 
+> **Bổ sung V11 + V12 (2026-11-05):** `V11__backup_history.sql` thêm `"LichSuSaoLuu"` (lịch sử sao lưu/phục hồi) và `"SuCoSucKhoe"` (sự cố sức khỏe); `V12__lichsu_sao_luu_bo_rang_buoc_filepath.sql` bỏ UNIQUE `uq_lichsusaoluu_filepath` để một tệp có thể có bản ghi sao lưu và nhiều bản ghi phục hồi (lịch sử là log, không phải định danh duy nhất), đồng thời nới `"SuCoSucKhoe"."severity"` lên `VARCHAR(12)` và `"trangThai"` lên `VARCHAR(20)`, đổi CHECK thành `severity IN ('CRITICAL','SUSPICIOUS')` và `trangThai IN ('PENDING','RESOLVED_RESTORED','AUTO_RESTORED','DISMISSED','FAILED')` theo đặc tả FR015/FR016. Hai bảng là **cache hiển thị/audit**, **không** thuộc 14 bảng nghiệp vụ cốt lõi; nguồn sự thật của bản sao lưu vẫn là cặp tệp `.dump` + `.meta.json` trong thư mục backup.
+
+> **`"SuCoSucKhoe"` từ 2026-11-05:** bảng nay **được `HealthMonitor`/`RecoveryCoordinator` ghi và đọc** khi phát hiện sự cố sức khỏe dữ liệu (không còn là bảng dự phòng). Từ vựng sau `V12`: `severity` ∈ `CRITICAL`/`SUSPICIOUS`; `trangThai` ∈ `PENDING`/`RESOLVED_RESTORED`/`AUTO_RESTORED`/`DISMISSED`/`FAILED`. Trạng thái `UNAVAILABLE` (máy chủ tắt, mất mạng, sai quyền) **chỉ nằm trong `health_state.json`** và cảnh báo giao diện — **không** tạo dòng trong `"SuCoSucKhoe"`.
+
 ### 6.2. `ChiTietHoaDon` — cấu trúc và snapshot
 
 | Cột | Kiểu | Ràng buộc V1 |

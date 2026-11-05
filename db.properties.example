@@ -18,3 +18,49 @@ DTAQ_SMTP_PASSWORD=
 DTAQ_SMTP_FROM=
 DTAQ_SMTP_STARTTLS=
 DTAQ_SMTP_TIMEOUT_MS=
+
+# ---------------------------------------------------------------------------
+# Sao lưu cơ sở dữ liệu (FR015).
+# DTAQ_BACKUP_DIR là thư mục chứa cặp tệp *.dump + *.meta.json. Thư mục này đã
+# được .gitignore bỏ qua và chứa hash BCrypt của bảng "NhanVien": không commit,
+# không chia sẻ, không đưa lên cloud.
+# DTAQ_BACKUP_TIME theo định dạng HH:mm, múi giờ Asia/Ho_Chi_Minh.
+# DTAQ_BACKUP_INTERVAL_HOURS là chu kỳ chạy bù khi khởi động (24 = mỗi ngày).
+# DTAQ_BACKUP_ENABLED=false sẽ tắt hoàn toàn lịch sao lưu tự động.
+# DTAQ_BACKUP_SECONDARY_DIR để trống nếu không cần sao chép thêm một bản.
+# DTAQ_PG_BIN_DIR chỉ cần khi pg_dump/pg_restore/createdb không có trên PATH.
+# ---------------------------------------------------------------------------
+DTAQ_BACKUP_DIR=./backups
+DTAQ_BACKUP_KEEP_DAYS=7
+DTAQ_BACKUP_TIME=00:00
+DTAQ_BACKUP_INTERVAL_HOURS=24
+DTAQ_BACKUP_ENABLED=true
+# DTAQ_BACKUP_SECONDARY_DIR=
+# DTAQ_PG_BIN_DIR=
+# DTAQ_PG_DUMP=pg_dump
+DTAQ_PG_RESTORE=pg_restore
+DTAQ_PG_CREATEDB=createdb
+
+# ---------------------------------------------------------------------------
+# Giám sát sức khỏe dữ liệu và tự động phục hồi.
+# DTAQ_HEALTH_ENABLED=false sẽ tắt hoàn toàn việc kiểm tra định kỳ.
+# DTAQ_HEALTH_STATE_FILE là tệp JSON lưu baseline/streak ngoài cơ sở dữ liệu;
+# đặt trong thư mục backup nên sẽ mất nếu thư mục này bị xóa.
+# DTAQ_HEALTH_DROP_THRESHOLD là tỷ lệ suy giảm số dòng (0 < x < 1) để coi là
+# bất thường; DTAQ_HEALTH_DROP_MIN_BASELINE là số dòng tối thiểu để so sánh.
+# DTAQ_HEALTH_CORE_TABLES là danh sách bảng cốt lõi, phân tách bằng dấu phẩy.
+# DTAQ_HEALTH_AUTO_RESTORE_ENABLED=false sẽ chỉ cảnh báo, không tự phục hồi.
+# Đây là thao tác phá hủy dữ liệu sau mốc sao lưu: chỉ bật khi đã cân nhắc.
+# ---------------------------------------------------------------------------
+DTAQ_HEALTH_ENABLED=true
+DTAQ_HEALTH_INTERVAL_MINUTES=5
+DTAQ_HEALTH_STATE_FILE=./backups/health_state.json
+DTAQ_HEALTH_DROP_THRESHOLD=0.5
+DTAQ_HEALTH_DROP_MIN_BASELINE=50
+DTAQ_HEALTH_SUSPICIOUS_CYCLES=2
+DTAQ_HEALTH_CORE_TABLES=NhanVien,KhachHang,DanhMucSanPham,NhaCungCap,DongSanPham,SanPham,KhuyenMai,HoaDon,ChiTietHoaDon,PhieuTra,ChiTietPhieuTra,PhieuDoi,ChiTietPhieuDoi,SanPhamLoi
+DTAQ_HEALTH_AUTO_RESTORE_ENABLED=true
+DTAQ_HEALTH_AUTO_RESTORE_MAX_PER_HOUR=3
+DTAQ_HEALTH_FALLBACK_MAX_BACKUPS=3
+DTAQ_HEALTH_REMIND_MINUTES=30
+DTAQ_HEALTH_TIMEOUT_SECONDS=10

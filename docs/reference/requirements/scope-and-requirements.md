@@ -231,6 +231,7 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - FR015, FR016, NFR011 và Ch.1 §II.7 yêu cầu sao lưu/phục hồi dữ liệu hóa đơn, khách hàng.
 - Danh mục 19 UC (UC001–UC019) **không có** use case sao lưu hoặc phục hồi.
 - **Trạng thái:** khoảng trống phủ; chưa xác nhận chức năng này được đặc tả ở tài liệu khác hay chưa được lập UC.
+- **Cập nhật 2026-11-05:** FR015/FR016 đã được triển khai theo quyết định 2026-11-05 — `pg_dump -Fc` toàn bộ CSDL, tệp phẳng `.dump` + `.meta.json` (SHA-256), giữ 7 ngày, giờ chạy cấu hình `DTAQ_BACKUP_TIME`, chỉ Nhân viên quản lý, phục hồi xác nhận 2 bước + safety backup + `--single-transaction`; **vẫn chưa có UC chính thức** trong DOCX, nên khoảng trống C-05 giữ nguyên về mặt nguồn.
 
 ### C-06 — Yêu cầu rộng hơn đặc tả use case
 

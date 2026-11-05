@@ -17,7 +17,7 @@
 | D6 | **Khuyến mãi cơ bản thuộc phạm vi**: UC012 quản lý, UC003 bước 7–8 áp dụng từng dòng SP | [C-04](../requirements/scope-and-requirements.md#c-04--khuyến-mãi-vừa-ngoài-phạm-vi-vừa-có-use-case) |
 | D7 | Mã do **ứng dụng** sinh `TIỀN_TỐ-YYYY-NNNNNN`, không sequence/identity | [C-12](../requirements/scope-and-requirements.md#c-12--nhập-mã-định-danh-so-với-mã-tự-sinh-bất-biến) |
 | D8 | **Duyệt dependency Excel**: `poi-ooxml` 5.4.1 + `log4j-to-slf4j`; chỉ dùng trong `util/ExcelExporter`; chỉ Đăng sửa `pom.xml` | README §5.1 |
-| D9 | **Backup**: `./backups`, giữ 7 bản, nén zip + manifest/SHA-256, **cả 14 bảng gồm `NhanVien`**, không commit thư mục backup | README §5.1 |
+| D9 | **Backup**: `./backups`, **`pg_dump -Fc` toàn bộ CSDL** (gồm `NhanVien`), tệp phẳng `.dump` + `.meta.json` (SHA-256, bỏ zip), giữ **7 ngày** (`DTAQ_BACKUP_KEEP_DAYS`), giờ chạy `DTAQ_BACKUP_TIME` (mặc định `00:00`), chạy bù 24h; không commit thư mục backup | README §5.1 (cập nhật 2026-11-05) |
 | D10 | **UC014 "còn tồn"**: tính `SAN_SANG_BAN` + `HANG_LOI` + `DANG_BAO_HANH`; loại `DA_BAN`, `DA_TRA_NHA_CUNG_CAP`, `DA_THANH_LY`; ô ngưỡng điền sẵn 60; checkbox "Chỉ tính máy sẵn sàng bán" (mặc định tắt) | README §5.1 |
 | D11 | **Chỉ Quản lý** sửa giá/thuế (C-08); thời hạn đổi/trả để trống = không chặn; chồng lấn KM chỉ chặn khi cả hai đang áp dụng | [C-08](../requirements/scope-and-requirements.md#c-08--ai-cập-nhật-giá-bán-và-thuế-suất), README §5.1 |
 | D12 | **UC003 tìm/gộp giỏ theo dòng sản phẩm**: tìm theo `maDongSP`/`tenDongSP`; giỏ = dòng sản phẩm + số lượng (1..tồn), thay cách "mỗi dòng một serial" | phiên duyệt 2026-11-03 (D12 khớp UC003 bước 4–8; D14 không có trong nguồn) |
@@ -49,7 +49,7 @@
 | UC003 | Chọn khách + serial → áp khuyến mãi → tính tiền/thuế → nháp → thanh toán tiền mặt → lưu + snapshot + trừ tồn | Hủy nháp; chặn thiếu tiền/máy vừa bán; rollback; **hóa đơn giả lập**; snapshot 8 cột; KM hết hạn |
 | UC006 | Đổi/trả theo HĐ gốc, tính hoàn theo giá trị thực tế, ngưỡng **3.000.000đ** | `PhieuTra`/`PhieuDoi`; chênh lệch `<= 0`, không hoàn/thu tiền (D17); `CHO_DUYET`; mở lại sau duyệt; hàng lỗi → `SanPhamLoi`; máy thay thế |
 | UC018 | Danh sách chờ duyệt → duyệt/từ chối + ý kiến/lý do | Chống ghi đè; không tự hoàn tiền/đổi tồn |
-| FR015/FR016 | Sao lưu 14 bảng (gồm `NhanVien`), cron 00:00 + chạy bù; nén zip; phục hồi có xác nhận 2 bước | `manifest.json` + SHA-256; transaction; tự backup trước khi restore; `DTAQ_BACKUP_DIR=./backups`, `DTAQ_BACKUP_KEEP_DAYS=7` |
+| FR015/FR016 | Sao lưu **toàn bộ CSDL** bằng `pg_dump -Fc` (gồm `NhanVien`), giờ chạy cấu hình `DTAQ_BACKUP_TIME` (mặc định 00:00) + chạy bù 24h; tệp phẳng `.dump` + `.meta.json`; phục hồi có xác nhận 2 bước | `.meta.json` + SHA-256; `pg_restore --single-transaction`; tự backup trước khi restore; chỉ Quản lý; `DTAQ_BACKUP_DIR=./backups`, `DTAQ_BACKUP_KEEP_DAYS=7` |
 
 **Hạ tầng dùng chung:** `util/MaGenerator`, `util/TienUtil` **đã có** (W0-A); Đăng còn phải cung cấp `util/ExcelExporter`, `util/DateRange`, `ui/component/KyBaoCaoFilter` và giữ quyền sửa `ui/AppNavigator`.
 
@@ -139,7 +139,7 @@ Kèm rà soát UC001/UC002 (phiên, tài khoản khóa, thông báo tiếng Vi�
 | **C-08** ai cập nhật giá/thuế | ✅ chốt 2026-10-25 | Chỉ Quản lý; bán hàng chỉ đọc |
 | **C-02** tên "Thêm"/"Quản lý" | ⏳ mở (không chặn) | Sidebar giữ nhãn "Quản lý …"; làm luồng "Thêm" trước, cập nhật/xóa sau |
 | **Dependency Apache POI** | ✅ duyệt 2026-10-25 | `poi-ooxml` 5.4.1 + `log4j-to-slf4j`; fallback CSV nếu giảng viên cấm |
-| **Cấu hình backup** | ✅ chốt 2026-10-25 | `./backups`, 7 bản, zip + manifest, 14 bảng gồm `NhanVien` |
+| **Cấu hình backup** | ✅ chốt 2026-11-05 | `./backups`, `pg_dump -Fc` toàn DB, `.dump` + `.meta.json`, giữ 7 ngày, giờ chạy `DTAQ_BACKUP_TIME` |
 | **Thời hạn đổi/trả** | ✅ chốt 2026-10-25 | `return.window.days` để trống = không chặn |
 | **UC014 "còn tồn"** | ✅ chốt 2026-10-25 | Loại 3 trạng thái đã rời kho; prefill 60; checkbox lọc |
 | **Chồng lấn khuyến mãi** | ✅ chốt 2026-10-25 | Chỉ chặn khi cả hai `dangApDung = true` |
@@ -185,3 +185,4 @@ Kèm rà soát UC001/UC002 (phiên, tài khoản khóa, thông báo tiếng Vi�
 | 2026-11-03 | **v3.3:** chốt D12–D16 — UC003 theo dòng sản phẩm + số lượng (giỏ/tìm theo `maDongSP`/`tenDongSP`), hóa đơn tạm cục bộ, phân bổ máy FIFO khi thanh toán, nở chi tiết hóa đơn `soLuong = 1`, trigger RB37 (`trg_sanpham_cap_nhat_ton`); đăng ký toàn bộ trang đã có vào `AppNavigator` |
 | 2026-11-04 | **v3.4:** chốt C-03 cho UC009 (Nhân viên bán hàng quản lý dòng sản phẩm); chốt vị trí tính `soNgayTon` của UC014 trong SQL |
 | 2026-11-05 | **v3.5:** chốt D17 — đổi hàng không hoàn tiền, chỉ ngang bằng hoặc thấp hơn; V10 cưỡng chế `tienChenhLech <= 0`, `tienKhachDuaThem = 0`; phiếu đổi không cần duyệt |
+| 2026-11-05 | **v3.7:** cập nhật D9 — backup dùng `pg_dump -Fc` **toàn bộ CSDL** thay JDBC `COPY`; tệp phẳng `.dump` + `.meta.json` (SHA-256, bỏ zip); giữ theo tuổi **7 ngày**; giờ chạy cấu hình `DTAQ_BACKUP_TIME` (mặc định `00:00`) + chạy bù `DTAQ_BACKUP_INTERVAL_HOURS=24`; chỉ Quản lý; phục hồi 2 bước + safety backup + `--single-transaction`; V11 thêm bảng cache `"LichSuSaoLuu"`/`"SuCoSucKhoe"` |
