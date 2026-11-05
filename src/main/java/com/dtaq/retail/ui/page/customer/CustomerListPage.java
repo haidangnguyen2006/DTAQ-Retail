@@ -1,6 +1,7 @@
 package com.dtaq.retail.ui.page.customer;
 
 import com.dtaq.retail.controller.KhachHangController;
+import com.dtaq.retail.controller.KiemTraHoSo;
 import com.dtaq.retail.entity.KhachHang;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
@@ -34,6 +35,9 @@ import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import javax.swing.Timer;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
 import org.slf4j.Logger;
@@ -64,10 +68,9 @@ public class CustomerListPage implements Page {
   ) {}
 
   private final JPanel view;
-  private final FormField searchField = FormField.search("Tìm khách hàng", "Nhập họ tên hoặc số điện thoại");
+  private final FormField searchField = FormField.search(null, "Họ tên (gõ có dấu hoặc không), số điện thoại hoặc mã khách hàng");
   private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
   private final DtaqButton addCustomerBtn = DtaqButton.primary("Thêm khách hàng", "plus");
-  private final StatusPill countPill = StatusPill.neutral("0 khách hàng");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(
       new String[] {"Mã khách hàng", "Họ và tên", "Số điện thoại", "Địa chỉ", "Ngày tạo", "Thao tác"}, 5);
   private final DataTable dataTable = new DataTable(tableModel, 52);
@@ -92,19 +95,17 @@ public class CustomerListPage implements Page {
         "[]" + DtaqSpacing.SECTION_GAP + "[grow]"));
     view.setBackground(DtaqColors.BG_APP);
 
-    PageHeader header = new PageHeader(
-        "Quản lý khách hàng",
-        "Tra cứu hồ sơ khách hàng để phục vụ và lập hóa đơn nhanh chóng.");
-    addCustomerBtn.setShortcutKey("F4");
+    PageHeader header = new PageHeader("Quản lý khách hàng", null);
     addCustomerBtn.addActionListener(e -> openAddDialog());
     header.setTrailing(addCustomerBtn);
     view.add(header, "growx, wrap");
 
     dataTable.setCodeColumn(0);
     dataTable.setColumnWidths(130, 200, 140, 380, 110, 110);
-    dataTable.setActionColumn(5, RowAction.secondary("Chi tiết", this::openDetail));
+    dataTable.setActionColumn(5, RowAction.secondary("Sửa", this::openDetail));
     dataTable.setOnRowDoubleClick(this::openDetail);
-    tableState = new StatefulView(dataTable, "users", "Chưa có khách hàng", "Danh sách khách hàng sẽ hiển thị tại đây.");
+    tableState = new StatefulView(dataTable, "users", "Chưa có khách hàng",
+        "Bấm \"Thêm khách hàng\" để tạo hồ sơ đầu tiên.");
 
     Card tableCard = Card.standard();
     tableCard.add(buildFilterRow(), "growx, wrap");
@@ -204,16 +205,19 @@ public class CustomerListPage implements Page {
   }
 
   private JPanel buildFilterRow() {
-    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]push[]", "[bottom]"));
+    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[]"));
     filterRow.setOpaque(false);
 
-    searchField.setShortcut("F2");
     searchField.getTextField().addActionListener(e -> triggerSearch());
-    filterRow.add(searchField, "growx");
+    searchField.getTextField().registerKeyboardAction(e -> {
+      searchField.setText("");
+      triggerSearch();
+    }, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_FOCUSED);
+    searchField.getTextField().setToolTipText("Gõ từ khóa rồi nhấn Enter hoặc bấm Tìm kiếm • Esc để xóa");
+    filterRow.add(searchField.getInputComponent(), "growx, aligny center");
 
     searchButton.addActionListener(e -> triggerSearch());
-    filterRow.add(searchButton);
-    filterRow.add(countPill, "align right, aligny center");
+    filterRow.add(searchButton, "aligny center");
     return filterRow;
   }
 
@@ -230,13 +234,12 @@ public class CustomerListPage implements Page {
     rows.clear();
     tableModel.setRowCount(0);
     if (list == null || list.isEmpty()) {
-      countPill.setText("0 khách hàng");
       pagination.setPageData(1, 1, "Chưa có khách hàng nào");
       if (lastKeyword.isEmpty()) {
         tableState.showEmpty();
       } else {
         tableState.showEmpty("search", "Không tìm thấy khách hàng",
-            "Thử tìm bằng họ tên hoặc số điện thoại khác.");
+            "Không có hồ sơ khớp \"" + lastKeyword + "\". Bấm \"Thêm khách hàng\" để tạo khách mới với thông tin này.");
       }
       return;
     }
@@ -254,7 +257,6 @@ public class CustomerListPage implements Page {
     }
     int from = (page - 1) * PAGE_SIZE + 1;
     int to = from + list.size() - 1;
-    countPill.setText(total + " khách hàng");
     pagination.setPageData(page, Pagination.totalPages(total, PAGE_SIZE),
         "Hiển thị " + from + "–" + to + " trên " + total + " khách hàng");
     tableState.showContent();
@@ -353,6 +355,14 @@ public class CustomerListPage implements Page {
       addCustomerDialog.setOnSave(onSaveCustomerListener);
     }
     addCustomerDialog.clearForm();
+    // Không tìm thấy thì mang từ khóa vừa gõ sang form để khỏi nhập lại.
+    if (rows.isEmpty() && !lastKeyword.isEmpty()) {
+      if (KiemTraHoSo.kiemTraSdt(lastKeyword) == null) {
+        addCustomerDialog.setSoDienThoai(lastKeyword);
+      } else if (KiemTraHoSo.kiemTraHoTen(lastKeyword) == null) {
+        addCustomerDialog.setHoTen(KiemTraHoSo.chuanHoaHoTen(lastKeyword));
+      }
+    }
     addCustomerDialog.setVisible(true);
   }
 

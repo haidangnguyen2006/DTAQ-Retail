@@ -1,6 +1,7 @@
 package com.dtaq.retail.ui.page.customer;
 
 import com.dtaq.retail.controller.TraCuuKhachHangController;
+import com.dtaq.retail.controller.TraCuuKhachHangController.TongQuanKhach;
 import com.dtaq.retail.dao.KhachHangGiaoDichDao.ChiTietHoaDonView;
 import com.dtaq.retail.dao.KhachHangGiaoDichDao.ChiTietPhieuView;
 import com.dtaq.retail.dao.KhachHangGiaoDichDao.HoaDonTomTat;
@@ -14,7 +15,10 @@ import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
+import com.dtaq.retail.ui.component.KpiCard;
+import com.dtaq.retail.ui.component.Responsive;
 import com.dtaq.retail.ui.component.PageHeader;
+import com.dtaq.retail.ui.component.Pagination;
 import com.dtaq.retail.ui.component.StatefulView;
 import com.dtaq.retail.ui.format.DateFormats;
 import com.dtaq.retail.ui.format.PhoneFormat;
@@ -23,12 +27,13 @@ import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
+import com.dtaq.retail.util.TienUtil;
+import java.time.LocalDate;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
@@ -41,6 +46,9 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingWorker;
+import javax.swing.Timer;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
 import org.slf4j.Logger;
@@ -55,12 +63,29 @@ public final class CustomerLookupPage implements Page {
   private static final Logger log = LoggerFactory.getLogger(CustomerLookupPage.class);
 
   private static final String LOAD_ERROR = "Không thể tải dữ liệu tra cứu. Vui lòng thử lại";
+  private static final int MAX_MATCHES = 50;
+  private static final int MATCH_PAGE_SIZE = 5;
 
   private final TraCuuKhachHangController controller;
   private final JPanel view;
-  private final FormField sdtField = FormField.search("Số điện thoại", "Nhập số điện thoại khách hàng");
+  private final FormField sdtField = FormField.search(null,
+      "Số điện thoại, họ tên (có dấu hoặc không) hoặc mã khách hàng");
   private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
   private final StatefulView resultState;
+
+  /** Danh sách chọn khi từ khóa khớp nhiều khách (ví dụ tìm theo tên). */
+  private final DefaultTableModel matchModel = DataTable.readOnlyModel(new String[] {
+      "Mã khách hàng", "Họ và tên", "Số điện thoại", "Địa chỉ"});
+  private final DataTable matchTable = new DataTable(matchModel);
+  private final Pagination matchPagination = new Pagination();
+  private final Card matchCard = Card.standard();
+  private final List<KhachHang> matches = new ArrayList<>();
+  private int currentMatchPage = 1;
+
+  private final KpiCard kpiChiTieu = new KpiCard("Tổng chi tiêu", "—", "");
+  private final KpiCard kpiHoaDon = new KpiCard("Số hóa đơn", "—", "");
+  private final KpiCard kpiGanNhat = new KpiCard("Lần mua gần nhất", "—", "");
+  private final KpiCard kpiPhieu = new KpiCard("Phiếu đổi/trả", "—", "");
 
   private final JLabel tenKhachLabel = new JLabel();
   private final JLabel thongTinKhachLabel = new JLabel();
@@ -106,14 +131,31 @@ public final class CustomerLookupPage implements Page {
     this.controller = Objects.requireNonNull(controller, "controller");
 
     view = new JPanel(new MigLayout(
-        "fillx, insets " + DtaqSpacing.PAGE_PADDING,
+        "fillx, hidemode 3, insets " + DtaqSpacing.PAGE_PADDING,
         "[grow]",
-        "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[]"));
+        "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[]"));
     view.setBackground(DtaqColors.BG_APP);
 
-    view.add(new PageHeader("Tra cứu khách hàng và giao dịch",
-        "Tìm khách theo số điện thoại để xem lịch sử mua hàng, hóa đơn và phiếu đổi/trả."), "growx, wrap");
+    view.add(new PageHeader("Tra cứu khách hàng và giao dịch", null), "growx, wrap");
     view.add(buildSearchCard(), "growx, wrap");
+
+    matchTable.setCodeColumn(0);
+    matchTable.setVisibleRows(2, 6);
+    matchTable.getTable().getSelectionModel().addListSelectionListener(e -> {
+      int viewRow = matchTable.getTable().getSelectedRow();
+      if (!e.getValueIsAdjusting() && viewRow >= 0) {
+        int modelRow = matchTable.getTable().convertRowIndexToModel(viewRow);
+        int actualIndex = (currentMatchPage - 1) * MATCH_PAGE_SIZE + modelRow;
+        if (actualIndex >= 0 && actualIndex < matches.size()) {
+          loadKhach(matches.get(actualIndex));
+        }
+      }
+    });
+    matchPagination.setOnPageChangeListener(this::renderMatchPage);
+    matchCard.add(matchTable, "growx, wrap");
+    matchCard.add(matchPagination, "growx");
+    matchCard.setVisible(false);
+    view.add(matchCard, "growx, wrap");
 
     hoaDonState = new StatefulView(hoaDonTable, "receipt-text", "Chưa có hóa đơn",
         "Khách hàng chưa có giao dịch mua hàng.");
@@ -126,20 +168,20 @@ public final class CustomerLookupPage implements Page {
 
     configureTables();
     resultState = new StatefulView(buildResultPanel(), "search", "Chưa tra cứu",
-        "Nhập số điện thoại để xem khách hàng và giao dịch.");
+        "Nhập số điện thoại, họ tên hoặc mã khách hàng rồi nhấn Enter hoặc Tìm kiếm.");
     resultState.setOnRetry(this::search);
     view.add(resultState, "growx");
   }
 
   private Card buildSearchCard() {
     Card card = Card.standard();
-    JPanel row = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[bottom]"));
+    JPanel row = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[]"));
     row.setOpaque(false);
-    sdtField.setShortcut("F2");
     sdtField.getTextField().addActionListener(e -> search());
     searchButton.addActionListener(e -> search());
-    row.add(sdtField, "growx");
-    row.add(searchButton);
+    sdtField.getTextField().setToolTipText("Ví dụ: 0902 100 001 • nguyen van an • mã khách hàng (Nhấn Enter hoặc bấm Tìm kiếm)");
+    row.add(sdtField.getInputComponent(), "growx, aligny center");
+    row.add(searchButton, "aligny center");
     card.add(row, "growx");
     return card;
   }
@@ -148,17 +190,15 @@ public final class CustomerLookupPage implements Page {
     JPanel panel = new JPanel(new MigLayout("fillx, insets 0", "[grow]", "[]" + DtaqSpacing.SECTION_GAP + "[]"));
     panel.setOpaque(false);
 
-    Card khachCard = Card.compact();
-    tenKhachLabel.setFont(DtaqFonts.CUSTOMER_NAME);
-    tenKhachLabel.setForeground(DtaqColors.TEXT);
-    thongTinKhachLabel.setFont(DtaqFonts.BODY_13);
-    thongTinKhachLabel.setForeground(DtaqColors.TEXT_MUTED);
-    diaChiLabel.setFont(DtaqFonts.BODY_13);
-    diaChiLabel.setForeground(DtaqColors.TEXT_MUTED);
-    khachCard.add(tenKhachLabel, "growx, wrap");
-    khachCard.add(thongTinKhachLabel, "growx, wrap");
-    khachCard.add(diaChiLabel, "growx");
-    panel.add(khachCard, "growx, wrap");
+    JPanel kpiRow = new JPanel(new MigLayout("fillx, insets 0, gapx 16",
+        "[grow,fill][grow,fill][grow,fill][grow,fill]", "[]"));
+    kpiRow.setOpaque(false);
+    Responsive.grid(kpiRow, 200, 4);
+    kpiRow.add(kpiChiTieu);
+    kpiRow.add(kpiHoaDon);
+    kpiRow.add(kpiGanNhat);
+    kpiRow.add(kpiPhieu);
+    panel.add(kpiRow, "growx, wrap");
 
     JPanel hoaDonTab = new JPanel(new MigLayout("fillx, insets 12 0 0 0", "[grow]", "[]16[]8[]"));
     hoaDonTab.setOpaque(false);
@@ -228,39 +268,79 @@ public final class CustomerLookupPage implements Page {
   private record KetQuaTraCuu(KhachHang khachHang, List<HoaDonTomTat> hoaDons, List<PhieuTomTat> phieus) {}
 
   private void search() {
-    String sdt = sdtField.getText();
-    if (sdt.isBlank()) {
-      sdtField.setError("Vui lòng nhập số điện thoại");
+    String tuKhoa = sdtField.getText().trim();
+    if (tuKhoa.isEmpty()) {
+      showMatches(List.of());
+      resultState.showEmpty("search", "Vui lòng nhập thông tin",
+          "Nhập số điện thoại, họ tên hoặc mã khách hàng để tra cứu giao dịch.");
       return;
     }
     sdtField.setError(null);
     int request = ++searchRequest;
-    searchButton.setEnabled(false);
     resultState.showLoading();
-    run(() -> {
-      Optional<KhachHang> khach = controller.timKhach(sdt);
-      if (khach.isEmpty()) {
-        return null;
-      }
-      String maKH = khach.get().maKH();
-      return new KetQuaTraCuu(khach.get(), controller.lichSuHoaDon(maKH), controller.phieuDoiTra(maKH));
-    }, ketQua -> {
+    run(() -> controller.timGanDung(tuKhoa, MAX_MATCHES), ketQua -> {
       if (request != searchRequest) {
         return;
       }
-      searchButton.setEnabled(true);
-      if (ketQua == null) {
+      showMatches(ketQua.size() > 1 ? ketQua : List.of());
+      if (ketQua.isEmpty()) {
         resultState.showEmpty("user-round", "Không tìm thấy khách hàng",
-            "Kiểm tra lại số điện thoại rồi tìm kiếm lại.");
+            "Không có hồ sơ khớp \"" + tuKhoa + "\". Kiểm tra lại hoặc tạo khách mới ở màn hình Quản lý khách hàng.");
+      } else if (ketQua.size() == 1) {
+        loadKhach(ketQua.get(0));
       } else {
-        render(ketQua);
+        resultState.showEmpty("users", ketQua.size() + " khách hàng khớp",
+            "Chọn một khách trong danh sách phía trên để xem giao dịch.");
       }
     }, message -> {
       if (request == searchRequest) {
-        searchButton.setEnabled(true);
         resultState.showError(message);
       }
     });
+  }
+
+  private void showMatches(List<KhachHang> ds) {
+    matches.clear();
+    matches.addAll(ds);
+    if (ds.size() > 1) {
+      renderMatchPage(1);
+    } else {
+      matchCard.setVisible(false);
+    }
+    view.revalidate();
+  }
+
+  private void renderMatchPage(int page) {
+    currentMatchPage = page;
+    matchModel.setRowCount(0);
+    int total = matches.size();
+    int from = (page - 1) * MATCH_PAGE_SIZE;
+    int to = Math.min(from + MATCH_PAGE_SIZE, total);
+    for (int i = from; i < to; i++) {
+      KhachHang kh = matches.get(i);
+      matchModel.addRow(new Object[] {
+          kh.maKH(), kh.hoTen(), PhoneFormat.format(kh.soDienThoai()), kh.diaChi() == null ? "" : kh.diaChi()});
+    }
+    matchPagination.setPageData(page, Pagination.totalPages(total, MATCH_PAGE_SIZE),
+        "Hiển thị " + (from + 1) + "–" + to + " trên " + total + " khách hàng");
+    matchCard.setVisible(total > 1);
+    view.revalidate();
+  }
+
+  /** Bước 6–8: tải lịch sử hóa đơn và phiếu đổi/trả của một khách đã xác định. */
+  private void loadKhach(KhachHang khach) {
+    int request = ++searchRequest;
+    resultState.showLoading();
+    run(() -> new KetQuaTraCuu(khach, controller.lichSuHoaDon(khach.maKH()), controller.phieuDoiTra(khach.maKH())),
+        ketQua -> {
+          if (request == searchRequest) {
+            render(ketQua);
+          }
+        }, message -> {
+          if (request == searchRequest) {
+            resultState.showError(message);
+          }
+        });
   }
 
   private void render(KetQuaTraCuu ketQua) {
@@ -296,7 +376,35 @@ public final class CustomerLookupPage implements Page {
     tabs.setTitleAt(1, "Phiếu đổi/trả (" + phieus.size() + ")");
     resetChiTietPhieu();
 
+    renderTongQuan(TraCuuKhachHangController.tongQuan(hoaDons, phieus, LocalDate.now()));
     resultState.showContent();
+    // Mở sẵn hóa đơn mới nhất để người dùng thấy ngay chi tiết, không phải bấm thêm.
+    if (!hoaDons.isEmpty()) {
+      hoaDonTable.getTable().setRowSelectionInterval(0, 0);
+    }
+  }
+
+  private void renderTongQuan(TongQuanKhach tq) {
+    kpiChiTieu.setValue(TienUtil.dinhDang(tq.tongChiTieu()));
+    kpiChiTieu.setCaption(tq.soMay() + " sản phẩm đã mua");
+    kpiHoaDon.setValue(String.valueOf(tq.soHoaDon()));
+    kpiHoaDon.setCaption(tq.soHoaDon() == 0 ? "Chưa có hóa đơn đã thanh toán"
+        : "TB " + TienUtil.dinhDang(tq.trungBinhHoaDon()) + " / hóa đơn");
+    if (tq.lanMuaGanNhat() == null) {
+      kpiGanNhat.setValue("Chưa mua");
+      kpiGanNhat.setCaption("Khách mới, chưa có giao dịch");
+    } else {
+      long ngay = tq.soNgayTuLanCuoi();
+      kpiGanNhat.setValue(ngay <= 0 ? "Hôm nay" : ngay + " ngày trước");
+      kpiGanNhat.setCaption(DateFormats.formatDate(tq.lanMuaGanNhat()) + " • khách từ "
+          + DateFormats.formatDate(tq.lanMuaDauTien()));
+    }
+    kpiPhieu.setValue(String.valueOf(tq.soPhieu()));
+    if (tq.soPhieuDangMo() > 0) {
+      kpiPhieu.setTrend(KpiCard.Trend.DOWN, tq.soPhieuDangMo() + " phiếu đang chờ xử lý");
+    } else {
+      kpiPhieu.setCaption(tq.soPhieu() == 0 ? "Chưa đổi/trả lần nào" : "Đã xử lý xong");
+    }
   }
 
   private void loadChiTietHoaDon(HoaDonTomTat hoaDon) {
