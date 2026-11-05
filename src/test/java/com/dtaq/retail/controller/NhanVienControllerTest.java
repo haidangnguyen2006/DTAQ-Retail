@@ -89,6 +89,8 @@ class NhanVienControllerTest {
         them("Tên", "0901234567", null, NGAY, "  ", "12345678").truongLoi());
     assertEquals(NhanVienController.TRUONG_MAT_KHAU,
         them("Tên", "0901234567", null, NGAY, "moi", "1234567").truongLoi());
+    assertEquals(NhanVienController.TRUONG_MAT_KHAU,
+        them("Tên", "0901234567", null, NGAY, "moi", "x".repeat(73)).truongLoi());
     assertEquals(0, dao.soLanInsert);
   }
 

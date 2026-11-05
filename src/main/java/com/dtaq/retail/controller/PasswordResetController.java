@@ -154,6 +154,7 @@ public final class PasswordResetController {
 
       if (matKhauMoi == null
           || matKhauMoi.length() < DO_DAI_MAT_KHAU_TOI_THIEU
+          || PasswordHasher.quaDai(matKhauMoi.toCharArray())
           || matKhauMoi.equalsIgnoreCase(nhanVien.tenDangNhap())) {
         return new KetQua(KetQuaDatLai.WEAK_PASSWORD);
       }

@@ -65,7 +65,8 @@ class ThongKeNhanVienDaoImplTest {
   @Test
   @DisplayName("Phiếu trả hoàn tất trong kỳ trên hóa đơn ngoài kỳ: quy về nhân viên lập hóa đơn gốc")
   void dieuChinhQuyVeNhanVienLapHoaDonGoc() {
-    LocalDate tu = LocalDate.of(2026, 7, 1);
+    // Bắt đầu 05/07 để loại HD-2026-200001 (04/07) của seed V13; hai phiếu trả hoàn tất 06/07 và 11/07.
+    LocalDate tu = LocalDate.of(2026, 7, 5);
     LocalDate den = LocalDate.of(2026, 7, 31);
     List<DieuChinhDoiChieu> dieuChinhs = dao.dieuChinhTrongKy(tu, den, NV_HOA_DON_THANG_6);
     Assumptions.assumeTrue(dieuChinhs.size() == 2, "seed V4 chưa được áp dụng");

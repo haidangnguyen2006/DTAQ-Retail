@@ -64,6 +64,16 @@ class AuthControllerTest {
   }
 
   @Test
+  void passwordOverBcryptLimitIsInvalidCredentials() {
+    FakeNhanVienDao dao = new FakeNhanVienDao();
+    dao.ketQua = Optional.of(employee(true));
+    // 25 ký tự có dấu = 75 byte UTF-8, vượt giới hạn 72 byte của BCrypt (UC001 7.a, không phải 7.b)
+    AuthController.LoginResult result = new AuthController(dao).login(USERNAME, "ệ".repeat(25));
+
+    assertEquals(AuthController.Outcome.INVALID_CREDENTIALS, result.outcome());
+  }
+
+  @Test
   void lockedAccountRejected() {
     FakeNhanVienDao dao = new FakeNhanVienDao();
     dao.ketQua = Optional.of(employee(false));
