@@ -147,6 +147,52 @@ App Password **không** phải mật khẩu đăng nhập Gmail thông thường
 - Hệ thống chỉ lưu **mã băm** của OTP, không lưu mã thô.
 - Khi gửi mã hoặc đặt lại mật khẩu thất bại, giao diện luôn hiển thị thông điệp chung và **không tiết lộ tài khoản hay email có tồn tại hay không**.
 
+## Sao lưu / phục hồi
+
+Chức năng FR015/FR016 dùng `pg_dump -Fc` để sao lưu **toàn bộ cơ sở dữ liệu** và `pg_restore --single-transaction` để phục hồi; chỉ **Nhân viên quản lý** được thao tác. Mỗi bản sao lưu là một cặp tệp phẳng trong `DTAQ_BACKUP_DIR`: `<tên>.dump` và `<tên>.meta.json` (kích thước, SHA-256, phiên bản PostgreSQL). Phục hồi yêu cầu xác nhận 2 bước và tự tạo bản sao lưu an toàn trước khi ghi đè.
+
+| Biến | Mặc định | Mô tả |
+| --- | --- | --- |
+| `DTAQ_BACKUP_DIR` | `./backups` | Thư mục chứa `*.dump` + `*.meta.json` (đã nằm trong `.gitignore`) |
+| `DTAQ_BACKUP_KEEP_DAYS` | `7` | Số ngày giữ bản sao lưu trước khi dọn |
+| `DTAQ_BACKUP_TIME` | `00:00` | Giờ bắt đầu lịch sao lưu tự động (`HH:mm`, múi giờ `Asia/Ho_Chi_Minh`) |
+| `DTAQ_BACKUP_INTERVAL_HOURS` | `24` | Chu kỳ lặp lại của lịch sao lưu, đồng thời là ngưỡng chạy bù khi khởi động, tính bằng giờ |
+| `DTAQ_BACKUP_ENABLED` | `true` | Bật/tắt sao lưu tự động (`true`/`false`) |
+| `DTAQ_BACKUP_SECONDARY_DIR` | (không có) | Thư mục phụ tùy chọn để chép bản sao lưu (ví dụ ổ USB), để trống nếu không dùng |
+| `DTAQ_PG_BIN_DIR` | (PATH) | Thư mục chứa `pg_dump`, `pg_restore`, `createdb` |
+| `DTAQ_PG_DUMP` | `pg_dump` | Tên hoặc đường dẫn `pg_dump` |
+| `DTAQ_PG_RESTORE` | `pg_restore` | Tên hoặc đường dẫn `pg_restore` |
+| `DTAQ_PG_CREATEDB` | `createdb` | Tên hoặc đường dẫn `createdb` |
+
+Yêu cầu: phiên bản `pg_dump`, `pg_restore`, `createdb` phải **>= phiên bản máy chủ PostgreSQL** (kiểm tra bằng `pg_dump --version` và `psql --version`); nếu không có trên `PATH` thì đặt `DTAQ_PG_BIN_DIR`.
+
+Thư mục mặc định `./backups` đã được thêm vào `.gitignore`. Tệp sao lưu chứa **hash BCrypt** của bảng `NhanVien` nên **không commit, không chia sẻ, không tải lên cloud**.
+
+### Cấu hình lịch trên giao diện
+
+Quản lý mở trang **Sao lưu dữ liệu**, sửa **Giờ chạy** (`HH:mm`) và **Chu kỳ** (`1–168` giờ), rồi bấm **Lưu cấu hình**. Giá trị được ghi vào `backup.properties` (đã gitignore, không chứa mật khẩu) và **áp dụng ngay** cho bộ lập lịch, không cần khởi động lại ứng dụng. Nếu `DTAQ_BACKUP_TIME` hoặc `DTAQ_BACKUP_INTERVAL_HOURS` đang đặt bằng biến môi trường hay `-D`, giá trị đó vẫn thắng tệp và giao diện hiển thị cảnh báo.
+
+### Giám sát sức khỏe dữ liệu (HealthMonitor)
+
+`HealthMonitor` kiểm tra định kỳ số dòng của các bảng cốt lõi và so với **baseline lưu ngoài CSDL** trong `health_state.json`. Khi phát hiện bất thường, ứng dụng ghi sự cố vào bảng `"SuCoSucKhoe"` và (với `CRITICAL`) có thể tự phục hồi từ bản sao lưu gần nhất.
+
+| Biến | Mặc định | Mô tả |
+| --- | --- | --- |
+| `DTAQ_HEALTH_ENABLED` | `true` | Bật/tắt giám sát sức khỏe (`true`/`false`) |
+| `DTAQ_HEALTH_INTERVAL_MINUTES` | `5` | Chu kỳ kiểm tra, tính bằng phút |
+| `DTAQ_HEALTH_STATE_FILE` | `./backups/health_state.json` | Tệp JSON lưu baseline và trạng thái ngoài CSDL |
+| `DTAQ_HEALTH_DROP_THRESHOLD` | `0.5` | Tỷ lệ suy giảm số dòng (trong khoảng `(0, 1)`) để coi là bất thường |
+| `DTAQ_HEALTH_DROP_MIN_BASELINE` | `50` | Số dòng baseline tối thiểu để bắt đầu so sánh suy giảm |
+| `DTAQ_HEALTH_SUSPICIOUS_CYCLES` | `2` | Số chu kỳ bất thường liên tiếp trước khi tạo sự cố |
+| `DTAQ_HEALTH_CORE_TABLES` | 14 bảng nghiệp vụ cốt lõi | Danh sách bảng cần kiểm tra, phân tách bằng dấu phẩy |
+| `DTAQ_HEALTH_AUTO_RESTORE_ENABLED` | `true` | Cho phép tự động phục hồi khi `CRITICAL` (`true`/`false`) |
+| `DTAQ_HEALTH_AUTO_RESTORE_MAX_PER_HOUR` | `3` | Số lần tự động phục hồi tối đa trong một giờ |
+| `DTAQ_HEALTH_FALLBACK_MAX_BACKUPS` | `3` | Số bản sao lưu gần nhất được thử khi tự động phục hồi |
+| `DTAQ_HEALTH_REMIND_MINUTES` | `30` | Khoảng cách tối thiểu giữa hai lần nhắc lại cảnh báo, tính bằng phút |
+| `DTAQ_HEALTH_TIMEOUT_SECONDS` | `10` | Thời gian chờ tối đa cho một truy vấn kiểm tra, tính bằng giây |
+
+Tệp `health_state.json` (mặc định trong `./backups`) **không được commit** và **không được chép sang `DTAQ_BACKUP_SECONDARY_DIR`**; đây là trạng thái cục bộ của máy đang chạy, không phải dữ liệu sao lưu.
+
 ## Flyway migrations
 
 Ứng dụng dùng **Flyway OSS 13.10.2** để chạy migration PostgreSQL lúc khởi động:

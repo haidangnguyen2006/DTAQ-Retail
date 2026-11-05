@@ -44,8 +44,8 @@ Nguồn FR: Chương 1 mục IV. Cột “Ứng viên theo tên/chức năng” 
 | FR012 | Thống kê doanh số theo nhân viên | Không | UC016 | Tên trùng UC016 |
 | FR013 | Thống kê doanh số theo sản phẩm | Không | UC015 | Tên trùng UC015 |
 | FR014 | Báo cáo hàng tồn kho lâu ngày | Không | UC014 | Tên UC014 lệch “hằng ngày”/“lâu ngày”; xem C-01 |
-| FR015 | Sao lưu dữ liệu | Không | **Không có** | Danh mục 19 UC không có use case sao lưu |
-| FR016 | Phục hồi dữ liệu | Không | **Không có** | Danh mục 19 UC không có use case phục hồi |
+| FR015 | Sao lưu dữ liệu | Không | **Đã triển khai (FR015/FR016), không có UC** | Danh mục 19 UC không có use case sao lưu |
+| FR016 | Phục hồi dữ liệu | Không | **Đã triển khai (FR015/FR016), không có UC** | Danh mục 19 UC không có use case phục hồi |
 
 ## 4. Truy vết use case → tác nhân và thực thể (tường minh)
 

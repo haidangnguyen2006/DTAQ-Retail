@@ -6,6 +6,7 @@ hs_err_pid*.log
 .DS_Store
 local/
 db.properties
+backup.properties
 backups/
 hoa-don-tam/
 plan.md

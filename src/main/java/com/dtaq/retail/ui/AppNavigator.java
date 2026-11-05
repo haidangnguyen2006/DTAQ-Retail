@@ -1,11 +1,15 @@
 package com.dtaq.retail.ui;
 
+import com.dtaq.retail.config.ReturnConfig;
 import com.dtaq.retail.controller.AuthController;
+import com.dtaq.retail.controller.BackupController;
 import com.dtaq.retail.controller.BanHangController;
 import com.dtaq.retail.controller.BaoCaoTonKhoController;
 import com.dtaq.retail.controller.DanhMucController;
+import com.dtaq.retail.controller.DoiTraController;
 import com.dtaq.retail.controller.DongSanPhamController;
 import com.dtaq.retail.controller.GiaThueController;
+import com.dtaq.retail.controller.IncidentController;
 import com.dtaq.retail.controller.KhachHangController;
 import com.dtaq.retail.controller.KhuyenMaiController;
 import com.dtaq.retail.controller.NhanVienController;
@@ -42,8 +46,14 @@ import com.dtaq.retail.dao.impl.SanPhamLoiDaoImpl;
 import com.dtaq.retail.dao.impl.ThongKeSanPhamDaoImpl;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
+import com.dtaq.retail.service.BackupScheduler;
+import com.dtaq.retail.service.BackupService;
+import com.dtaq.retail.service.RestoreService;
 import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.ui.page.approval.ReturnApprovalsPage;
+import com.dtaq.retail.ui.page.backup.BackupPage;
+import com.dtaq.retail.ui.page.backup.IncidentDialog;
+import com.dtaq.retail.ui.page.backup.RestorePage;
 import com.dtaq.retail.ui.page.category.CategoriesPage;
 import com.dtaq.retail.ui.page.customer.CustomerListPage;
 import com.dtaq.retail.ui.page.customer.CustomerLookupPage;
@@ -61,6 +71,7 @@ import com.dtaq.retail.ui.page.product.ProductPage;
 import com.dtaq.retail.ui.page.promotion.PromotionsPage;
 import com.dtaq.retail.ui.page.report.LongStockReportPage;
 import com.dtaq.retail.ui.page.report.RevenueStatisticsPage;
+import com.dtaq.retail.ui.page.returns.ReturnsPage;
 import com.dtaq.retail.ui.shell.AppShellFrame;
 import com.dtaq.retail.ui.shell.NavigationModel;
 import com.dtaq.retail.ui.shell.Page;
@@ -77,19 +88,25 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import javax.sql.DataSource;
 import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Điều phối việc chuyển đổi giữa màn hình đăng nhập, quên mật khẩu và khung giao diện chính AppShell. */
 public final class AppNavigator {
+
+  private static final Logger log = LoggerFactory.getLogger(AppNavigator.class);
 
   private final NhanVienDao nhanVienDao;
   private final PasswordResetDao passwordResetDao;
   private final Mailer mailer;
   private final DataSource dataSource;
+  private final BackupScheduler backupScheduler;
   private JFrame current;
 
   /**
-   * Khởi tạo bộ điều phối màn hình.
+   * Khởi tạo bộ điều phối màn hình không gắn với bộ lập lịch sao lưu.
    *
    * @param nhanVienDao lớp truy cập tài khoản nhân viên; không được {@code null}
    * @param passwordResetDao lớp truy cập phiếu đặt lại mật khẩu; không được {@code null}
@@ -99,10 +116,26 @@ public final class AppNavigator {
   public AppNavigator(
       NhanVienDao nhanVienDao, PasswordResetDao passwordResetDao, Mailer mailer,
       DataSource dataSource) {
+    this(nhanVienDao, passwordResetDao, mailer, dataSource, null);
+  }
+
+  /**
+   * Khởi tạo bộ điều phối màn hình, có thể gắn với bộ lập lịch sao lưu tự động.
+   *
+   * @param nhanVienDao lớp truy cập tài khoản nhân viên; không được {@code null}
+   * @param passwordResetDao lớp truy cập phiếu đặt lại mật khẩu; không được {@code null}
+   * @param mailer bộ gửi email xác nhận; không được {@code null}
+   * @param dataSource nguồn dữ liệu dùng chung cho các màn hình nghiệp vụ; không được {@code null}
+   * @param backupScheduler bộ lập lịch cần lập lại khi Quản lý lưu cấu hình; có thể {@code null}
+   */
+  public AppNavigator(
+      NhanVienDao nhanVienDao, PasswordResetDao passwordResetDao, Mailer mailer,
+      DataSource dataSource, BackupScheduler backupScheduler) {
     this.nhanVienDao = Objects.requireNonNull(nhanVienDao, "nhanVienDao");
     this.passwordResetDao = Objects.requireNonNull(passwordResetDao, "passwordResetDao");
     this.mailer = Objects.requireNonNull(mailer, "mailer");
     this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
+    this.backupScheduler = backupScheduler;
   }
 
   /** Hiển thị màn hình đăng nhập; phải gọi trên EDT. */
@@ -133,7 +166,7 @@ public final class AppNavigator {
     AppShellFrame shell = new AppShellFrame(nhanVien, this::logout);
 
     List<Page> pages = nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY
-        ? managerPages(nhanVien, dataSource, shell::showPage)
+        ? managerPages(nhanVien, dataSource, shell::showPage, backupScheduler)
         : salesPages(nhanVien, dataSource, shell::showPage);
     pages.forEach(shell::registerPage);
     registerPlaceholders(shell, nhanVien, idsOf(pages));
@@ -141,6 +174,18 @@ public final class AppNavigator {
     shell.showPage(NavigationModel.getDefaultPageFor(nhanVien.loaiQuyen()));
     current = shell;
     shell.setVisible(true);
+
+    if (nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY) {
+      SwingUtilities.invokeLater(() -> {
+        try {
+          IncidentController incidentController = IncidentController.macDinh(dataSource);
+          incidentController.suCoDangCho().ifPresent(i ->
+              new IncidentDialog(shell, incidentController, i, shell::showPage).setVisible(true));
+        } catch (RuntimeException e) {
+          log.warn("Không hiển thị được sự cố dữ liệu: {}", e.getMessage());
+        }
+      });
+    }
   }
 
   /**
@@ -150,14 +195,35 @@ public final class AppNavigator {
    * @param nhanVien nhân viên quản lý đang đăng nhập; không được {@code null}
    * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
    * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
-   * @return 9 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
+   * @return 11 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
    *     PageId#REVENUE_STATS}, {@link PageId#LONG_STOCK_REPORT}, {@link PageId#PRODUCT_LINES},
    *     {@link PageId#DEFECTIVE_PRODUCTS}, {@link PageId#PROMOTIONS}, {@link PageId#EMPLOYEES},
-   *     {@link PageId#RETURN_APPROVALS}, {@link PageId#PRICE_TAX}; mỗi {@code PageId} xuất hiện
-   *     tối đa một lần
+   *     {@link PageId#RETURN_APPROVALS}, {@link PageId#PRICE_TAX}, {@link PageId#BACKUP}, {@link
+   *     PageId#RESTORE}; mỗi {@code PageId} xuất hiện tối đa một lần
    */
   static List<Page> managerPages(
       NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate) {
+    return managerPages(nhanVien, dataSource, onNavigate, null);
+  }
+
+  /**
+   * Dựng danh sách trang thật dành cho vai trò quản lý, có gắn bộ lập lịch sao lưu tự động. Bên gọi
+   * chịu trách nhiệm đăng ký từng trang vào shell và đăng ký trang tạm cho các mục menu còn lại.
+   *
+   * @param nhanVien nhân viên quản lý đang đăng nhập; không được {@code null}
+   * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
+   * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
+   * @param backupScheduler bộ lập lịch cần lập lại khi lưu cấu hình trên trang Sao lưu; có thể
+   *     {@code null}
+   * @return 11 trang thật theo đúng thứ tự menu: {@link PageId#MANAGER_HOME}, {@link
+   *     PageId#REVENUE_STATS}, {@link PageId#LONG_STOCK_REPORT}, {@link PageId#PRODUCT_LINES},
+   *     {@link PageId#DEFECTIVE_PRODUCTS}, {@link PageId#PROMOTIONS}, {@link PageId#EMPLOYEES},
+   *     {@link PageId#RETURN_APPROVALS}, {@link PageId#PRICE_TAX}, {@link PageId#BACKUP}, {@link
+   *     PageId#RESTORE}; mỗi {@code PageId} xuất hiện tối đa một lần
+   */
+  static List<Page> managerPages(
+      NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate,
+      BackupScheduler backupScheduler) {
     Objects.requireNonNull(nhanVien, "nhanVien");
     Objects.requireNonNull(dataSource, "dataSource");
     Objects.requireNonNull(onNavigate, "onNavigate");
@@ -184,6 +250,11 @@ public final class AppNavigator {
     ReturnApprovalsPage returnApprovals = new ReturnApprovalsPage(pheDuyet);
     PriceTaxPage priceTax = new PriceTaxPage(
         new GiaThueController(dongSanPhamDao), dongSanPhamDao);
+    BackupService backupService = BackupService.macDinh(dataSource);
+    BackupController backupController = new BackupController(
+        backupService, RestoreService.macDinh(dataSource, backupService), backupScheduler);
+    BackupPage backup = new BackupPage(backupController);
+    RestorePage restore = new RestorePage(backupController);
     revenueStats.setOnNavigate(onNavigate);
 
     managerHome.setOnApprove(
@@ -200,7 +271,9 @@ public final class AppNavigator {
         promotions,
         employees,
         returnApprovals,
-        priceTax);
+        priceTax,
+        backup,
+        restore);
     taiDanhSachChoDuyet(pheDuyet, managerHome);
     return pages;
   }
@@ -294,11 +367,11 @@ public final class AppNavigator {
    * @param nhanVien nhân viên bán hàng đang đăng nhập; không được {@code null}
    * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
    * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
-   * @return 9 trang thật theo đúng thứ tự menu: {@link PageId#SALES_HOME}, {@link
+   * @return 10 trang thật theo đúng thứ tự menu: {@link PageId#SALES_HOME}, {@link
    *     PageId#CUSTOMERS}, {@link PageId#RETAIL_INVOICE}, {@link PageId#PRODUCT_LOOKUP}, {@link
-   *     PageId#CUSTOMER_LOOKUP}, {@link PageId#PRODUCTS}, {@link PageId#PRODUCT_LINES}, {@link
-   *     PageId#CATEGORIES}, {@link PageId#DEFECTIVE_PRODUCTS}; mỗi {@code PageId} xuất hiện tối đa
-   *     một lần
+   *     PageId#CUSTOMER_LOOKUP}, {@link PageId#RETURNS}, {@link PageId#PRODUCTS}, {@link
+   *     PageId#PRODUCT_LINES}, {@link PageId#CATEGORIES}, {@link PageId#DEFECTIVE_PRODUCTS}; mỗi
+   *     {@code PageId} xuất hiện tối đa một lần
    */
   static List<Page> salesPages(
       NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate) {
@@ -340,6 +413,18 @@ public final class AppNavigator {
         new DanhMucController(danhMucDao, dataSource));
     DefectiveProductsPage defective = new DefectiveProductsPage(
         new SanPhamLoiController(sanPhamLoiDao, sanPhamDao, dataSource));
+    DoiTraController doiTra = new DoiTraController(
+        new PhieuTraDaoImpl(dataSource),
+        new PhieuDoiDaoImpl(dataSource),
+        sanPhamLoiDao,
+        new HoaDonDaoImpl(dataSource),
+        new ChiTietHoaDonDaoImpl(dataSource),
+        sanPhamDao,
+        dongSanPhamDao,
+        dataSource,
+        ReturnConfig.soNgayDoiTra(),
+        Clock.systemDefaultZone());
+    ReturnsPage returns = new ReturnsPage(doiTra);
 
     salesHome.setOnNavigate(onNavigate);
 
@@ -349,6 +434,7 @@ public final class AppNavigator {
         invoice,
         productLookup,
         customerLookup,
+        returns,
         products,
         productLines,
         categories,
