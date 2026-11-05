@@ -69,7 +69,7 @@ public class LongStockReportPage implements Page {
   public LongStockReportPage(BaoCaoTonKhoController controller) {
     this.controller = controller;
     view = new JPanel(new MigLayout("fill, insets " + DtaqSpacing.PAGE_PADDING,
-        "[grow]", "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[grow]"));
+        "[0:pref,grow]", "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[grow]"));
     view.setBackground(DtaqColors.BG_APP);
     thresholdField.setText("60");
     thresholdField.setRequired(true);
@@ -83,6 +83,7 @@ public class LongStockReportPage implements Page {
     JPanel kpiRow = new JPanel(new MigLayout("fillx, insets 0",
         "[grow,fill]" + DtaqSpacing.KPI_GAP + "[grow,fill]" + DtaqSpacing.KPI_GAP + "[grow,fill]", "[]"));
     kpiRow.setOpaque(false);
+    com.dtaq.retail.ui.component.Responsive.grid(kpiRow, 240, 3);
     kpiRow.add(kpiMachines);
     kpiRow.add(kpiProductLines);
     kpiRow.add(kpiMaxDays);
@@ -112,7 +113,12 @@ public class LongStockReportPage implements Page {
   }
 
   private JPanel buildFilterRow() {
-    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]16[180!]16[180!]16[]16[]push[]", "[bottom]"));
+    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]16[180!]16[180!]16[]16[]push[]", "[bottom]")) {
+      @Override
+      public java.awt.Dimension getMinimumSize() {
+        return new java.awt.Dimension(0, getPreferredSize().height);
+      }
+    };
     filterRow.setOpaque(false);
     filterRow.add(searchField, "growx");
     filterRow.add(categoryField, "growx");
@@ -120,6 +126,17 @@ public class LongStockReportPage implements Page {
     filterRow.add(readyOnly);
     filterRow.add(applyBtn);
     filterRow.add(resultCountPill, "align right, aligny center");
+    com.dtaq.retail.ui.component.Responsive.onSizeChange(filterRow, size -> {
+      MigLayout layout = (MigLayout) filterRow.getLayout();
+      boolean narrow = size == com.dtaq.retail.ui.component.Responsive.Size.S;
+      layout.setColumnConstraints(narrow ? "[0:pref,grow]16[180!]16[180!]"
+          : "[grow]16[180!]16[180!]16[]16[]push[]");
+      for (int i = 0; i < filterRow.getComponentCount(); i++) {
+        layout.setComponentConstraints(filterRow.getComponent(i), "cell "
+            + (narrow ? i % 3 : i) + " " + (narrow ? i / 3 : 0)
+            + (i < 3 ? ", growx" : ", align right, aligny bottom"));
+      }
+    });
     return filterRow;
   }
 

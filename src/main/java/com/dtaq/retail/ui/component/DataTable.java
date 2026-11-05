@@ -44,6 +44,7 @@ public class DataTable extends JPanel {
   private int minVisibleRows = DEFAULT_MIN_VISIBLE_ROWS;
   private int maxVisibleRows = DEFAULT_MAX_VISIBLE_ROWS;
   private int cellPadding = 16;
+  private int preferredTableWidth;
 
   /** Tạo model chỉ đọc; các cột trong {@code editableColumns} (ví dụ cột thao tác) vẫn bấm được. */
   public static DefaultTableModel readOnlyModel(String[] columns, int... editableColumns) {
@@ -85,16 +86,16 @@ public class DataTable extends JPanel {
         return null;
       }
     };
-    table.setRowHeight(rowHeight);
+    table.setRowHeight(DtaqSpacing.normalizeRowHeight(rowHeight));
     table.setShowVerticalLines(false);
     table.setShowHorizontalLines(true);
-    table.setGridColor(DtaqColors.BORDER);
+    table.setGridColor(DtaqColors.CHART_GRID);
     table.setSelectionBackground(DtaqColors.PRIMARY_SOFT);
     table.setSelectionForeground(DtaqColors.TEXT);
     table.setFont(DtaqFonts.BODY_13);
     table.setIntercellSpacing(new Dimension(0, 1));
     table.setFillsViewportHeight(true);
-    table.setFocusable(false);
+    table.setFocusable(true);
 
     TableRenderers.TextRenderer textRenderer = new TableRenderers.TextRenderer();
     table.setDefaultRenderer(Object.class, textRenderer);
@@ -113,6 +114,12 @@ public class DataTable extends JPanel {
     scrollPane.setBorder(BorderFactory.createEmptyBorder());
     scrollPane.getViewport().setBackground(DtaqColors.SURFACE);
     scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+    scrollPane.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
+      @Override
+      public void componentResized(java.awt.event.ComponentEvent e) {
+        updateColumnResizeMode();
+      }
+    });
     updateViewportHeight();
 
     add(scrollPane, BorderLayout.CENTER);
@@ -185,6 +192,19 @@ public class DataTable extends JPanel {
         colModel.getColumn(i).setPreferredWidth(w);
       }
     }
+    preferredTableWidth = 0;
+    for (int i = 0; i < colModel.getColumnCount(); i++) {
+      preferredTableWidth += colModel.getColumn(i).getPreferredWidth();
+    }
+    updateColumnResizeMode();
+  }
+
+  private void updateColumnResizeMode() {
+    int mode = scrollPane.getViewport().getWidth() < preferredTableWidth
+        ? JTable.AUTO_RESIZE_OFF : JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS;
+    if (table.getAutoResizeMode() != mode) {
+      table.setAutoResizeMode(mode);
+    }
   }
 
   public void setCodeColumn(int colIndex) {
@@ -250,7 +270,7 @@ public class DataTable extends JPanel {
       super.getTableCellRendererComponent(t, value, false, false, row, column);
       setFont(DtaqFonts.TABLE_HEADER);
       setForeground(DtaqColors.TEXT_MUTED);
-      setBackground(DtaqColors.BG_APP);
+      setBackground(DtaqColors.SURFACE_SUNKEN);
       setHorizontalAlignment(
           rightAlignedColumns.contains(t.convertColumnIndexToModel(column))
               ? SwingConstants.RIGHT : SwingConstants.LEFT);

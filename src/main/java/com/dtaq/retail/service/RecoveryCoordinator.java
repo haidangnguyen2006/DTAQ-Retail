@@ -189,9 +189,13 @@ public class RecoveryCoordinator {
     }
 
     for (BackupRecord banGhi : ungVien) {
-      // Mỗi lần thử dùng một mốc riêng để danh sách gộp theo tập không nuốt mất lượt thử trùng
-      // chu kỳ.
+      // Mỗi lần thử dùng một mốc riêng, tăng dần, để danh sách gộp theo tập không nuốt mất lượt
+      // thử: đồng hồ (nhất là trên Windows) có thể trả cùng một Instant cho hai lần gọi liên tiếp.
       Instant thoiDiemThu = Instant.now();
+      Instant cuoi = lanThu.isEmpty() ? null : lanThu.get(lanThu.size() - 1);
+      if (cuoi != null && !thoiDiemThu.isAfter(cuoi)) {
+        thoiDiemThu = cuoi.plusNanos(1);
+      }
       lanThu.add(thoiDiemThu);
       // Ghi vào bộ nhớ trước để giới hạn tần suất vẫn đúng khi tệp trạng thái không ghi được.
       autoRestoreAttempts.add(thoiDiemThu);

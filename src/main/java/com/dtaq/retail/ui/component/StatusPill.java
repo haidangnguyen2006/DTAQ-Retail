@@ -18,11 +18,11 @@ import javax.swing.SwingConstants;
 public class StatusPill extends JLabel {
 
   public enum Type {
-    NEUTRAL(DtaqColors.DISABLED_BG, DtaqColors.TEXT_MUTED),
-    SUCCESS(DtaqColors.SUCCESS_SOFT, DtaqColors.PRIMARY_STRONG),
+    NEUTRAL(DtaqColors.DISABLED_BG, new Color(0x465062)),
+    SUCCESS(DtaqColors.SUCCESS_SOFT, DtaqColors.SUCCESS),
     WARNING(DtaqColors.WARNING_SOFT, DtaqColors.WARNING),
-    DANGER(DtaqColors.DANGER_SOFT, DtaqColors.DANGER),
-    INFO(DtaqColors.PRIMARY_SOFT_2, DtaqColors.PRIMARY_STRONG);
+    DANGER(DtaqColors.DANGER_SOFT, DtaqColors.DANGER_STRONG),
+    INFO(DtaqColors.PRIMARY_SOFT, DtaqColors.PRIMARY_STRONG);
 
     final Color background;
     final Color foreground;
@@ -41,7 +41,12 @@ public class StatusPill extends JLabel {
     setFont(DtaqFonts.PILL);
     setForeground(type.foreground);
     setOpaque(false);
+    setBorder(javax.swing.BorderFactory.createEmptyBorder(0, DOT_SPACE, 0, 0));
   }
+
+  /** Chỗ chừa cho chấm tròn đầu pill (lề trái + đường kính chấm + khoảng cách tới chữ). */
+  private static final int DOT_SPACE = 10;
+  private static final float DOT_SIZE = 6f;
 
   public static StatusPill neutral(String text) {
     return new StatusPill(text, Type.NEUTRAL);
@@ -72,7 +77,7 @@ public class StatusPill extends JLabel {
   @Override
   public Dimension getPreferredSize() {
     Dimension d = super.getPreferredSize();
-    return new Dimension(Math.max(d.width + 18, 40), DtaqSpacing.PILL_H);
+    return new Dimension(Math.max(d.width + 18, 44), DtaqSpacing.PILL_H);
   }
 
   @Override
@@ -85,6 +90,8 @@ public class StatusPill extends JLabel {
 
     g2.setColor(type.background);
     g2.fill(new RoundRectangle2D.Float(0, 0, w, h, h, h));
+    g2.setColor(type.foreground);
+    g2.fill(new java.awt.geom.Ellipse2D.Float(10f, (h - DOT_SIZE) / 2f, DOT_SIZE, DOT_SIZE));
 
     g2.dispose();
     super.paintComponent(g);

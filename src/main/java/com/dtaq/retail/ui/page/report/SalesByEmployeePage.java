@@ -116,6 +116,7 @@ public final class SalesByEmployeePage implements Page {
 
     JPanel kpiRow = new JPanel(new MigLayout("fillx, insets 0, gapx 16", "[grow,fill][grow,fill][grow,fill][grow,fill]", "[]"));
     kpiRow.setOpaque(false);
+    com.dtaq.retail.ui.component.Responsive.grid(kpiRow, 220, 4);
     kpiRow.add(kpiHoaDon);
     kpiRow.add(kpiDoanhSo);
     kpiRow.add(kpiDieuChinh);

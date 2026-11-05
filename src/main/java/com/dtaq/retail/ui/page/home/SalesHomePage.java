@@ -76,6 +76,7 @@ public class SalesHomePage implements Page {
     JPanel kpiRow = new JPanel(new MigLayout(
         "fillx, insets 0", "[grow,fill]" + DtaqSpacing.KPI_GAP + "[grow,fill]" + DtaqSpacing.KPI_GAP + "[grow,fill]", "[]"));
     kpiRow.setOpaque(false);
+    com.dtaq.retail.ui.component.Responsive.grid(kpiRow, 240, 3);
     kpiRow.add(kpiInvoices);
     kpiRow.add(kpiCash);
     kpiRow.add(kpiCustomers);

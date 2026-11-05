@@ -92,6 +92,7 @@ public final class SalesByProductPage implements Page {
         "[grow,fill]" + DtaqSpacing.KPI_GAP + "[grow,fill]" + DtaqSpacing.KPI_GAP + "[grow,fill]",
         "[]"));
     kpiRow.setOpaque(false);
+    com.dtaq.retail.ui.component.Responsive.grid(kpiRow, 240, 3);
     kpiRow.add(kpiUnits);
     kpiRow.add(kpiRevenue);
     kpiRow.add(kpiReturned);
@@ -147,6 +148,7 @@ public final class SalesByProductPage implements Page {
   private JPanel buildAnalyticsPanel() {
     JPanel analyticsPanel = new JPanel(new MigLayout("fillx, insets 0", "[grow,fill]16[grow,fill]", "[]"));
     analyticsPanel.setOpaque(false);
+    com.dtaq.retail.ui.component.Responsive.grid(analyticsPanel, 500, 2);
 
     JLabel topLabel = new JLabel("Top 6 trong kỳ");
     topLabel.setForeground(DtaqColors.TEXT_MUTED);

@@ -62,7 +62,7 @@ public final class ReturnReceiptDialog extends ModalDialog {
 
     JScrollPane scrollPane = new JScrollPane(new ViewportPanel(receiptPaper));
     scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-    scrollPane.setPreferredSize(new Dimension(516, 500));
+    scrollPane.setPreferredSize(new Dimension(516, Math.min(500, java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().height - 260)));
     scrollPane.setBorder(null);
     scrollPane.getViewport().setBackground(DtaqColors.SURFACE);
     getBody().add(scrollPane, "growx");

@@ -113,6 +113,7 @@ public class ManagerHomePage implements Page {
 
     JPanel twoColRow = new JPanel(new MigLayout("fillx, insets 0", "[grow,fill]16[grow,fill]", "[grow,fill]"));
     twoColRow.setOpaque(false);
+    com.dtaq.retail.ui.component.Responsive.grid(twoColRow, 480, 2);
     Card activityCard = Card.section("Nhật ký hoạt động", null, null);
     activityCard.setBody(activityState);
     Card alertsCard = Card.section("Cảnh báo quan trọng", null, null);
@@ -123,6 +124,7 @@ public class ManagerHomePage implements Page {
 
     JPanel infoRow = new JPanel(new MigLayout("fillx, insets 0", "[grow,fill]16[grow,fill]", "[]"));
     infoRow.setOpaque(false);
+    com.dtaq.retail.ui.component.Responsive.grid(infoRow, 400, 2);
     infoRow.add(buildClockCard());
     infoRow.add(buildVersionCard());
     view.add(infoRow, "growx");

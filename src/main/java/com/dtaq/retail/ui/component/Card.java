@@ -19,12 +19,17 @@ public class Card extends JPanel {
 
   private JComponent body;
 
+  @Override
+  public java.awt.Dimension getMinimumSize() {
+    return new java.awt.Dimension(0, super.getMinimumSize().height);
+  }
+
   public Card(int padding, int gap) {
     this(padding, gap, DtaqSpacing.RADIUS_L);
   }
 
   public Card(int padding, int gap, int cornerRadius) {
-    super(new MigLayout("fillx, insets " + padding + ", hidemode 3", "[grow]", "[]" + gap + "[]"));
+    super(new MigLayout("fillx, insets " + padding + ", hidemode 3", "[0:pref,grow]", "[]" + gap + "[]"));
     setOpaque(true);
     setBackground(DtaqColors.SURFACE);
     putClientProperty(FlatClientProperties.STYLE, "arc: " + cornerRadius * 2);

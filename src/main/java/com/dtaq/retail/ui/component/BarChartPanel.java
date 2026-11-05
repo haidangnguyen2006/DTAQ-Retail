@@ -34,13 +34,15 @@ public class BarChartPanel extends JPanel {
   private final List<BarPoint> points = new ArrayList<>();
   private final List<Rectangle2D> barBounds = new ArrayList<>();
   private double axisMax = AXIS_STEPS;
+  private float reveal = 1f;
+  private com.formdev.flatlaf.util.Animator revealAnimator;
   private String unitLabel = "Triệu ₫";
   private String valueSuffix = "tr";
   private String emptyText = "Chưa có dữ liệu thống kê";
 
   public BarChartPanel() {
     setOpaque(false);
-    setPreferredSize(new Dimension(800, 250));
+    setPreferredSize(new Dimension(320, 260));
     ToolTipManager.sharedInstance().registerComponent(this);
   }
 
@@ -66,7 +68,26 @@ public class BarChartPanel extends JPanel {
       maxVal = Math.max(maxVal, p.valueMillions());
     }
     axisMax = niceAxisMax(maxVal);
-    repaint();
+    startReveal();
+  }
+
+  /** Cột mọc dần từ đáy khi có dữ liệu mới (≈280ms); bỏ qua nếu hoạt ảnh bị tắt hoặc chưa hiển thị. */
+  private void startReveal() {
+    if (revealAnimator != null) {
+      revealAnimator.cancel();
+    }
+    if (points.isEmpty() || !com.formdev.flatlaf.util.Animator.useAnimation() || !isShowing()) {
+      reveal = 1f;
+      repaint();
+      return;
+    }
+    reveal = 0f;
+    revealAnimator = new com.formdev.flatlaf.util.Animator(180, fraction -> {
+      reveal = fraction;
+      repaint();
+    });
+    revealAnimator.setInterpolator(com.formdev.flatlaf.util.CubicBezierEasing.EASE_OUT);
+    revealAnimator.start();
   }
 
   /** Giá trị lớn nhất của trục, làm tròn lên bậc "đẹp" (1, 2, 2,5, 5 × 10^n) chia đều cho 4 khoảng. */
@@ -118,7 +139,7 @@ public class BarChartPanel extends JPanel {
     }
 
     g2.setFont(DtaqFonts.HINT);
-    g2.setColor(DtaqColors.TEXT_SUBTLE);
+    g2.setColor(DtaqColors.CHART_AXIS);
     g2.drawString(unitLabel, 16, 20);
 
     int chartHeight = height - TOP_MARGIN - BOTTOM_MARGIN;
@@ -128,37 +149,49 @@ public class BarChartPanel extends JPanel {
     for (int i = 0; i <= AXIS_STEPS; i++) {
       double stepVal = (axisMax / AXIS_STEPS) * i;
       int y = TOP_MARGIN + chartHeight - (int) ((stepVal / axisMax) * chartHeight);
-      g2.setColor(DtaqColors.BORDER);
+      g2.setColor(DtaqColors.CHART_GRID);
       g2.drawLine(LEFT_MARGIN, y, LEFT_MARGIN + chartWidth, y);
       g2.setFont(DtaqFonts.HINT);
-      g2.setColor(DtaqColors.TEXT_SUBTLE);
+      g2.setColor(DtaqColors.CHART_AXIS);
       String label = formatValue(stepVal);
       g2.drawString(label, LEFT_MARGIN - g2.getFontMetrics().stringWidth(label) - 12, y + 4);
     }
 
     int n = points.size();
     int slotWidth = chartWidth / n;
-    int barWidth = Math.min(72, (int) (slotWidth * 0.55));
+    int barWidth = Math.min(56, (int) (slotWidth * 0.55));
+
+    // Nhãn trục X cách quãng khi khe hẹp hơn nhãn dài nhất; tooltip vẫn đủ từng cột.
+    int widest = 0;
+    for (BarPoint p : points) {
+      widest = Math.max(widest, g2.getFontMetrics(DtaqFonts.HINT).stringWidth(p.label()));
+    }
+    int labelStep = Math.max(1, (int) Math.ceil((widest + 8.0) / Math.max(1, slotWidth)));
 
     for (int i = 0; i < n; i++) {
       BarPoint pt = points.get(i);
       int slotCenterX = LEFT_MARGIN + i * slotWidth + slotWidth / 2;
       int barX = slotCenterX - barWidth / 2;
-      int barH = (int) ((pt.valueMillions() / axisMax) * chartHeight);
+      int barH = (int) ((pt.valueMillions() / axisMax) * chartHeight * reveal);
       int barY = TOP_MARGIN + chartHeight - barH;
 
-      g2.setColor(DtaqColors.PRIMARY);
-      g2.fill(new RoundRectangle2D.Float(barX, barY, barWidth, Math.max(barH, 2), 6, 6));
+      g2.setColor(DtaqColors.CHART_1);
+      g2.fill(new RoundRectangle2D.Float(barX, barY, barWidth, Math.max(barH, 2), 8, 8));
       barBounds.add(new Rectangle2D.Double(barX, barY, barWidth, Math.max(barH, 2)));
 
-      String valStr = formatValue(pt.valueMillions()) + " " + valueSuffix;
-      g2.setFont(DtaqFonts.CAPTION);
-      g2.setColor(DtaqColors.PRIMARY);
-      g2.drawString(valStr, slotCenterX - g2.getFontMetrics().stringWidth(valStr) / 2, barY - 6);
+      // Cột 0 không ghi nhãn giá trị để biểu đồ nhiều ngày không bị rối.
+      if (pt.valueMillions() > 0) {
+        String valStr = formatValue(pt.valueMillions()) + " " + valueSuffix;
+        g2.setFont(DtaqFonts.CAPTION);
+        g2.setColor(DtaqColors.alpha(DtaqColors.TEXT, reveal));
+        g2.drawString(valStr, slotCenterX - g2.getFontMetrics().stringWidth(valStr) / 2, barY - 6);
+      }
 
       g2.setFont(DtaqFonts.HINT);
       g2.setColor(DtaqColors.TEXT_MUTED);
-      g2.drawString(pt.label(), slotCenterX - g2.getFontMetrics().stringWidth(pt.label()) / 2, height - 12);
+      if (i % labelStep == 0) {
+        g2.drawString(pt.label(), slotCenterX - g2.getFontMetrics().stringWidth(pt.label()) / 2, height - 12);
+      }
     }
 
     g2.dispose();
