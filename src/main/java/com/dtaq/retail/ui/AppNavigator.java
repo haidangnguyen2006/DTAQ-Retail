@@ -422,7 +422,10 @@ public final class AppNavigator {
         new TraCuuKhachHangController(
             new KhachHangDaoImpl(dataSource), new KhachHangGiaoDichDaoImpl(dataSource)));
     ProductPage products = new ProductPage(
-        new SanPhamController(sanPhamDao, dongSanPhamDao, nhaCungCapDao, dataSource), sanPhamDao);
+        new SanPhamController(sanPhamDao, dongSanPhamDao, nhaCungCapDao, dataSource),
+        sanPhamDao,
+        nhaCungCapDao,
+        dongSanPhamDao);
     ProductLinesPage productLines = new ProductLinesPage(
         new DongSanPhamController(dongSanPhamDao, danhMucDao, dataSource), danhMucDao);
     CategoriesPage categories = new CategoriesPage(

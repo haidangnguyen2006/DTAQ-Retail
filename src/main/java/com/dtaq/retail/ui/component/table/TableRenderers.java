@@ -154,22 +154,27 @@ public final class TableRenderers {
 
   /** Renderer và editor cho cột thao tác: hiển thị các nút bấm được trong ô bảng. */
   public static class ActionCell extends AbstractCellEditor implements TableCellRenderer, TableCellEditor {
-    private final List<RowAction> actions;
+    private final java.util.function.IntFunction<List<RowAction>> actionProvider;
     private final JPanel renderPanel;
     private final JPanel editPanel;
     private JTable editingTable;
     private int editingRow = -1;
 
     public ActionCell(List<RowAction> actions) {
-      this.actions = List.copyOf(actions);
-      this.renderPanel = buildPanel(false);
-      this.editPanel = buildPanel(true);
+      this(row -> actions);
     }
 
-    private JPanel buildPanel(boolean live) {
+    public ActionCell(java.util.function.IntFunction<List<RowAction>> actionProvider) {
+      this.actionProvider = actionProvider == null ? row -> List.of() : actionProvider;
+      this.renderPanel = buildPanel(false, -1);
+      this.editPanel = buildPanel(true, -1);
+    }
+
+    private JPanel buildPanel(boolean live, int rowIndex) {
       JPanel panel = new JPanel(new MigLayout("insets 0 12 0 12, gapx 6, fill", "[]", "[center]"));
       panel.setOpaque(true);
-      for (RowAction action : actions) {
+      int modelRow = rowIndex;
+      for (RowAction action : actionProvider.apply(modelRow)) {
         DtaqButton button = switch (action.style()) {
           case PRIMARY -> DtaqButton.secondarySmall(action.label());
           case DANGER -> DtaqButton.secondarySmall(action.label());
@@ -219,8 +224,10 @@ public final class TableRenderers {
     @Override
     public Component getTableCellRendererComponent(
         JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-      renderPanel.setBackground(rowBackground(table, row, isSelected));
-      return renderPanel;
+      int modelRow = table != null ? table.convertRowIndexToModel(row) : row;
+      JPanel panel = buildPanel(false, modelRow);
+      panel.setBackground(rowBackground(table, row, isSelected));
+      return panel;
     }
 
     @Override
@@ -228,8 +235,10 @@ public final class TableRenderers {
         JTable table, Object value, boolean isSelected, int row, int column) {
       editingTable = table;
       editingRow = row;
-      editPanel.setBackground(rowBackground(table, row, isSelected));
-      return editPanel;
+      int modelRow = table != null ? table.convertRowIndexToModel(row) : row;
+      JPanel panel = buildPanel(true, modelRow);
+      panel.setBackground(rowBackground(table, row, isSelected));
+      return panel;
     }
 
     @Override

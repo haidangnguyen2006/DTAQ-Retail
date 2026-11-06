@@ -35,7 +35,7 @@ public final class ProductLookupPage implements Page {
       new String[] {"Mã dòng", "Tên dòng", "Danh mục", "Tồn kho", "Máy sẵn bán"}, 0);
   private final DataTable resultTable = new DataTable(resultModel, 36);
   private final DefaultTableModel detailModel = DataTable.readOnlyModel(
-      new String[] {"Số serial", "Tình trạng", "Giá nhập", "Ngày nhập"}, 0);
+      new String[] {"Mã dòng SP", "Số serial", "Tình trạng", "Giá nhập", "Ngày nhập"}, 0);
   private final DataTable detailTable = new DataTable(detailModel, 36);
   private final StatefulView tableState;
   private final StatefulView detailState;
@@ -58,9 +58,14 @@ public final class ProductLookupPage implements Page {
     resultTable.setCodeColumn(0);
     resultTable.setColumnWidths(140, 220, 170, 90, 110);
     resultTable.setOnRowDoubleClick(this::renderDetailForRow);
+    resultTable.getTable().getSelectionModel().addListSelectionListener(event -> {
+      if (!event.getValueIsAdjusting()) {
+        renderAllDetailRows();
+      }
+    });
 
     detailTable.setCodeColumn(0);
-    detailTable.setColumnWidths(180, 150, 150, 160);
+    detailTable.setColumnWidths(150, 180, 150, 150, 160);
 
     tableState = new StatefulView(resultTable, "search", "Chưa có dữ liệu", "Nhập từ khóa để tra cứu sản phẩm.");
     detailState = new StatefulView(detailTable, "package", "Chưa có máy", "Chọn một dòng sản phẩm để xem chi tiết.");
@@ -72,10 +77,28 @@ public final class ProductLookupPage implements Page {
     view.add(card, "grow, push, wrap");
     view.add(detailState, "grow, push");
 
-    criteria.setOnSelectionChange(index -> refreshResults());
+    criteria.setOnSelectionChange(index -> {
+      updateKeywordPlaceholder();
+      refreshResults();
+    });
     keywordField.getTextField().addActionListener(e -> refreshResults());
     keywordField.setShortcut("F2");
+    updateKeywordPlaceholder();
     refreshResults();
+  }
+
+  private void updateKeywordPlaceholder() {
+    int selectedIndex = criteria.getSelectedIndex();
+    if (selectedIndex == 2) {
+      keywordField.getTextField().putClientProperty("JTextField.placeholderText", "Nhập mã danh mục");
+      keywordField.getTextField().setToolTipText("Nhập mã danh mục sản phẩm");
+    } else if (selectedIndex == 1) {
+      keywordField.getTextField().putClientProperty("JTextField.placeholderText", "Nhập mã hoặc tên dòng SP");
+      keywordField.getTextField().setToolTipText("Nhập mã hoặc tên dòng sản phẩm");
+    } else {
+      keywordField.getTextField().putClientProperty("JTextField.placeholderText", "Nhập số serial");
+      keywordField.getTextField().setToolTipText("Nhập số serial máy");
+    }
   }
 
   private JPanel buildFilterRow() {
@@ -116,18 +139,50 @@ public final class ProductLookupPage implements Page {
       });
     }
     tableState.showContent();
-    renderDetailForRow(0);
+    renderAllDetailRows();
+  }
+
+  private void renderAllDetailRows() {
+    detailModel.setRowCount(0);
+    List<Object[]> rows = new ArrayList<>();
+    for (var ketQua : cachedResults) {
+      for (var sp : ketQua.danhSachSanPham()) {
+        rows.add(new Object[] {
+            ketQua.maDongSP(),
+            sp.soSerial(),
+            sp.trangThai().name(),
+            sp.giaNhap(),
+            sp.ngayNhapKhoBanDau()
+        });
+      }
+    }
+    rows.sort((a, b) -> {
+      int cmp = String.valueOf(a[0]).compareToIgnoreCase(String.valueOf(b[0]));
+      if (cmp != 0) {
+        return cmp;
+      }
+      return String.valueOf(a[1]).compareToIgnoreCase(String.valueOf(b[1]));
+    });
+    for (Object[] row : rows) {
+      detailModel.addRow(row);
+    }
+    if (rows.isEmpty()) {
+      detailState.showEmpty("package", "Không có máy nào", "Không có sản phẩm vật lý nào trong các dòng đã tìm thấy.");
+    } else {
+      detailState.showContent();
+    }
   }
 
   private void renderDetailForRow(int rowIndex) {
     if (rowIndex < 0 || rowIndex >= cachedResults.size()) {
-      detailState.showEmpty();
+      renderAllDetailRows();
       return;
     }
     var selected = cachedResults.get(rowIndex);
     detailModel.setRowCount(0);
     for (var sp : selected.danhSachSanPham()) {
       detailModel.addRow(new Object[] {
+          selected.maDongSP(),
           sp.soSerial(),
           sp.trangThai().name(),
           sp.giaNhap(),

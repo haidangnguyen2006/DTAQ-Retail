@@ -12,6 +12,7 @@ import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.session.CurrentSession;
+import java.awt.Component;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.time.LocalDate;
@@ -109,6 +110,83 @@ class ProductLinesPageTest {
     assertEquals(Boolean.TRUE, dongSanPhamDao.lastTrangThai.get());
   }
 
+  @Test
+  @DisplayName("Sau cập nhật trạng thái, chỉ một nút trạng thái được kích hoạt")
+  void apDungTrangThai_toggleNutKinhDoanh() throws Exception {
+    onEdt(() -> page.chonDong(0));
+    int truoc = dongSanPhamDao.findAllCount.get();
+
+    onEdt(() -> page.apDungTrangThai(false));
+    awaitReload(truoc + 1);
+
+    onEdt(() -> {
+      assertFalse(page.nutNgung().isEnabled());
+      assertTrue(page.nutKinhDoanhLai().isEnabled());
+    });
+  }
+
+  @Test
+  @DisplayName("Bấm sửa phải nạp dữ liệu dòng đang chọn lên form")
+  void chonSua_napDuLieuLenForm() throws Exception {
+    onEdt(() -> page.chonDong(0));
+    onEdt(() -> {
+      try {
+        invokePrivate(page, "chonSua", 0);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    });
+
+    onEdt(() -> {
+      try {
+        assertEquals("Laptop Dell", getFieldText(page, "tenField"));
+        assertEquals("DM-TEST-000001", ((DanhMucSanPham) getComboValue(page, "categoryBox")).maDanhMuc());
+        assertEquals("Chiếc", getFieldText(page, "unitField"));
+        assertEquals("1.000.000", getFieldText(page, "priceField"));
+        assertEquals("10", getFieldText(page, "taxField"));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    });
+  }
+
+  @Test
+  @DisplayName("Cột thao tác phải editable để nút Sửa/Hủy hoạt động")
+  void cotThaoTac_phaiEditable() throws Exception {
+    onEdt(() -> {
+      try {
+        var field = ProductLinesPage.class.getDeclaredField("tableModel");
+        field.setAccessible(true);
+        var tableModel = (javax.swing.table.DefaultTableModel) field.get(page);
+        assertTrue(tableModel.isCellEditable(0, 7));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    });
+  }
+
+  @Test
+  @DisplayName("Bấm sửa phải hiện nút Hủy trong cột thao tác của dòng đang chỉnh")
+  void chonSua_hienThiNutHuyTrongCotThaoTac() throws Exception {
+    onEdt(() -> {
+      try {
+        invokePrivate(page, "chonSua", 0);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    });
+
+    onEdt(() -> {
+      try {
+        var labels = getActionLabels(page, 0, 7);
+        assertTrue(labels.contains("Sửa"));
+        assertTrue(labels.contains("Hủy"));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    });
+  }
+
   private void awaitReload(int expected) throws InterruptedException {
     long deadline = System.currentTimeMillis() + 3_000L;
     while (dongSanPhamDao.findAllCount.get() < expected && System.currentTimeMillis() < deadline) {
@@ -119,6 +197,48 @@ class ProductLinesPageTest {
 
   private static void onEdt(Runnable action) throws Exception {
     SwingUtilities.invokeAndWait(action);
+  }
+
+  private static String getFieldText(ProductLinesPage target, String fieldName) throws Exception {
+    var field = ProductLinesPage.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    Object value = field.get(target);
+    return value instanceof com.dtaq.retail.ui.component.FormField formField ? formField.getText() : String.valueOf(value);
+  }
+
+  private static List<String> getActionLabels(ProductLinesPage target, int row, int column) throws Exception {
+    var tableField = ProductLinesPage.class.getDeclaredField("table");
+    tableField.setAccessible(true);
+    var dataTable = (com.dtaq.retail.ui.component.DataTable) tableField.get(target);
+    var swingTable = dataTable.getTable();
+    var renderer = swingTable.getColumnModel().getColumn(column).getCellRenderer();
+    Component component = renderer.getTableCellRendererComponent(swingTable, null, false, false, row, column);
+    List<String> labels = new ArrayList<>();
+    collectButtonTexts(component, labels);
+    return labels;
+  }
+
+  private static void collectButtonTexts(java.awt.Component component, List<String> labels) {
+    if (component instanceof javax.swing.AbstractButton button) {
+      labels.add(button.getText());
+    }
+    if (component instanceof java.awt.Container container) {
+      for (java.awt.Component child : container.getComponents()) {
+        collectButtonTexts(child, labels);
+      }
+    }
+  }
+
+  private static Object getComboValue(ProductLinesPage target, String fieldName) throws Exception {
+    var field = ProductLinesPage.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    return ((javax.swing.JComboBox<?>) field.get(target)).getSelectedItem();
+  }
+
+  private static void invokePrivate(ProductLinesPage target, String methodName, int rowIndex) throws Exception {
+    var method = ProductLinesPage.class.getDeclaredMethod(methodName, int.class);
+    method.setAccessible(true);
+    method.invoke(target, rowIndex);
   }
 
   private static final class FakeDongSanPhamDao implements DongSanPhamDao {

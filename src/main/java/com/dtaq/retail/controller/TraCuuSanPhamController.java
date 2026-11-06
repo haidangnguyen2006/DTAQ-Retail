@@ -80,10 +80,27 @@ public final class TraCuuSanPhamController {
   }
 
   private List<KetQuaDong> timTheoDanhMuc(String keyword) {
+    String search = keyword == null ? "" : keyword.trim();
+    if (search.isBlank()) {
+      return List.of();
+    }
+    String lower = search.toLowerCase();
     List<DongSanPham> danhSachDong = dongSanPhamDao.findAllWithDanhMuc().stream()
-        .filter(dsp -> dsp.danhMucSanPham() != null
-            && dsp.danhMucSanPham().tenDanhMuc() != null
-            && dsp.danhMucSanPham().tenDanhMuc().toLowerCase().contains(keyword.toLowerCase()))
+        .filter(dsp -> dsp.danhMucSanPham() != null)
+        .filter(dsp -> {
+          String maDanhMuc = dsp.danhMucSanPham().maDanhMuc();
+          String tenDanhMuc = dsp.danhMucSanPham().tenDanhMuc();
+          if (maDanhMuc != null && maDanhMuc.equalsIgnoreCase(search)) {
+            return true;
+          }
+          if (tenDanhMuc != null && tenDanhMuc.equalsIgnoreCase(search)) {
+            return true;
+          }
+          if (maDanhMuc != null && maDanhMuc.toLowerCase().contains(lower)) {
+            return true;
+          }
+          return tenDanhMuc != null && tenDanhMuc.toLowerCase().contains(lower);
+        })
         .toList();
     List<KetQuaDong> ketQua = new ArrayList<>();
     for (DongSanPham dong : danhSachDong) {

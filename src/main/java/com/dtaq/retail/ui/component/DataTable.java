@@ -235,7 +235,12 @@ public class DataTable extends JPanel {
    * "editable" khi tạo model bằng {@link #readOnlyModel}.
    */
   public void setActionColumn(int colIndex, RowAction... actions) {
-    TableRenderers.ActionCell cell = new TableRenderers.ActionCell(List.of(actions));
+    setActionColumn(colIndex, row -> List.of(actions));
+  }
+
+  /** Cho phép cột thao tác hiển thị các nút theo từng dòng. */
+  public void setActionColumn(int colIndex, java.util.function.IntFunction<List<RowAction>> actionProvider) {
+    TableRenderers.ActionCell cell = new TableRenderers.ActionCell(actionProvider);
     table.getColumnModel().getColumn(colIndex).setCellRenderer(cell);
     table.getColumnModel().getColumn(colIndex).setCellEditor(cell);
     // Bảng tự co cột theo chiều rộng còn lại; không cho cột thao tác co đến mức cắt mất nút.

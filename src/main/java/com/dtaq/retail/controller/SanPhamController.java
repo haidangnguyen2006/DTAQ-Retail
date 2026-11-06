@@ -99,16 +99,7 @@ public final class SanPhamController {
             0,
             0);
         sanPhamDao.insert(ketNoi, sanPham);
-        // RB37: soLuongTon là bộ đếm dẫn xuất từ SanPham.
-        try (PreparedStatement ps = ketNoi.prepareStatement(
-            "UPDATE \"DongSanPham\" d SET \"soLuongTon\" = ("
-                + "SELECT count(*) FROM \"SanPham\" s"
-                + " WHERE s.\"maDongSP\" = d.\"maDongSP\""
-                + " AND s.\"trangThai\" = 'SAN_SANG_BAN')"
-                + " WHERE d.\"maDongSP\" = ?")) {
-          ps.setString(1, maDongChuanHoa);
-          ps.executeUpdate();
-        }
+        capNhatSoLuongTon(ketNoi, maDongChuanHoa);
         ketNoi.commit();
         return KetQua.thanhCong(sanPham, "Thêm máy mới thành công");
       } catch (Exception e) {
@@ -120,6 +111,95 @@ public final class SanPhamController {
     } catch (SQLException | DataAccessException e) {
       log.error("Lỗi khi lưu máy mới: {}", serialChuanHoa, e);
       return KetQua.loi(e.getMessage() == null ? "Không thể lưu máy mới" : e.getMessage());
+    }
+  }
+
+  public KetQua<SanPham> capNhat(
+      String soSerial,
+      String maNCC,
+      String maDongSP,
+      BigDecimal giaNhap,
+      LocalDate ngayNhapKhoBanDau,
+      TrangThaiSanPham trangThai) {
+
+    if (soSerial == null || soSerial.isBlank()) {
+      return KetQua.loi("Số serial không được để trống");
+    }
+    if (giaNhap == null || giaNhap.compareTo(BigDecimal.ZERO) < 0) {
+      return KetQua.loi("Giá nhập không hợp lệ");
+    }
+    if (ngayNhapKhoBanDau != null && ngayNhapKhoBanDau.isAfter(LocalDate.now())) {
+      return KetQua.loi("Ngày nhập kho ban đầu không được ở tương lai");
+    }
+    if (trangThai == null) {
+      return KetQua.loi("Trạng thái sản phẩm không được để trống");
+    }
+
+    String serialChuanHoa = soSerial.trim();
+    String maNccChuanHoa = maNCC == null ? "" : maNCC.trim();
+    String maDongChuanHoa = maDongSP == null ? "" : maDongSP.trim();
+
+    Optional<SanPham> sanPhamCu = sanPhamDao.findById(serialChuanHoa);
+    if (sanPhamCu.isEmpty()) {
+      return KetQua.loi("Không tìm thấy sản phẩm để cập nhật");
+    }
+
+    Optional<NhaCungCap> nhaCungCap = nhaCungCapDao.findById(maNccChuanHoa);
+    if (nhaCungCap.isEmpty()) {
+      return KetQua.loi("Nhà cung cấp không tồn tại");
+    }
+
+    Optional<DongSanPham> dongSanPham = dongSanPhamDao.findById(maDongChuanHoa);
+    if (dongSanPham.isEmpty()) {
+      return KetQua.loi("Dòng sản phẩm không tồn tại");
+    }
+    if (!dongSanPham.get().trangThaiKinhDoanh()) {
+      return KetQua.loi("Dòng sản phẩm đang ngừng kinh doanh");
+    }
+
+    String maDongCu = sanPhamCu.get().dongSanPham().maDongSP();
+    SanPham sanPhamCapNhat = new SanPham(
+        serialChuanHoa,
+        nhaCungCap.get(),
+        dongSanPham.get(),
+        giaNhap,
+        ngayNhapKhoBanDau == null ? sanPhamCu.get().ngayNhapKhoBanDau() : ngayNhapKhoBanDau,
+        trangThai,
+        sanPhamCu.get().soLanDoiTra(),
+        sanPhamCu.get().soLanSua());
+
+    try (Connection ketNoi = dataSource.getConnection()) {
+      boolean oldAutoCommit = ketNoi.getAutoCommit();
+      ketNoi.setAutoCommit(false);
+      try {
+        sanPhamDao.update(ketNoi, sanPhamCapNhat);
+        capNhatSoLuongTon(ketNoi, maDongCu);
+        if (!maDongCu.equals(maDongChuanHoa)) {
+          capNhatSoLuongTon(ketNoi, maDongChuanHoa);
+        }
+        ketNoi.commit();
+        return KetQua.thanhCong(sanPhamCapNhat, "Cập nhật thông tin máy thành công");
+      } catch (Exception e) {
+        ketNoi.rollback();
+        throw e;
+      } finally {
+        ketNoi.setAutoCommit(oldAutoCommit);
+      }
+    } catch (SQLException | DataAccessException e) {
+      log.error("Lỗi khi cập nhật máy: {}", serialChuanHoa, e);
+      return KetQua.loi(e.getMessage() == null ? "Không thể cập nhật máy" : e.getMessage());
+    }
+  }
+
+  private void capNhatSoLuongTon(Connection ketNoi, String maDongSP) throws SQLException {
+    try (PreparedStatement ps = ketNoi.prepareStatement(
+        "UPDATE \"DongSanPham\" d SET \"soLuongTon\" = ("
+            + "SELECT count(*) FROM \"SanPham\" s"
+            + " WHERE s.\"maDongSP\" = d.\"maDongSP\""
+            + " AND s.\"trangThai\" = 'SAN_SANG_BAN')"
+            + " WHERE d.\"maDongSP\" = ?")) {
+      ps.setString(1, maDongSP);
+      ps.executeUpdate();
     }
   }
 
