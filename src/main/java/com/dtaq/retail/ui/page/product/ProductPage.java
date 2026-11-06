@@ -121,7 +121,7 @@ public final class ProductPage implements Page {
     dataTable.setOnRowDoubleClick(this::chonSua);
     dataTable.setColumnWidths(160, 180, 120, 140, 130, 160);
     tableState = new StatefulView(dataTable, "package", "Chưa có máy", "Bấm lưu để thêm máy mới vào kho.");
-    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
 
     JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[bottom]"));
     filterRow.setOpaque(false);
@@ -137,6 +137,9 @@ public final class ProductPage implements Page {
   }
 
   private void timKiem() {
+    if (searchField.getText().isBlank()) {
+      return;
+    }
     daTimKiem = true;
     taiDanhSach();
   }

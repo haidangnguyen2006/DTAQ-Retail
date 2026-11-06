@@ -107,7 +107,7 @@ public final class EmployeePage implements Page {
     tableState = new StatefulView(dataTable, "users", "Chưa có nhân viên",
         "Bấm \"Thêm nhân viên\" để tạo tài khoản đầu tiên.");
     tableState.setOnRetry(this::loadEmployees);
-    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
     filter.setOnSelectionChange(index -> loadEmployees());
     pagination.setOnPageChangeListener(page -> {
       currentPage = page;
@@ -299,6 +299,9 @@ public final class EmployeePage implements Page {
   }
 
   private void timKiem() {
+    if (searchField.getText().isBlank()) {
+      return;
+    }
     daTimKiem = true;
     loadEmployees();
   }

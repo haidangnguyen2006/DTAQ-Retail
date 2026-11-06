@@ -108,7 +108,7 @@ public class CustomerListPage implements Page {
     dataTable.setOnRowDoubleClick(this::openDetail);
     tableState = new StatefulView(dataTable, "users", "Chưa có khách hàng",
         "Bấm \"Thêm khách hàng\" để tạo hồ sơ đầu tiên.");
-    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
 
     Card tableCard = Card.standard();
     tableCard.add(buildFilterRow(), "growx, wrap");
@@ -342,6 +342,9 @@ public class CustomerListPage implements Page {
   private void triggerSearch() {
     if (onSearchListener != null) {
       lastKeyword = searchField.getText().trim();
+      if (lastKeyword.isEmpty()) {
+        return;
+      }
       daTimKiem = true;
       onSearchListener.accept(lastKeyword);
     }

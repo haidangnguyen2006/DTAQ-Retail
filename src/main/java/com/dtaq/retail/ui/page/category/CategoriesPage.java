@@ -91,7 +91,7 @@ public class CategoriesPage implements Page {
 
     tableState = new StatefulView(dataTable, "folder", "Chưa có danh mục", "Bấm 'Thêm danh mục' để tạo mới.");
     tableState.setOnRetry(this::loadCategories);
-    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
 
     Card tableCard = Card.standard();
     tableCard.add(buildFilterRow(), "growx, wrap");
@@ -205,6 +205,9 @@ public class CategoriesPage implements Page {
 
   private void applyFilter() {
     this.currentFilter = searchField.getText().trim().toLowerCase();
+    if (currentFilter.isEmpty()) {
+      return;
+    }
     daTimKiem = true;
     loadCategories();
   }

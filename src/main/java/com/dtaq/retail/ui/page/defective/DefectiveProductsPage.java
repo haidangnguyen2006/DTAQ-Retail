@@ -94,7 +94,7 @@ public class DefectiveProductsPage implements Page {
     dataTable.setOnRowDoubleClick(this::openStatusDialog);
 
     tableState = new StatefulView(dataTable, "alert-circle", "Chưa có sản phẩm lỗi", "Bấm 'Ghi nhận máy lỗi' để tạo mới hồ sơ.");
-    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
     tableState.setOnRetry(this::loadDefects);
 
     Card tableCard = Card.standard();
@@ -221,6 +221,9 @@ public class DefectiveProductsPage implements Page {
 
   private void applySearchFilter() {
     this.currentSearchKeyword = searchField.getText().trim().toLowerCase();
+    if (currentSearchKeyword.isEmpty()) {
+      return;
+    }
     daTimKiem = true;
     loadDefects();
   }

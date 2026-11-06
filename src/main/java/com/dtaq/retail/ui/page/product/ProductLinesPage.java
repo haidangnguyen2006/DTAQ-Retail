@@ -133,8 +133,16 @@ public final class ProductLinesPage implements Page {
 
     JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[bottom]"));
     filterRow.setOpaque(false);
-    searchField.getTextField().addActionListener(e -> timKiem());
-    searchButton.addActionListener(e -> timKiem());
+    searchField.getTextField().addActionListener(e -> {
+      if (!searchField.getText().isBlank()) {
+        timKiem();
+      }
+    });
+    searchButton.addActionListener(e -> {
+      if (!searchField.getText().isBlank()) {
+        timKiem();
+      }
+    });
     filterRow.add(searchField, "growx");
     filterRow.add(searchButton);
 
@@ -194,7 +202,7 @@ public final class ProductLinesPage implements Page {
     // Danh mục ở trên là lựa chọn của form; bảng chỉ nạp sau khi người dùng tìm kiếm.
     if (!daTimKiem) {
       capNhatLuaChon();
-      statefulView.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
+      statefulView.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
       return;
     }
     String tuKhoa = searchField.getText().trim().toLowerCase();

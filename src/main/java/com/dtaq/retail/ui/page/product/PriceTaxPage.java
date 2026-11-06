@@ -92,6 +92,9 @@ public final class PriceTaxPage implements Page {
   }
 
   private void timKiem() {
+    if (searchField.getText().isBlank()) {
+      return;
+    }
     daTimKiem = true;
     hienThiBang();
   }
@@ -108,7 +111,7 @@ public final class PriceTaxPage implements Page {
   private void hienThiBang() {
     tableModel.setRowCount(0);
     if (!daTimKiem) {
-      statefulView.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
+      statefulView.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
       return;
     }
     String tuKhoa = searchField.getText().trim().toLowerCase();
