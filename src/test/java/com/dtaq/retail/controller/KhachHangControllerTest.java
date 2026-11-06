@@ -2,6 +2,7 @@ package com.dtaq.retail.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -74,11 +75,16 @@ class KhachHangControllerTest {
   }
 
   @Test
-  @DisplayName("Kiểm tra SĐT: 10–11 chữ số, bắt đầu bằng 0, bỏ qua khoảng trắng")
+  @DisplayName("Kiểm tra SĐT: di động 10 số (03/05/07/08/09) hoặc cố định 11 số (02), bỏ qua khoảng trắng, chấm, +84")
   void kiemTraSdtChapNhanDungDinhDang() {
     assertNull(KhachHangController.kiemTraSdt("0902100009"));
-    assertNull(KhachHangController.kiemTraSdt("09021000091"));
     assertNull(KhachHangController.kiemTraSdt("0902 100 009"));
+    assertNull(KhachHangController.kiemTraSdt("0902.100.009"));
+    assertNull(KhachHangController.kiemTraSdt("+84 902 100 009"));
+    assertNull(KhachHangController.kiemTraSdt("02838123456"));
+    assertNotNull(KhachHangController.kiemTraSdt("09021000091"));
+    assertNotNull(KhachHangController.kiemTraSdt("0123456789"));
+    assertNotNull(KhachHangController.kiemTraSdt("09021OO009"));
   }
 
   @Test
@@ -186,7 +192,7 @@ class KhachHangControllerTest {
       assertTrue(ketQua.khachHang().maKH().matches("^KH-\\d{4}-\\d{6}$"), ketQua.khachHang().maKH());
 
       KhachHang daLuu = thuc.timTheoSdt(sdt).orElseThrow();
-      assertEquals("Khách kiểm thử", daLuu.hoTen());
+      assertEquals("Khách Kiểm Thử", daLuu.hoTen());
       assertNull(daLuu.diaChi());
 
       assertEquals(TrangThaiLuu.TRUNG_SDT, thuc.themKhach("Khách khác", sdt, null).trangThai());

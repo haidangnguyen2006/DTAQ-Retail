@@ -1,6 +1,7 @@
 package com.dtaq.retail.ui.page.customer;
 
 import com.dtaq.retail.controller.KhachHangController;
+import com.dtaq.retail.controller.KiemTraHoSo;
 import com.dtaq.retail.controller.KhachHangController.KetQuaLuuKhach;
 import com.dtaq.retail.entity.KhachHang;
 import com.dtaq.retail.ui.component.DtaqButton;
@@ -11,6 +12,8 @@ import com.dtaq.retail.ui.format.PhoneFormat;
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import java.awt.Frame;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -33,9 +36,9 @@ public class AddCustomerDialog extends ModalDialog {
 
   private static final String LOI_LUU = "Không thể lưu khách hàng. Vui lòng thử lại";
 
-  private final FormField hoTenField = FormField.text("Họ và tên", "Nhập họ tên đầy đủ của khách hàng", null);
-  private final FormField sdtField = FormField.text("Số điện thoại", "Nhập số điện thoại", "phone");
-  private final FormField diaChiField = FormField.text("Địa chỉ", "Nhập địa chỉ liên hệ", null);
+  private final FormField hoTenField = FormField.text("Họ và tên", "Ví dụ: Nguyễn Văn An", "user-round");
+  private final FormField sdtField = FormField.text("Số điện thoại", "Ví dụ: 0901 234 567", "phone");
+  private final FormField diaChiField = FormField.text("Địa chỉ", "Số nhà, đường, phường/xã, tỉnh/thành", null);
   private final InfoCallout formError = new InfoCallout(InfoCallout.Kind.DANGER, "");
   private final JPanel existingPanel = new JPanel(new MigLayout("fillx, insets 0, hidemode 3", "[grow]", "[]10[]10[]"));
   private final DtaqButton luuButton;
@@ -45,8 +48,7 @@ public class AddCustomerDialog extends ModalDialog {
   private boolean busy;
 
   public AddCustomerDialog(Frame parent) {
-    this(parent, "Thêm khách hàng", "Tạo hồ sơ để sử dụng khi lập hóa đơn.", "Lưu khách hàng",
-        "Các trường có dấu * là bắt buộc. Mã khách hàng sẽ được tạo tự động khi lưu.");
+    this(parent, "Thêm khách hàng", null, "Lưu khách hàng", null);
   }
 
   private AddCustomerDialog(Frame parent, String title, String subtitle, String saveText, String note) {
@@ -55,7 +57,23 @@ public class AddCustomerDialog extends ModalDialog {
 
     hoTenField.setRequired(true);
     sdtField.setRequired(true);
-    sdtField.setHint("Số điện thoại dùng để tra cứu; không trùng hồ sơ hiện có.");
+    // Kiểm tra ngay khi rời ô để người dùng sửa sớm, không đợi tới lúc bấm Lưu.
+    onBlur(hoTenField, () -> {
+      if (!hoTenField.getText().isBlank()) {
+        hoTenField.setText(KiemTraHoSo.chuanHoaHoTen(hoTenField.getText()));
+        hoTenField.setError(KiemTraHoSo.kiemTraHoTen(hoTenField.getText()));
+      }
+    });
+    onBlur(sdtField, () -> {
+      if (!sdtField.getText().isBlank()) {
+        String loi = KiemTraHoSo.kiemTraSdt(sdtField.getText());
+        sdtField.setError(loi);
+        if (loi == null) {
+          sdtField.setText(PhoneFormat.format(KiemTraHoSo.chuanHoaSdt(sdtField.getText())));
+        }
+      }
+    });
+    onBlur(diaChiField, () -> diaChiField.setError(KiemTraHoSo.kiemTraDiaChi(diaChiField.getText())));
 
     existingPanel.setOpaque(false);
     existingPanel.setVisible(false);
@@ -67,7 +85,9 @@ public class AddCustomerDialog extends ModalDialog {
     getBody().add(diaChiField, "growx, wrap, gapbottom 20");
     getBody().add(existingPanel, "growx, wrap, gapbottom 16");
     getBody().add(formError, "growx, wrap, gapbottom 16");
-    getBody().add(new InfoCallout(note), "growx, wrap");
+    if (note != null && !note.isBlank()) {
+      getBody().add(new InfoCallout(note), "growx, wrap");
+    }
 
     hoTenField.getTextField().addActionListener(e -> sdtField.getTextField().requestFocusInWindow());
     sdtField.getTextField().addActionListener(e -> diaChiField.getTextField().requestFocusInWindow());
@@ -83,8 +103,7 @@ public class AddCustomerDialog extends ModalDialog {
   public static AddCustomerDialog forEdit(
       Frame parent, String maKH, String hoTen, String soDienThoai, String diaChi) {
     AddCustomerDialog dialog = new AddCustomerDialog(parent, "Cập nhật khách hàng",
-        "Mã khách hàng: " + maKH, "Lưu thay đổi",
-        "Các trường có dấu * là bắt buộc. Mã khách hàng không thay đổi.");
+        "Mã khách hàng: " + maKH, "Lưu thay đổi", null);
     dialog.hoTenField.setText(hoTen);
     dialog.sdtField.setText(soDienThoai);
     dialog.diaChiField.setText(diaChi);
@@ -96,12 +115,15 @@ public class AddCustomerDialog extends ModalDialog {
       return;
     }
     hideMessages();
-    String hoTen = hoTenField.getText().trim();
+    String hoTen = KiemTraHoSo.chuanHoaHoTen(hoTenField.getText());
     String sdt = sdtField.getText().trim();
+    String loiHoTen = KiemTraHoSo.kiemTraHoTen(hoTen);
     String loiSdt = KhachHangController.kiemTraSdt(sdt);
-    hoTenField.setError(hoTen.isEmpty() ? "Vui lòng nhập họ và tên" : null);
+    String loiDiaChi = KiemTraHoSo.kiemTraDiaChi(diaChiField.getText());
+    hoTenField.setError(loiHoTen);
     sdtField.setError(loiSdt);
-    if (hoTen.isEmpty() || loiSdt != null) {
+    diaChiField.setError(loiDiaChi);
+    if (loiHoTen != null || loiSdt != null || loiDiaChi != null) {
       return;
     }
     if (onSaveListener != null) {
@@ -122,6 +144,20 @@ public class AddCustomerDialog extends ModalDialog {
     diaChiField.setError(null);
     hideMessages();
     setBusy(false);
+  }
+
+  /** Điền sẵn họ tên, dùng khi tạo nhanh từ một tên vừa tìm không thấy. */
+  public void setHoTen(String hoTen) {
+    hoTenField.setText(hoTen);
+  }
+
+  private static void onBlur(FormField field, Runnable action) {
+    field.getTextField().addFocusListener(new FocusAdapter() {
+      @Override
+      public void focusLost(FocusEvent e) {
+        action.run();
+      }
+    });
   }
 
   /** Điền sẵn số điện thoại, dùng khi tạo nhanh từ một số vừa tra cứu không thấy. */

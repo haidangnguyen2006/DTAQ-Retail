@@ -1,5 +1,7 @@
 package com.dtaq.retail.ui.shell;
 
+import com.dtaq.retail.config.ConnectDB;
+import com.dtaq.retail.dao.impl.NhanVienDaoImpl;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.Tile;
@@ -12,17 +14,21 @@ import com.dtaq.retail.ui.theme.DtaqSpacing;
 import com.formdev.flatlaf.FlatClientProperties;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.time.LocalDate;
 import java.util.Objects;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.SwingConstants;
 import net.miginfocom.swing.MigLayout;
 
 /**
- * Thanh tiêu đề trên cùng (Topbar): breadcrumb, ngày, thông tin người dùng và nút đăng xuất.
+ * Thanh tiêu đề trên cùng (Topbar): breadcrumb, ngày, menu tài khoản người dùng và thao tác.
  */
 public class Topbar extends JPanel {
 
@@ -90,7 +96,7 @@ public class Topbar extends JPanel {
   }
 
   private JPanel buildUserArea(NhanVien nhanVien, Runnable onLogout) {
-    JPanel area = new JPanel(new MigLayout("insets 0, gapx 12, hidemode 3", "[][][][][]", "[center]"));
+    JPanel area = new JPanel(new MigLayout("insets 0, gapx 12, hidemode 3", "[][][]", "[center]"));
     area.setOpaque(false);
 
     JLabel dateLabel = new JLabel(DateFormats.formatDate(LocalDate.now()),
@@ -100,17 +106,22 @@ public class Topbar extends JPanel {
     dateLabel.setForeground(DtaqColors.TEXT_MUTED);
     area.add(dateLabel, "gapright 6");
 
+    JPanel vline = new JPanel();
+    vline.setBackground(DtaqColors.BORDER);
+    area.add(vline, "w 1!, h 20!");
+
+    JPanel userBtn = new JPanel(new MigLayout("insets 4 8 4 8, gapx 8", "[][][]", "[center]"));
+    userBtn.setOpaque(false);
+    userBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    userBtn.putClientProperty(FlatClientProperties.STYLE, "arc: 12");
+
     Tile avatar = new Tile(DtaqColors.PRIMARY_SOFT, Tile.OVAL);
     avatar.setPreferredSize(new Dimension(AVATAR_SIZE, AVATAR_SIZE));
-    avatar.setToolTipText(nhanVien.hoTen() + " · " + nhanVien.moTaQuyen());
     JLabel initials = new JLabel(PersonNames.initials(nhanVien.hoTen()));
     initials.setFont(DtaqFonts.PILL);
     initials.setForeground(DtaqColors.PRIMARY_STRONG);
     avatar.add(initials);
-    JPanel vline = new JPanel();
-    vline.setBackground(DtaqColors.BORDER);
-    area.add(vline, "w 1!, h 20!");
-    area.add(avatar);
+    userBtn.add(avatar);
 
     JPanel userBlock = new JPanel(new MigLayout("insets 0, gapy 1", "[]", "[]"));
     userBlock.setOpaque(false);
@@ -122,23 +133,59 @@ public class Topbar extends JPanel {
     roleLabel.setFont(DtaqFonts.HINT);
     roleLabel.setForeground(DtaqColors.TEXT_MUTED);
     userBlock.add(roleLabel);
-    area.add(userBlock);
+    userBtn.add(userBlock);
 
-    JButton logoutBtn = new JButton("Đăng xuất", DtaqIcons.icon("log-out", 17, DtaqColors.TEXT_MUTED));
-    logoutBtn.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_TOOLBAR_BUTTON);
-    logoutBtn.setFont(DtaqFonts.PILL);
-    logoutBtn.setForeground(DtaqColors.TEXT);
-    logoutBtn.setIconTextGap(7);
-    logoutBtn.setFocusPainted(true);
-    logoutBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-    logoutBtn.addActionListener(e -> ConfirmDialog.confirm(
-        this, "Đăng xuất", "Bạn có chắc muốn đăng xuất?", "Đăng xuất",
-        () -> {
-          if (onLogout != null) {
-            onLogout.run();
-          }
-        }));
-    area.add(logoutBtn);
+    JLabel chevron = new JLabel(DtaqIcons.icon("chevron-down", 14, DtaqColors.TEXT_MUTED));
+    userBtn.add(chevron);
+
+    JPopupMenu popup = buildUserMenu(nhanVien, onLogout);
+    // Nhấn vào tên khi menu đang mở: Swing đóng menu trước rồi mới gửi mousePressed, nên ghi lại lúc
+    // đóng để cú nhấn đó chỉ đóng menu chứ không mở lại.
+    long[] lucDongMenu = {0};
+    popup.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+      @Override
+      public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
+      }
+
+      @Override
+      public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {
+        lucDongMenu[0] = System.currentTimeMillis();
+      }
+
+      @Override
+      public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) {
+      }
+    });
+
+    userBtn.addMouseListener(new MouseAdapter() {
+      @Override
+      public void mouseEntered(MouseEvent e) {
+        userBtn.setOpaque(true);
+        userBtn.setBackground(DtaqColors.ROW_HOVER);
+        userBtn.repaint();
+      }
+
+      @Override
+      public void mouseExited(MouseEvent e) {
+        userBtn.setOpaque(false);
+        userBtn.repaint();
+      }
+
+      @Override
+      public void mousePressed(MouseEvent e) {
+        if (popup.isVisible()) {
+          popup.setVisible(false);
+          return;
+        }
+        if (System.currentTimeMillis() - lucDongMenu[0] < 250) {
+          return;
+        }
+        popup.show(userBtn, 0, userBtn.getHeight() + 4);
+      }
+    });
+
+    area.add(userBtn);
+
     addComponentListener(new java.awt.event.ComponentAdapter() {
       @Override
       public void componentResized(java.awt.event.ComponentEvent e) {
@@ -151,9 +198,44 @@ public class Topbar extends JPanel {
     return area;
   }
 
+  private JPopupMenu buildUserMenu(NhanVien nhanVien, Runnable onLogout) {
+    JPopupMenu popup = new JPopupMenu();
+    popup.putClientProperty(FlatClientProperties.STYLE, "arc: 12; borderColor: #E5E7EB; border: 1,1,1,1,#E5E7EB");
+
+    JMenuItem changePasswordItem = new JMenuItem("Đổi mật khẩu", DtaqIcons.icon("lock-keyhole", 16, DtaqColors.TEXT));
+    changePasswordItem.setFont(DtaqFonts.BODY_13);
+    changePasswordItem.setForeground(DtaqColors.TEXT);
+    changePasswordItem.setIconTextGap(8);
+    changePasswordItem.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    changePasswordItem.addActionListener(e -> {
+      new ChangePasswordDialog(ConfirmDialog.frameOf(this),
+          new NhanVienDaoImpl(ConnectDB.getDataSource()), nhanVien).setVisible(true);
+    });
+    popup.add(changePasswordItem);
+
+    popup.addSeparator();
+
+    JMenuItem logoutItem = new JMenuItem("Đăng xuất", DtaqIcons.icon("log-out", 16, DtaqColors.DANGER));
+    logoutItem.setFont(DtaqFonts.BODY_13);
+    logoutItem.setForeground(DtaqColors.DANGER);
+    logoutItem.setIconTextGap(8);
+    logoutItem.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    logoutItem.addActionListener(e -> ConfirmDialog.confirm(
+        this, "Đăng xuất", "Bạn có chắc muốn đăng xuất?", "Đăng xuất",
+        () -> {
+          if (onLogout != null) {
+            onLogout.run();
+          }
+        }));
+    popup.add(logoutItem);
+
+    return popup;
+  }
+
   public void setBreadcrumb(String section, String pageTitle) {
     sectionLabel.setText(section);
     pageLabel.setText(pageTitle);
     pageLabel.setToolTipText(pageTitle);
   }
 }
+

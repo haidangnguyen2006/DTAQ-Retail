@@ -9,7 +9,6 @@ import com.dtaq.retail.util.MaGenerator;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import javax.sql.DataSource;
@@ -25,13 +24,12 @@ public final class KhachHangController {
   /** Tên trường số điện thoại, dùng để giao diện hiển thị lỗi đúng ô nhập. */
   public static final String TRUONG_SDT = "soDienThoai";
 
+  /** Tên trường địa chỉ. */
+  public static final String TRUONG_DIA_CHI = "diaChi";
+
   private static final Logger log = LoggerFactory.getLogger(KhachHangController.class);
 
-  private static final String SDT_HOP_LE = "0\\d{9,10}";
   private static final String TIEN_TO_MA = "KH";
-  private static final String LOI_THIEU_HO_TEN = "Họ tên không được để trống";
-  private static final String LOI_THIEU_SDT = "Số điện thoại không được để trống";
-  private static final String LOI_SAI_SDT = "Số điện thoại phải gồm 10–11 chữ số và bắt đầu bằng 0";
   private static final String LOI_LUU = "Không thể lưu khách hàng. Vui lòng thử lại";
   private static final String LOI_QUYEN = "Chức năng này chỉ dành cho nhân viên bán hàng";
 
@@ -52,7 +50,8 @@ public final class KhachHangController {
   /**
    * Lấy một trang khách hàng khớp từ khóa, sắp xếp theo mã khách hàng.
    *
-   * @param tuKhoa một phần họ tên (không phân biệt hoa thường) hoặc số điện thoại; rỗng để lấy tất cả
+   * @param tuKhoa một phần họ tên (không phân biệt hoa thường, có dấu hay không dấu), mã khách hàng
+   *     hoặc một phần số điện thoại (từ 3 chữ số); rỗng để lấy tất cả
    * @param trang số trang cần lấy, bắt đầu từ 1; lớn hơn trang cuối thì trả về trang cuối
    * @param kichThuoc số khách hàng trên mỗi trang; phải lớn hơn 0
    * @return trang kết quả; không bao giờ {@code null}
@@ -64,12 +63,8 @@ public final class KhachHangController {
     if (kichThuoc <= 0) {
       throw new IllegalArgumentException("Kích thước trang phải lớn hơn 0");
     }
-    String tuKhoaThuong = tuKhoa == null ? "" : tuKhoa.trim().toLowerCase(Locale.ROOT);
-    String tuKhoaSdt = chuanHoaSdt(tuKhoa);
     List<KhachHang> khop = khachHangDao.findAll().stream()
-        .filter(kh -> tuKhoaThuong.isEmpty()
-            || kh.hoTen().toLowerCase(Locale.ROOT).contains(tuKhoaThuong)
-            || kh.soDienThoai().contains(tuKhoaSdt))
+        .filter(kh -> KiemTraHoSo.khop(tuKhoa, kh.soDienThoai(), kh.hoTen(), kh.maKH()))
         .toList();
 
     int tongSo = khop.size();
@@ -105,7 +100,7 @@ public final class KhachHangController {
    */
   public KetQuaLuuKhach themKhach(String hoTen, String soDienThoai, String diaChi) {
     yeuCauNhanVienBanHang();
-    Optional<KetQuaLuuKhach> loi = kiemTraDuLieu(hoTen, soDienThoai);
+    Optional<KetQuaLuuKhach> loi = kiemTraDuLieu(hoTen, soDienThoai, diaChi);
     if (loi.isPresent()) {
       return loi.get();
     }
@@ -138,7 +133,7 @@ public final class KhachHangController {
   public KetQuaLuuKhach capNhatKhach(
       String maKH, String hoTen, String soDienThoai, String diaChi) {
     yeuCauNhanVienBanHang();
-    Optional<KetQuaLuuKhach> loi = kiemTraDuLieu(hoTen, soDienThoai);
+    Optional<KetQuaLuuKhach> loi = kiemTraDuLieu(hoTen, soDienThoai, diaChi);
     if (loi.isPresent()) {
       return loi.get();
     }
@@ -150,7 +145,8 @@ public final class KhachHangController {
         return KetQuaLuuKhach.loi(
             TRUONG_SDT, "Số điện thoại đã thuộc hồ sơ " + cungSdt.get().maKH());
       }
-      KhachHang khachHang = new KhachHang(maKH, hoTen.trim(), sdt, chuanHoaDiaChi(diaChi));
+      KhachHang khachHang =
+          new KhachHang(maKH, KiemTraHoSo.chuanHoaHoTen(hoTen), sdt, chuanHoaDiaChi(diaChi));
       khachHangDao.update(khachHang);
       return KetQuaLuuKhach.thanhCong(khachHang);
     } catch (DataAccessException e) {
@@ -160,17 +156,14 @@ public final class KhachHangController {
   }
 
   /**
-   * Kiểm tra định dạng số điện thoại khách hàng.
+   * Kiểm tra số điện thoại: di động 10 số (03/05/07/08/09) hoặc cố định 11 số (02x); khoảng trắng,
+   * dấu chấm, gạch và tiền tố +84 được chấp nhận khi nhập.
    *
    * @param soDienThoai số điện thoại do người dùng nhập
    * @return thông báo lỗi, hoặc {@code null} nếu hợp lệ
    */
   public static String kiemTraSdt(String soDienThoai) {
-    String sdt = chuanHoaSdt(soDienThoai);
-    if (sdt.isEmpty()) {
-      return LOI_THIEU_SDT;
-    }
-    return sdt.matches(SDT_HOP_LE) ? null : LOI_SAI_SDT;
+    return KiemTraHoSo.kiemTraSdt(soDienThoai);
   }
 
   private KhachHang ghiKhachMoi(Connection ketNoi, String hoTen, String sdt, String diaChi)
@@ -178,7 +171,8 @@ public final class KhachHangController {
     ketNoi.setAutoCommit(false);
     try {
       String maKH = MaGenerator.next(ketNoi, "KhachHang", "maKH", TIEN_TO_MA);
-      KhachHang khachHang = new KhachHang(maKH, hoTen.trim(), sdt, chuanHoaDiaChi(diaChi));
+      KhachHang khachHang =
+          new KhachHang(maKH, KiemTraHoSo.chuanHoaHoTen(hoTen), sdt, chuanHoaDiaChi(diaChi));
       khachHangDao.insert(ketNoi, khachHang);
       ketNoi.commit();
       return khachHang;
@@ -190,18 +184,24 @@ public final class KhachHangController {
     }
   }
 
-  private static Optional<KetQuaLuuKhach> kiemTraDuLieu(String hoTen, String soDienThoai) {
-    if (hoTen == null || hoTen.isBlank()) {
-      return Optional.of(KetQuaLuuKhach.loi(TRUONG_HO_TEN, LOI_THIEU_HO_TEN));
+  private static Optional<KetQuaLuuKhach> kiemTraDuLieu(
+      String hoTen, String soDienThoai, String diaChi) {
+    String loiHoTen = KiemTraHoSo.kiemTraHoTen(hoTen);
+    if (loiHoTen != null) {
+      return Optional.of(KetQuaLuuKhach.loi(TRUONG_HO_TEN, loiHoTen));
     }
     String loiSdt = kiemTraSdt(soDienThoai);
-    return loiSdt == null
+    if (loiSdt != null) {
+      return Optional.of(KetQuaLuuKhach.loi(TRUONG_SDT, loiSdt));
+    }
+    String loiDiaChi = KiemTraHoSo.kiemTraDiaChi(diaChi);
+    return loiDiaChi == null
         ? Optional.empty()
-        : Optional.of(KetQuaLuuKhach.loi(TRUONG_SDT, loiSdt));
+        : Optional.of(KetQuaLuuKhach.loi(TRUONG_DIA_CHI, loiDiaChi));
   }
 
   private static String chuanHoaSdt(String soDienThoai) {
-    return soDienThoai == null ? "" : soDienThoai.replaceAll("\\s", "");
+    return KiemTraHoSo.chuanHoaSdt(soDienThoai);
   }
 
   private static String chuanHoaDiaChi(String diaChi) {

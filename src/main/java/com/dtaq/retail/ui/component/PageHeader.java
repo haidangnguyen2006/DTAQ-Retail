@@ -53,9 +53,9 @@ public class PageHeader extends JPanel {
           stacked = narrow;
           MigLayout layout = (MigLayout) getLayout();
           layout.setColumnConstraints(narrow ? "[0:pref,grow]" : "[0:pref,grow][]");
-          layout.setComponentConstraints(titleBlock, "cell 0 0, growx");
+          layout.setComponentConstraints(titleBlock, narrow ? "cell 0 0, growx" : "cell 0 0, growx, aligny center");
           layout.setComponentConstraints(trailingPanel,
-              narrow ? "cell 0 1, align left, gaptop 12" : "cell 1 0, align right");
+              narrow ? "cell 0 1, align left, gaptop 12" : "cell 1 0, align right, aligny center");
           revalidate();
         }
       }

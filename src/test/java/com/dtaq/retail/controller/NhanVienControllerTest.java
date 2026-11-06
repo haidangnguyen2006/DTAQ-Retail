@@ -2,6 +2,7 @@ package com.dtaq.retail.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,11 +62,50 @@ class NhanVienControllerTest {
   }
 
   @Test
+  @DisplayName("Tìm nhân viên theo tên không dấu, mã, tên đăng nhập hoặc một phần SĐT, trong bộ lọc trạng thái")
+  void timTheoTuKhoa() {
+    assertEquals(List.of(BAN_HANG), controller.tim("nhan vien bh", null));
+    assertEquals(List.of(DA_KHOA), controller.tim("NVBANHANG-2026-002", null));
+    assertEquals(3, controller.tim("000 000", null).size());
+    assertEquals(List.of(), controller.tim("khoa", true));
+    assertEquals(3, controller.tim("  ", null).size());
+  }
+
+  @Test
+  @DisplayName("Cập nhật hồ sơ: chuẩn hoá họ tên/SĐT, giữ nguyên tên đăng nhập, mật khẩu, quyền và trạng thái")
+  void capNhatNhanVien() {
+    KetQuaLuuNhanVien ketQua = controller.capNhatNhanVien(DA_KHOA.maNV(), "  trần   thị mai ", "+84 912 345 678",
+        "mai@dtaq.vn", NGAY);
+    assertTrue(ketQua.thanhCong(), ketQua.thongBao());
+    NhanVien sau = dao.findByMa(DA_KHOA.maNV()).orElseThrow();
+    assertEquals("Trần Thị Mai", sau.hoTen());
+    assertEquals("0912345678", sau.soDienThoai());
+    assertEquals(DA_KHOA.tenDangNhap(), sau.tenDangNhap());
+    assertEquals("hash", sau.matKhau());
+    assertFalse(sau.trangThaiHoatDong());
+
+    assertEquals(NhanVienController.TRUONG_HO_TEN,
+        controller.capNhatNhanVien(DA_KHOA.maNV(), "Mai 2", "0912345678", "a@dtaq.vn", NGAY).truongLoi());
+    assertEquals(NhanVienController.TRUONG_NGAY_VAO_LAM, controller.capNhatNhanVien(
+        DA_KHOA.maNV(), "Mai", "0912345678", "a@dtaq.vn", LocalDate.now().plusDays(60)).truongLoi());
+    assertFalse(controller.capNhatNhanVien("KHONG-CO", "Mai", "0912345678", "a@dtaq.vn", NGAY).thanhCong());
+  }
+
+  @Test
+  @DisplayName("Tên đăng nhập sinh từ mã nhân viên theo dạng NVBH/NVQL + năm + số thứ tự")
+  void tenDangNhap() {
+    assertEquals("NVBH2026006", NhanVienController.tenDangNhapTuMa("NVBANHANG-2026-000006"));
+    assertEquals("NVQL2025001", NhanVienController.tenDangNhapTuMa("NVQUANLY-2025-001"));
+    assertEquals("NVBH20261234", NhanVienController.tenDangNhapTuMa("NVBANHANG-2026-001234"));
+    assertThrows(IllegalArgumentException.class, () -> NhanVienController.tenDangNhapTuMa("NV2026"));
+  }
+
+  @Test
   @DisplayName("Nhân viên bán hàng hoặc chưa đăng nhập không dùng được chức năng")
   void chanSaiQuyen() {
     CurrentSession.set(BAN_HANG);
     assertThrows(SecurityException.class, controller::danhSach);
-    assertThrows(SecurityException.class, () -> them("Tên", "0901234567", null, NGAY, "moi", "12345678"));
+    assertThrows(SecurityException.class, () -> them("Tên", "0901234567", "a@dtaq.vn", NGAY, "12345678"));
     assertThrows(SecurityException.class, () -> controller.khoaTaiKhoan(DA_KHOA.maNV()));
     assertThrows(SecurityException.class, () -> controller.moKhoaTaiKhoan(DA_KHOA.maNV()));
 
@@ -78,28 +118,19 @@ class NhanVienControllerTest {
   @DisplayName("Dữ liệu thiếu hoặc sai: báo lỗi đúng trường, không ghi")
   void themNhanVienKiemTraDuLieu() {
     assertEquals(NhanVienController.TRUONG_HO_TEN,
-        them(" ", "0901234567", null, NGAY, "moi", "12345678").truongLoi());
+        them(" ", "0901234567", "a@dtaq.vn", NGAY, "12345678").truongLoi());
     assertEquals(NhanVienController.TRUONG_SDT,
-        them("Tên", "123", null, NGAY, "moi", "12345678").truongLoi());
+        them("Tên", "123", null, NGAY, "12345678").truongLoi());
     assertEquals(NhanVienController.TRUONG_EMAIL,
-        them("Tên", "0901234567", "khong-hop-le", NGAY, "moi", "12345678").truongLoi());
+        them("Tên", "0901234567", "khong-hop-le", NGAY, "12345678").truongLoi());
+    assertEquals(NhanVienController.TRUONG_EMAIL,
+        them("Tên", "0901234567", "  ", NGAY, "12345678").truongLoi());
     assertEquals(NhanVienController.TRUONG_NGAY_VAO_LAM,
-        them("Tên", "0901234567", null, null, "moi", "12345678").truongLoi());
-    assertEquals(NhanVienController.TRUONG_TEN_DANG_NHAP,
-        them("Tên", "0901234567", null, NGAY, "  ", "12345678").truongLoi());
+        them("Tên", "0901234567", "a@dtaq.vn", null, "12345678").truongLoi());
     assertEquals(NhanVienController.TRUONG_MAT_KHAU,
-        them("Tên", "0901234567", null, NGAY, "moi", "1234567").truongLoi());
+        them("Tên", "0901234567", "a@dtaq.vn", NGAY, "1234567").truongLoi());
     assertEquals(NhanVienController.TRUONG_MAT_KHAU,
-        them("Tên", "0901234567", null, NGAY, "moi", "x".repeat(73)).truongLoi());
-    assertEquals(0, dao.soLanInsert);
-  }
-
-  @Test
-  @DisplayName("Tên đăng nhập đã tồn tại: báo lỗi trường tên đăng nhập (9.b)")
-  void themNhanVienTrungTenDangNhap() {
-    KetQuaLuuNhanVien ketQua = them("Tên", "0901234567", "a@b.vn", NGAY, " bh ", "12345678");
-    assertFalse(ketQua.thanhCong());
-    assertEquals(NhanVienController.TRUONG_TEN_DANG_NHAP, ketQua.truongLoi());
+        them("Tên", "0901234567", "a@dtaq.vn", NGAY, "x".repeat(73)).truongLoi());
     assertEquals(0, dao.soLanInsert);
   }
 
@@ -107,7 +138,7 @@ class NhanVienControllerTest {
   @DisplayName("Lỗi kết nối khi lưu: báo thất bại chung, mảng mật khẩu bị xóa trắng")
   void themNhanVienLoiKetNoiVaXoaMatKhau() {
     char[] matKhau = "12345678".toCharArray();
-    KetQuaLuuNhanVien ketQua = controller.themNhanVien("Tên", "0901234567", null, NGAY, "moi", matKhau);
+    KetQuaLuuNhanVien ketQua = controller.themNhanVien("Tên", "0901234567", "a@dtaq.vn", NGAY, matKhau);
     assertFalse(ketQua.thanhCong());
     assertNull(ketQua.truongLoi());
     assertEquals("\0".repeat(8), new String(matKhau));
@@ -145,15 +176,17 @@ class NhanVienControllerTest {
     NhanVienDaoImpl that = new NhanVienDaoImpl(dataSource);
     NhanVienController thuc = new NhanVienController(that, dataSource);
     AuthController auth = new AuthController(that);
-    String tenDangNhap = "kiemthu_w2_uc013";
+    String tenDangNhap = null;
     String matKhau = "MatKhau2026";
     try {
       KetQuaLuuNhanVien ketQua = thuc.themNhanVien(" Nhân viên kiểm thử ", "0988 000 401",
-          "kiemthu@dtaq.example", NGAY, tenDangNhap, matKhau.toCharArray());
+          "kiemthu@dtaq.example", NGAY, matKhau.toCharArray());
       assertTrue(ketQua.thanhCong(), ketQua.thongBao());
+      tenDangNhap = ketQua.nhanVien().tenDangNhap();
+      assertEquals(NhanVienController.tenDangNhapTuMa(ketQua.nhanVien().maNV()), tenDangNhap);
       NhanVien moi = that.findByTenDangNhap(tenDangNhap).orElseThrow();
       assertTrue(moi.maNV().matches("^NVBANHANG-\\d{4}-\\d{6}$"), moi.maNV());
-      assertEquals("Nhân viên kiểm thử", moi.hoTen());
+      assertEquals("Nhân Viên Kiểm Thử", moi.hoTen());
       assertEquals("0988000401", moi.soDienThoai());
       assertEquals(LoaiQuyen.NHAN_VIEN_BAN_HANG, moi.loaiQuyen());
       assertTrue(moi.trangThaiHoatDong());
@@ -168,37 +201,14 @@ class NhanVienControllerTest {
       assertTrue(thuc.moKhoaTaiKhoan(moi.maNV()).thanhCong());
       assertEquals(AuthController.Outcome.SUCCESS, auth.login(tenDangNhap, matKhau).outcome());
     } finally {
-      xoaTheoTenDangNhap(dataSource, tenDangNhap);
+      if (tenDangNhap != null) {
+        xoaTheoTenDangNhap(dataSource, tenDangNhap);
+      }
     }
   }
 
-  @Test
-  @DisplayName("Trùng tên đăng nhập lọt qua bước kiểm tra trước: CSDL chặn, quay lui, báo đúng trường")
-  void trungTenDangNhapDoChayDongThoi() {
-    Assumptions.assumeTrue(ConnectDB.isAvailable(), "no database available");
-    DataSource dataSource = ConnectDB.getDataSource();
-    NhanVienDaoImpl that = new NhanVienDaoImpl(dataSource);
-    Optional<NhanVien> daCo = that.findByTenDangNhap("NVBH2026001");
-    Assumptions.assumeTrue(daCo.isPresent(), "seed V2 chưa được áp dụng");
-    int truoc = that.findAll().size();
-    NhanVienDao boQuaKiemTra = new NhanVienDaoImpl(dataSource) {
-      @Override
-      public boolean existsTenDangNhap(String tenDangNhap) {
-        return false;
-      }
-    };
-
-    KetQuaLuuNhanVien ketQua = new NhanVienController(boQuaKiemTra, dataSource).themNhanVien(
-        "Trùng", "0988000402", null, NGAY, "NVBH2026001", "12345678".toCharArray());
-
-    assertFalse(ketQua.thanhCong());
-    assertEquals(NhanVienController.TRUONG_TEN_DANG_NHAP, ketQua.truongLoi());
-    assertEquals(truoc, that.findAll().size(), "giao dịch phải được quay lui");
-  }
-
-  private KetQuaLuuNhanVien them(String hoTen, String sdt, String email, LocalDate ngay,
-      String tenDangNhap, String matKhau) {
-    return controller.themNhanVien(hoTen, sdt, email, ngay, tenDangNhap, matKhau.toCharArray());
+  private KetQuaLuuNhanVien them(String hoTen, String sdt, String email, LocalDate ngay, String matKhau) {
+    return controller.themNhanVien(hoTen, sdt, email, ngay, matKhau.toCharArray());
   }
 
   private static void xoaTheoTenDangNhap(DataSource dataSource, String tenDangNhap) throws SQLException {
@@ -282,7 +292,7 @@ class NhanVienControllerTest {
 
     @Override
     public void update(NhanVien nhanVien) {
-      throw new UnsupportedOperationException("không dùng trong kiểm thử nhân viên");
+      ds.replaceAll(nv -> nv.maNV().equals(nhanVien.maNV()) ? nhanVien : nv);
     }
   }
 }
