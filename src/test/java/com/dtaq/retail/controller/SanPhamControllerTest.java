@@ -151,6 +151,41 @@ class SanPhamControllerTest {
   }
 
   @Test
+  @DisplayName("Cập nhật máy hiện có phải giữ serial cố định và thay đổi thông tin hợp lệ")
+  void capNhatMay_thanhCong() {
+    Assumptions.assumeTrue(ConnectDB.isAvailable(), "Cơ sở dữ liệu không khả dụng");
+
+    SanPhamDao sanPhamDao = new SanPhamImpl(ConnectDB.getDataSource());
+    DongSanPhamDao dongSanPhamDao = new DongSanPhamImpl(ConnectDB.getDataSource());
+    NhaCungCapDao nhaCungCapDao = new NhaCungCapImpl(ConnectDB.getDataSource());
+    SanPhamController controller = new SanPhamController(
+        sanPhamDao, dongSanPhamDao, nhaCungCapDao, ConnectDB.getDataSource());
+
+    SanPham sanPham = sanPhamDao.findAll().stream().findFirst().orElseThrow();
+    NhaCungCap nhaCungCap = nhaCungCapDao.findAll().stream().findFirst().orElseThrow();
+    DongSanPham dongMoi = dongSanPhamDao.findAll().stream()
+        .filter(d -> !d.maDongSP().equals(sanPham.dongSanPham().maDongSP()))
+        .findFirst()
+        .orElseThrow();
+
+    BigDecimal giaMoi = new BigDecimal("18000000");
+    LocalDate ngayMoi = LocalDate.now().minusDays(2);
+    SanPhamController.KetQua<SanPham> ketQua = controller.capNhat(
+        sanPham.soSerial(),
+        nhaCungCap.maNCC(),
+        dongMoi.maDongSP(),
+        giaMoi,
+        ngayMoi,
+        sanPham.trangThai());
+
+    assertTrue(ketQua.thanhCong(), ketQua.thongBao());
+    assertEquals(sanPham.soSerial(), ketQua.duLieu().soSerial());
+    assertEquals(dongMoi.maDongSP(), ketQua.duLieu().dongSanPham().maDongSP());
+    assertEquals(giaMoi, ketQua.duLieu().giaNhap());
+    assertEquals(ngayMoi, ketQua.duLieu().ngayNhapKhoBanDau());
+  }
+
+  @Test
   @DisplayName("Ngày nhập ở tương lai và mã dòng không tồn tại phải bị chặn")
   void themMay_loiValidateNhapLieu() {
     Assumptions.assumeTrue(ConnectDB.isAvailable(), "Cơ sở dữ liệu không khả dụng");

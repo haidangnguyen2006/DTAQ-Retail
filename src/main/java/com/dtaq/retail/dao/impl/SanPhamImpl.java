@@ -67,6 +67,10 @@ public final class SanPhamImpl implements SanPhamDao {
           + " \"trangThai\", \"soLanDoiTra\", \"soLanSua\")"
           + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
+  private static final String UPDATE_SAN_PHAM =
+      "UPDATE \"SanPham\" SET \"maNCC\" = ?, \"maDongSP\" = ?, \"giaNhap\" = ?,"
+          + " \"ngayNhapKhoBanDau\" = ?, \"trangThai\" = ? WHERE \"soSerial\" = ?";
+
   private static final String UPDATE_TRANG_THAI =
       "UPDATE \"SanPham\" SET \"trangThai\" = ? WHERE \"soSerial\" = ?";
 
@@ -170,6 +174,27 @@ public final class SanPhamImpl implements SanPhamDao {
       return ketQua;
     } catch (SQLException e) {
       throw new DataAccessException("Không thể tra cứu danh sách sản phẩm", e);
+    }
+  }
+
+  @Override
+  public void update(Connection ketNoi, SanPham sanPham) {
+    if (sanPham == null || sanPham.soSerial() == null || sanPham.soSerial().isBlank()) {
+      throw new IllegalArgumentException("Sản phẩm không hợp lệ");
+    }
+    Objects.requireNonNull(ketNoi, "ketNoi");
+    try (PreparedStatement statement = ketNoi.prepareStatement(UPDATE_SAN_PHAM)) {
+      statement.setString(1, sanPham.nhaCungCap().maNCC());
+      statement.setString(2, sanPham.dongSanPham().maDongSP());
+      statement.setBigDecimal(3, sanPham.giaNhap());
+      statement.setObject(4, sanPham.ngayNhapKhoBanDau());
+      statement.setString(5, sanPham.trangThai().name());
+      statement.setString(6, sanPham.soSerial());
+      if (statement.executeUpdate() != 1) {
+        throw new DataAccessException("Không thể cập nhật sản phẩm " + sanPham.soSerial());
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể cập nhật sản phẩm " + sanPham.soSerial(), e);
     }
   }
 

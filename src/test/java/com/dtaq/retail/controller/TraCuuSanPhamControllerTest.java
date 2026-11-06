@@ -54,7 +54,7 @@ class TraCuuSanPhamControllerTest {
   }
 
   @Test
-  @DisplayName("Tra cứu theo danh mục phải trả về danh sách kết quả có liên quan")
+  @DisplayName("Tra cứu theo mã danh mục phải trả về danh sách kết quả có liên quan")
   void timKiemTheoDanhMuc_thanhCong() {
     Assumptions.assumeTrue(ConnectDB.isAvailable(), "Cơ sở dữ liệu không khả dụng");
 
@@ -63,9 +63,27 @@ class TraCuuSanPhamControllerTest {
     TraCuuSanPhamController controller = new TraCuuSanPhamController(sanPhamDao, dongSanPhamDao);
 
     DongSanPham dong = dongSanPhamDao.findAll().stream().findFirst().orElseThrow();
-    String danhMuc = dong.danhMucSanPham().tenDanhMuc();
+    String danhMuc = dong.danhMucSanPham().maDanhMuc();
     List<TraCuuSanPhamController.KetQuaDong> ketQua =
         controller.timKiem(TraCuuSanPhamController.TieuChi.DANH_MUC, danhMuc);
+
+    assertFalse(ketQua.isEmpty());
+    assertTrue(ketQua.stream().anyMatch(item -> item.maDongSP().equals(dong.maDongSP())));
+  }
+
+  @Test
+  @DisplayName("Tra cứu theo mã danh mục phải hoạt động khi nhập mã danh mục")
+  void timKiemTheoMaDanhMuc_thanhCong() {
+    Assumptions.assumeTrue(ConnectDB.isAvailable(), "Cơ sở dữ liệu không khả dụng");
+
+    SanPhamDao sanPhamDao = new SanPhamImpl(ConnectDB.getDataSource());
+    DongSanPhamDao dongSanPhamDao = new DongSanPhamImpl(ConnectDB.getDataSource());
+    TraCuuSanPhamController controller = new TraCuuSanPhamController(sanPhamDao, dongSanPhamDao);
+
+    DongSanPham dong = dongSanPhamDao.findAll().stream().findFirst().orElseThrow();
+    String maDanhMuc = dong.danhMucSanPham().maDanhMuc();
+    List<TraCuuSanPhamController.KetQuaDong> ketQua =
+        controller.timKiem(TraCuuSanPhamController.TieuChi.DANH_MUC, maDanhMuc);
 
     assertFalse(ketQua.isEmpty());
     assertTrue(ketQua.stream().anyMatch(item -> item.maDongSP().equals(dong.maDongSP())));

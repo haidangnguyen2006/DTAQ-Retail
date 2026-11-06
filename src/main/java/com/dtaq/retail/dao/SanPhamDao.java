@@ -23,6 +23,17 @@ public interface SanPhamDao {
   void insert(Connection ketNoi, SanPham sanPham);
 
   /**
+   * Cập nhật thông tin một máy đang có trong kho.
+   *
+   * <p>Serial là khóa định danh, nên không thay đổi trong phương thức này. Bên gọi sở hữu kết nối và
+   * giao dịch: kết nối được truyền vào không bị đóng ở đây và chế độ tự động xác nhận (auto-commit)
+   * của nó không bị thay đổi.
+   */
+  default void update(Connection ketNoi, SanPham sanPham) {
+    throw new UnsupportedOperationException("Cập nhật sản phẩm chưa được hỗ trợ bởi DAO hiện tại");
+  }
+
+  /**
    * Tìm sản phẩm theo số serial.
    *
    * @param soSerial số serial cần tra cứu

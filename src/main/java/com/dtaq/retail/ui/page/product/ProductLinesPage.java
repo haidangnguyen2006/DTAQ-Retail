@@ -12,6 +12,7 @@ import com.dtaq.retail.ui.component.FormField;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.StatefulView;
 import com.dtaq.retail.ui.component.Toast;
+import com.dtaq.retail.ui.component.table.RowAction;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
@@ -47,9 +48,10 @@ public final class ProductLinesPage implements Page {
   private final DtaqButton saveButton = DtaqButton.primary("Lưu", "save");
   private final DtaqButton ngungButton = DtaqButton.secondary("Ngừng kinh doanh");
   private final DtaqButton kinhDoanhLaiButton = DtaqButton.secondary("Kinh doanh lại");
+  private DongSanPham dongDangSua;
 
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(
-      new String[] {"Mã dòng", "Tên dòng", "Danh mục", "ĐVT", "Giá", "Thuế", "Kinh doanh"}, 0);
+      new String[] {"Mã dòng", "Tên dòng", "Danh mục", "ĐVT", "Giá", "Thuế", "Kinh doanh", "Thao tác"}, 7);
   private final DataTable table = new DataTable(tableModel, 36);
   private final StatefulView statefulView;
   private final List<DongSanPham> danhSachDong = new ArrayList<>();
@@ -111,9 +113,18 @@ public final class ProductLinesPage implements Page {
         capNhatLuaChon();
       }
     });
+    table.setActionColumn(7, row -> {
+      if (dongDangSua != null && row >= 0 && row < danhSachDong.size()
+          && danhSachDong.get(row).maDongSP().equals(dongDangSua.maDongSP())) {
+        return List.of(
+            RowAction.secondary("Sửa", this::chonSua),
+            RowAction.danger("Hủy", this::huyChinhSua));
+      }
+      return List.of(RowAction.secondary("Sửa", this::chonSua));
+    });
     table.setCodeColumn(0);
     table.setMoneyColumn(4);
-    table.setColumnWidths(140, 220, 170, 90, 120, 90, 120);
+    table.setColumnWidths(140, 220, 170, 90, 120, 90, 120, 150);
     statefulView = new StatefulView(table, "shopping-cart", "Chưa có dòng sản phẩm", "Thêm dòng sản phẩm mới để bắt đầu.");
 
     Card listCard = Card.standard();
@@ -171,7 +182,8 @@ public final class ProductLinesPage implements Page {
           dong.donViTinh(),
           dong.donGiaBanTruocThue(),
           dong.thue(),
-          dong.trangThaiKinhDoanh() ? "Đang kinh doanh" : "Ngừng kinh doanh"
+          dong.trangThaiKinhDoanh() ? "Đang kinh doanh" : "Ngừng kinh doanh",
+          ""
       });
     }
     capNhatLuaChon();
@@ -201,8 +213,70 @@ public final class ProductLinesPage implements Page {
       }
     }
     boolean dangKinhDoanh = dongDangChon != null && dongDangChon.trangThaiKinhDoanh();
-    ngungButton.setEnabled(dangKinhDoanh);
+    ngungButton.setEnabled(dongDangChon != null && dangKinhDoanh);
     kinhDoanhLaiButton.setEnabled(dongDangChon != null && !dangKinhDoanh);
+  }
+
+  private void chonSua(int rowIndex) {
+    if (rowIndex < 0 || rowIndex >= danhSachDong.size()) {
+      return;
+    }
+    DongSanPham dong = danhSachDong.get(rowIndex);
+    dongDangSua = dong;
+    dongDangChon = dong;
+    int viewRow = table.getTable().convertRowIndexToView(rowIndex);
+    if (viewRow >= 0) {
+      table.getTable().setRowSelectionInterval(viewRow, viewRow);
+    }
+    capNhatLuaChon();
+    tenField.setText(dong.tenDongSP());
+    chonDanhMuc(dong.danhMucSanPham() == null ? null : dong.danhMucSanPham().maDanhMuc());
+    unitField.setText(dong.donViTinh());
+    if (dong.donGiaBanTruocThue() != null) {
+      priceField.setText(dong.donGiaBanTruocThue().toPlainString());
+    } else {
+      priceField.setText("0");
+    }
+    if (dong.thue() != null) {
+      taxField.setText(dong.thue().toPlainString());
+    } else {
+      taxField.setText("0");
+    }
+    saveButton.setText("Cập nhật");
+    clearErrors();
+    table.repaint();
+  }
+
+  private void chonDanhMuc(String maDanhMuc) {
+    categoryBox.setSelectedIndex(-1);
+    if (maDanhMuc == null || maDanhMuc.isBlank()) {
+      return;
+    }
+    for (int i = 0; i < categoryBox.getItemCount(); i++) {
+      DanhMucSanPham item = categoryBox.getItemAt(i);
+      if (item != null && maDanhMuc.equals(item.maDanhMuc())) {
+        categoryBox.setSelectedIndex(i);
+        return;
+      }
+    }
+  }
+
+  private void huyChinhSua(int rowIndex) {
+    resetForm();
+  }
+
+  private void resetForm() {
+    dongDangSua = null;
+    dongDangChon = null;
+    tenField.setText("");
+    unitField.setText("");
+    priceField.setText("");
+    taxField.setText("");
+    categoryBox.setSelectedIndex(-1);
+    saveButton.setText("Lưu");
+    clearErrors();
+    capNhatLuaChon();
+    table.repaint();
   }
 
   private void xacNhanNgungKinhDoanh() {
@@ -256,8 +330,20 @@ public final class ProductLinesPage implements Page {
           if (ketQua.thanhCong()) {
             Toast.success(view, ketQua.thongBao());
             taiDanhSach();
-            table.getTable().clearSelection();
-            capNhatLuaChon();
+            int modelRow = -1;
+            for (int i = 0; i < danhSachDong.size(); i++) {
+              if (danhSachDong.get(i).maDongSP().equals(maDong)) {
+                modelRow = i;
+                break;
+              }
+            }
+            if (modelRow >= 0) {
+              table.getTable().setRowSelectionInterval(modelRow, modelRow);
+              capNhatLuaChon();
+            } else {
+              dongDangChon = null;
+              capNhatLuaChon();
+            }
           } else {
             Toast.error(view, ketQua.thongBao());
             capNhatLuaChon();
@@ -318,20 +404,28 @@ public final class ProductLinesPage implements Page {
     }
 
     String maDanhMuc = ((DanhMucSanPham) selected).maDanhMuc();
-    var ketQua = controller.themMoi(
-        tenField.getText(),
-        maDanhMuc,
-        donViTinh,
-        BigDecimal.valueOf(priceField.getMoney()),
-        BigDecimal.valueOf(taxField.getMoney()),
-        true);
+    DongSanPhamController.KetQua<DongSanPham> ketQua;
+    if (dongDangSua != null) {
+      ketQua = controller.capNhat(
+          dongDangSua.maDongSP(),
+          tenField.getText(),
+          maDanhMuc,
+          donViTinh,
+          BigDecimal.valueOf(priceField.getMoney()),
+          BigDecimal.valueOf(taxField.getMoney()),
+          dongDangSua.trangThaiKinhDoanh());
+    } else {
+      ketQua = controller.themMoi(
+          tenField.getText(),
+          maDanhMuc,
+          donViTinh,
+          BigDecimal.valueOf(priceField.getMoney()),
+          BigDecimal.valueOf(taxField.getMoney()),
+          true);
+    }
     if (ketQua.thanhCong()) {
       clearErrors();
-      tenField.setText("");
-      unitField.setText("");
-      priceField.setText("");
-      taxField.setText("");
-      categoryBox.setSelectedIndex(-1);
+      resetForm();
       taiDanhSach();
       return;
     }
