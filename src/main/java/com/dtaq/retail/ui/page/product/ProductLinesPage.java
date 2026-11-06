@@ -55,6 +55,10 @@ public final class ProductLinesPage implements Page {
   private final DataTable table = new DataTable(tableModel, 36);
   private final StatefulView statefulView;
   private final List<DongSanPham> danhSachDong = new ArrayList<>();
+  private final FormField searchField =
+      FormField.search("Tìm dòng sản phẩm", "Nhập mã, tên dòng hoặc tên danh mục");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private boolean daTimKiem;
   private DongSanPham dongDangChon;
 
   public ProductLinesPage(DongSanPhamController controller, DanhMucSanPhamDao danhMucSanPhamDao) {
@@ -127,10 +131,24 @@ public final class ProductLinesPage implements Page {
     table.setColumnWidths(140, 220, 170, 90, 120, 90, 120, 150);
     statefulView = new StatefulView(table, "shopping-cart", "Chưa có dòng sản phẩm", "Thêm dòng sản phẩm mới để bắt đầu.");
 
+    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[bottom]"));
+    filterRow.setOpaque(false);
+    searchField.getTextField().addActionListener(e -> timKiem());
+    searchButton.addActionListener(e -> timKiem());
+    filterRow.add(searchField, "growx");
+    filterRow.add(searchButton);
+
     Card listCard = Card.standard();
+    listCard.add(filterRow, "growx, wrap");
     listCard.setBody(statefulView);
     view.add(listCard, "grow, push");
 
+    taiDanhSach();
+  }
+
+  /** Tìm theo từ khóa đang nhập; dùng chung cho nút Tìm kiếm và kiểm thử. */
+  void timKiem() {
+    daTimKiem = true;
     taiDanhSach();
   }
 
@@ -173,7 +191,20 @@ public final class ProductLinesPage implements Page {
     dongDangChon = null;
     danhSachDong.clear();
     tableModel.setRowCount(0);
+    // Danh mục ở trên là lựa chọn của form; bảng chỉ nạp sau khi người dùng tìm kiếm.
+    if (!daTimKiem) {
+      capNhatLuaChon();
+      statefulView.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
+      return;
+    }
+    String tuKhoa = searchField.getText().trim().toLowerCase();
     for (DongSanPham dong : controller.layDanhSach()) {
+      if (!tuKhoa.isEmpty()
+          && !dong.maDongSP().toLowerCase().contains(tuKhoa)
+          && !dong.tenDongSP().toLowerCase().contains(tuKhoa)
+          && !dong.danhMucSanPham().tenDanhMuc().toLowerCase().contains(tuKhoa)) {
+        continue;
+      }
       danhSachDong.add(dong);
       tableModel.addRow(new Object[] {
           dong.maDongSP(),
@@ -188,7 +219,7 @@ public final class ProductLinesPage implements Page {
     }
     capNhatLuaChon();
     if (tableModel.getRowCount() == 0) {
-      statefulView.showEmpty();
+      statefulView.showEmpty("search", "Không tìm thấy dòng sản phẩm", "Thử từ khóa khác.");
     } else {
       statefulView.showContent();
     }

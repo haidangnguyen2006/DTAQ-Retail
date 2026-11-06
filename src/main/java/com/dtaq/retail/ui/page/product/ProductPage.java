@@ -57,6 +57,10 @@ public final class ProductPage implements Page {
   private final DataTable dataTable = new DataTable(tableModel, 36);
   private final StatefulView tableState;
   private final List<SanPham> cachedProducts = new ArrayList<>();
+  private final FormField searchField =
+      FormField.search("Tìm máy", "Nhập số serial, mã dòng SP hoặc mã NCC");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private boolean daTimKiem;
 
   public ProductPage(SanPhamController controller, SanPhamDao sanPhamDao) {
     this(controller, sanPhamDao, null, null);
@@ -117,17 +121,39 @@ public final class ProductPage implements Page {
     dataTable.setOnRowDoubleClick(this::chonSua);
     dataTable.setColumnWidths(160, 180, 120, 140, 130, 160);
     tableState = new StatefulView(dataTable, "package", "Chưa có máy", "Bấm lưu để thêm máy mới vào kho.");
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
+
+    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[bottom]"));
+    filterRow.setOpaque(false);
+    searchField.getTextField().addActionListener(e -> timKiem());
+    searchButton.addActionListener(e -> timKiem());
+    filterRow.add(searchField, "growx");
+    filterRow.add(searchButton);
 
     Card tableCard = Card.standard();
+    tableCard.add(filterRow, "growx, wrap");
     tableCard.setBody(tableState);
     view.add(tableCard, "grow, push");
+  }
 
+  private void timKiem() {
+    daTimKiem = true;
     taiDanhSach();
   }
 
+  /** Bảng chỉ nạp sau khi người dùng tìm kiếm; lọc theo serial, mã dòng SP hoặc mã NCC. */
   private void taiDanhSach() {
+    if (!daTimKiem) {
+      return;
+    }
+    String tuKhoa = searchField.getText().trim().toLowerCase();
     cachedProducts.clear();
-    cachedProducts.addAll(sanPhamDao.findAll());
+    sanPhamDao.findAll().stream()
+        .filter(sp -> tuKhoa.isEmpty()
+            || sp.soSerial().toLowerCase().contains(tuKhoa)
+            || sp.dongSanPham().maDongSP().toLowerCase().contains(tuKhoa)
+            || sp.nhaCungCap().maNCC().toLowerCase().contains(tuKhoa))
+        .forEach(cachedProducts::add);
     tableModel.setRowCount(0);
     for (SanPham sanPham : cachedProducts) {
       tableModel.addRow(new Object[] {
@@ -139,7 +165,7 @@ public final class ProductPage implements Page {
       });
     }
     if (cachedProducts.isEmpty()) {
-      tableState.showEmpty();
+      tableState.showEmpty("search", "Không tìm thấy máy", "Thử từ khóa khác.");
     } else {
       tableState.showContent();
     }

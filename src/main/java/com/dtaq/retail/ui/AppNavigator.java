@@ -30,6 +30,7 @@ import com.dtaq.retail.dao.PasswordResetDao;
 import com.dtaq.retail.dao.PhieuDuyet;
 import com.dtaq.retail.dao.SanPhamDao;
 import com.dtaq.retail.dao.SanPhamLoiDao;
+import com.dtaq.retail.dao.TrangChuDao;
 import com.dtaq.retail.dao.impl.BaoCaoTonKhoDaoImpl;
 import com.dtaq.retail.dao.impl.ChiTietHoaDonDaoImpl;
 import com.dtaq.retail.dao.impl.DanhMucSanPhamDaoImpl;
@@ -48,6 +49,7 @@ import com.dtaq.retail.dao.impl.SanPhamLoiDaoImpl;
 import com.dtaq.retail.dao.impl.ThongKeDoanhThuDaoImpl;
 import com.dtaq.retail.dao.impl.ThongKeNhanVienDaoImpl;
 import com.dtaq.retail.dao.impl.ThongKeSanPhamDaoImpl;
+import com.dtaq.retail.dao.impl.TrangChuDaoImpl;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.service.BackupScheduler;
@@ -83,8 +85,11 @@ import com.dtaq.retail.ui.shell.NavigationModel;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.shell.PlaceholderPage;
+import com.dtaq.retail.ui.format.DateFormats;
+import com.dtaq.retail.ui.format.MoneyFormat;
 import com.dtaq.retail.util.Mailer;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -271,10 +276,12 @@ public final class AppNavigator {
     RestorePage restore = new RestorePage(backupController);
     revenueStats.setOnNavigate(onNavigate);
 
-    managerHome.setOnApprove(
-        (maPhieu, yKien) -> quyetDinhRoiTaiLai(pheDuyet, managerHome, maPhieu, true, yKien));
-    managerHome.setOnReject(
-        (maPhieu, yKien) -> quyetDinhRoiTaiLai(pheDuyet, managerHome, maPhieu, false, yKien));
+    TrangChuDao trangChuDao = new TrangChuDaoImpl(dataSource);
+    managerHome.setOnApprove((maPhieu, yKien) ->
+        quyetDinhRoiTaiLai(pheDuyet, trangChuDao, managerHome, maPhieu, true, yKien));
+    managerHome.setOnReject((maPhieu, yKien) ->
+        quyetDinhRoiTaiLai(pheDuyet, trangChuDao, managerHome, maPhieu, false, yKien));
+    managerHome.setOnShow(() -> taiTrangChuQuanLy(pheDuyet, trangChuDao, managerHome));
 
     List<Page> pages = List.of(
         managerHome,
@@ -290,7 +297,6 @@ public final class AppNavigator {
         priceTax,
         backup,
         restore);
-    taiDanhSachChoDuyet(pheDuyet, managerHome);
     return pages;
   }
 
@@ -300,6 +306,7 @@ public final class AppNavigator {
    */
   private static void quyetDinhRoiTaiLai(
       PheDuyetDoiTraController pheDuyet,
+      TrangChuDao trangChuDao,
       ManagerHomePage managerHome,
       String maPhieu,
       boolean duyet,
@@ -314,7 +321,7 @@ public final class AppNavigator {
       protected void done() {
         try {
           get();
-          taiDanhSachChoDuyet(pheDuyet, managerHome);
+          taiTrangChuQuanLy(pheDuyet, trangChuDao, managerHome);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           managerHome.showError("Không thể ghi quyết định phê duyệt");
@@ -331,25 +338,48 @@ public final class AppNavigator {
     }.execute();
   }
 
-  /**
-   * Tải danh sách phiếu chờ duyệt ở luồng nền và đẩy sang bảng của trang chủ Quản lý.
-   * Không để ngoại lệ thoát khỏi luồng nền.
-   */
-  private static void taiDanhSachChoDuyet(
-      PheDuyetDoiTraController pheDuyet, ManagerHomePage managerHome) {
-    managerHome.showLoading();
+  /** Ngưỡng ngày tồn kho dùng cho cảnh báo trên trang chủ, trùng mặc định của báo cáo UC014. */
+  private static final int NGUONG_TON_LAU = 60;
+  private static final int SO_HOA_DON_GAN_DAY = 10;
 
-    new SwingWorker<List<PhieuDuyet>, Void>() {
+  private record TrangChuQuanLy(
+      List<PhieuDuyet> choDuyet,
+      TrangChuDao.TongQuanBanHang banHang,
+      TrangChuDao.DoiTraTrongNgay doiTra,
+      List<TrangChuDao.SaoLuuTrongNgay> saoLuu,
+      long mayTonLau) {}
+
+  /**
+   * Tải số liệu hôm nay của trang chủ Quản lý (phiếu chờ duyệt lập hôm nay, nhật ký hoạt động, cảnh
+   * báo) ở luồng nền. Không để ngoại lệ thoát khỏi luồng nền.
+   */
+  private static void taiTrangChuQuanLy(
+      PheDuyetDoiTraController pheDuyet, TrangChuDao trangChuDao, ManagerHomePage managerHome) {
+    managerHome.showLoading();
+    LocalDate homNay = LocalDate.now();
+
+    new SwingWorker<TrangChuQuanLy, Void>() {
       @Override
-      protected List<PhieuDuyet> doInBackground() {
-        return pheDuyet.danhSachChoDuyet();
+      protected TrangChuQuanLy doInBackground() {
+        List<PhieuDuyet> choDuyet = pheDuyet.danhSachChoDuyet().stream()
+            .filter(p -> homNay.equals(p.ngayTao()))
+            .toList();
+        return new TrangChuQuanLy(
+            choDuyet,
+            trangChuDao.tongQuanBanHang(homNay, null),
+            trangChuDao.doiTraTrongNgay(homNay),
+            trangChuDao.saoLuuTrongNgay(homNay),
+            trangChuDao.soMayTonLau(homNay, NGUONG_TON_LAU));
       }
 
       @Override
       protected void done() {
         try {
+          TrangChuQuanLy duLieu = get();
+          managerHome.renderActivities(hoatDongHomNay(duLieu));
+          managerHome.renderAlerts(canhBaoHomNay(duLieu));
           List<ApprovalRow> rows = new ArrayList<>();
-          for (PhieuDuyet phieu : get()) {
+          for (PhieuDuyet phieu : duLieu.choDuyet()) {
             rows.add(new ApprovalRow(
                 phieu.maPhieu(),
                 phieu.maHDGoc(),
@@ -367,10 +397,84 @@ public final class AppNavigator {
           if (e.getCause() instanceof SecurityException) {
             managerHome.showError("Chỉ Quản lý được phê duyệt yêu cầu đổi trả");
           } else {
-            managerHome.showError("Không thể tải danh sách phiếu chờ duyệt");
+            log.warn("Không tải được trang chủ Quản lý: {}", e.getCause().getMessage());
+            managerHome.showError("Không thể tải số liệu hôm nay");
           }
         } catch (SecurityException e) {
           managerHome.showError("Chỉ Quản lý được phê duyệt yêu cầu đổi trả");
+        }
+      }
+    }.execute();
+  }
+
+  static List<ManagerHomePage.ActivityRow> hoatDongHomNay(TrangChuQuanLy d) {
+    List<ManagerHomePage.ActivityRow> rows = new ArrayList<>();
+    rows.add(new ManagerHomePage.ActivityRow("Bán hàng hôm nay",
+        d.banHang().soHoaDon() + " hóa đơn đã thanh toán • "
+            + MoneyFormat.formatVnd(d.banHang().tongThu())));
+    rows.add(new ManagerHomePage.ActivityRow("Đổi/trả hôm nay",
+        d.doiTra().soHoanTat() + " phiếu hoàn tất • " + d.doiTra().soDaDuyet() + " đã duyệt • "
+            + d.doiTra().soTuChoi() + " từ chối"));
+    for (TrangChuDao.SaoLuuTrongNgay s : d.saoLuu()) {
+      rows.add(new ManagerHomePage.ActivityRow(
+          s.loai().endsWith("RESTORE") ? "Phục hồi dữ liệu" : "Sao lưu dữ liệu",
+          DateFormats.formatTime(s.thoiDiem()) + " • " + (s.thanhCong() ? "Thành công" : "Thất bại")));
+    }
+    return rows;
+  }
+
+  static List<ManagerHomePage.AlertRow> canhBaoHomNay(TrangChuQuanLy d) {
+    List<ManagerHomePage.AlertRow> rows = new ArrayList<>();
+    if (!d.choDuyet().isEmpty()) {
+      rows.add(new ManagerHomePage.AlertRow(
+          d.choDuyet().size() + " phiếu đổi/trả lập hôm nay đang chờ duyệt",
+          String.join(", ", d.choDuyet().stream().map(PhieuDuyet::maPhieu).toList())));
+    }
+    long saoLuuLoi = d.saoLuu().stream().filter(s -> !s.thanhCong()).count();
+    if (saoLuuLoi > 0) {
+      rows.add(new ManagerHomePage.AlertRow(
+          saoLuuLoi + " lần sao lưu/phục hồi thất bại hôm nay", "Kiểm tra tại mục Sao lưu dữ liệu"));
+    }
+    if (d.mayTonLau() > 0) {
+      rows.add(new ManagerHomePage.AlertRow(
+          d.mayTonLau() + " máy tồn trên " + NGUONG_TON_LAU + " ngày",
+          "Cần rà soát tồn kho và khuyến mãi"));
+    }
+    return rows;
+  }
+
+  /**
+   * Tải số liệu hôm nay của nhân viên bán hàng đang đăng nhập ở luồng nền và đẩy sang trang chủ.
+   * Không để ngoại lệ thoát khỏi luồng nền.
+   */
+  private static void taiTrangChuBanHang(
+      TrangChuDao trangChuDao, String maNV, SalesHomePage salesHome) {
+    salesHome.showLoading();
+    LocalDate homNay = LocalDate.now();
+
+    new SwingWorker<SalesHomePage.SalesHomeData, Void>() {
+      @Override
+      protected SalesHomePage.SalesHomeData doInBackground() {
+        TrangChuDao.TongQuanBanHang tong = trangChuDao.tongQuanBanHang(homNay, maNV);
+        List<SalesHomePage.RecentInvoiceRow> hoaDon = trangChuDao
+            .hoaDonGanDay(homNay, maNV, SO_HOA_DON_GAN_DAY).stream()
+            .map(h -> new SalesHomePage.RecentInvoiceRow(h.maHD(), h.tenKhachHang(),
+                h.tongThanhToan(), h.daThanhToan() ? "Đã thanh toán" : "Chưa thanh toán"))
+            .toList();
+        return new SalesHomePage.SalesHomeData(
+            tong.soHoaDon(), tong.tongThu(), tong.tienThue(), tong.soKhach(), hoaDon);
+      }
+
+      @Override
+      protected void done() {
+        try {
+          salesHome.render(get());
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          salesHome.showError("Không thể tải số liệu hôm nay");
+        } catch (ExecutionException e) {
+          log.warn("Không tải được trang chủ Bán hàng: {}", e.getCause().getMessage());
+          salesHome.showError("Không thể tải số liệu hôm nay");
         }
       }
     }.execute();
@@ -446,6 +550,8 @@ public final class AppNavigator {
     ReturnsPage returns = new ReturnsPage(doiTra);
 
     salesHome.setOnNavigate(onNavigate);
+    TrangChuDao trangChuDao = new TrangChuDaoImpl(dataSource);
+    salesHome.setOnShow(() -> taiTrangChuBanHang(trangChuDao, nhanVien.maNV(), salesHome));
 
     return List.of(
         salesHome,

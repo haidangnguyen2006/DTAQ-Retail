@@ -7,6 +7,7 @@ import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.KpiCard;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.StatefulView;
+import com.dtaq.retail.ui.format.MoneyFormat;
 import com.dtaq.retail.ui.format.PersonNames;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
@@ -31,11 +32,12 @@ public class SalesHomePage implements Page {
 
   public record RecentInvoiceRow(String maHD, String khachHang, long tongThanhToan, String trangThai) {}
 
+  /** Số liệu hôm nay của nhân viên đang đăng nhập; tiền là VND đã làm tròn. */
   public record SalesHomeData(
-      String greetingName,
-      String invoicesCount,
-      String cashCollected,
-      String customersServed,
+      long invoicesCount,
+      long cashCollected,
+      long taxIncluded,
+      long customersServed,
       List<RecentInvoiceRow> recentInvoices
   ) {}
 
@@ -53,6 +55,7 @@ public class SalesHomePage implements Page {
   private final StatefulView tableState;
 
   private Consumer<PageId> onNavigateListener;
+  private Runnable onShowListener;
 
   public SalesHomePage(NhanVien nhanVien) {
     this.nhanVien = Objects.requireNonNull(nhanVien, "nhanVien");
@@ -102,9 +105,12 @@ public class SalesHomePage implements Page {
       tableState.showEmpty();
       return;
     }
-    kpiInvoices.setValue(data.invoicesCount());
-    kpiCash.setValue(data.cashCollected());
-    kpiCustomers.setValue(data.customersServed());
+    kpiInvoices.setValue(String.valueOf(data.invoicesCount()));
+    kpiInvoices.setCaption(data.invoicesCount() + " hóa đơn đã thanh toán đủ");
+    kpiCash.setValue(MoneyFormat.format(data.cashCollected()));
+    kpiCash.setCaption("Bao gồm " + MoneyFormat.formatVnd(data.taxIncluded()) + " tiền thuế");
+    kpiCustomers.setValue(String.valueOf(data.customersServed()));
+    kpiCustomers.setCaption("Khách hàng có hóa đơn hôm nay");
 
     if (data.recentInvoices() == null || data.recentInvoices().isEmpty()) {
       tableState.showEmpty("receipt-text", "Chưa có hóa đơn hôm nay", "Các hóa đơn vừa lập sẽ hiển thị tại đây.");
@@ -124,7 +130,22 @@ public class SalesHomePage implements Page {
   }
 
   public void showError(String message) {
+    kpiInvoices.setValue(null);
+    kpiCash.setValue(null);
+    kpiCustomers.setValue(null);
     tableState.showError(message);
+  }
+
+  /** Nhận yêu cầu nạp lại số liệu mỗi khi trang được mở. */
+  public void setOnShow(Runnable listener) {
+    this.onShowListener = listener;
+  }
+
+  @Override
+  public void onShow() {
+    if (onShowListener != null) {
+      onShowListener.run();
+    }
   }
 
   /** Nhận yêu cầu chuyển trang từ các nút tắt ở tiêu đề. */

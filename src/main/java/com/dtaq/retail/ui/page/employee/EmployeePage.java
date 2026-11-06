@@ -75,6 +75,8 @@ public final class EmployeePage implements Page {
 
   private int currentPage = 1;
   private int loadRequest;
+  /** Bảng chỉ nạp dữ liệu sau lần tìm kiếm đầu tiên của người dùng. */
+  private boolean daTimKiem;
 
   /**
    * Khởi tạo trang quản lý nhân viên.
@@ -105,6 +107,7 @@ public final class EmployeePage implements Page {
     tableState = new StatefulView(dataTable, "users", "Chưa có nhân viên",
         "Bấm \"Thêm nhân viên\" để tạo tài khoản đầu tiên.");
     tableState.setOnRetry(this::loadEmployees);
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
     filter.setOnSelectionChange(index -> loadEmployees());
     pagination.setOnPageChangeListener(page -> {
       currentPage = page;
@@ -122,8 +125,8 @@ public final class EmployeePage implements Page {
     JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]16[]", "[]"));
     filterRow.setOpaque(false);
     searchField.getTextField().setToolTipText("Gõ từ khóa rồi nhấn Enter hoặc bấm Tìm kiếm • Esc để xóa");
-    searchField.getTextField().addActionListener(e -> loadEmployees());
-    searchButton.addActionListener(e -> loadEmployees());
+    searchField.getTextField().addActionListener(e -> timKiem());
+    searchButton.addActionListener(e -> timKiem());
     searchField.getTextField().registerKeyboardAction(e -> {
       searchField.setText("");
       loadEmployees();
@@ -149,6 +152,9 @@ public final class EmployeePage implements Page {
 
   /** @param giuTrang giữ trang đang xem (sau khi sửa/khóa), thay vì về trang 1 (khi đổi bộ lọc). */
   private void loadEmployees(boolean giuTrang) {
+    if (!daTimKiem) {
+      return;
+    }
     int request = ++loadRequest;
     Boolean status = selectedStatus();
     String tuKhoa = searchField.getText();
@@ -289,6 +295,11 @@ public final class EmployeePage implements Page {
 
   @Override
   public void onShow() {
+    // Không tự tải: bảng chỉ nạp khi người dùng tìm kiếm.
+  }
+
+  private void timKiem() {
+    daTimKiem = true;
     loadEmployees();
   }
 

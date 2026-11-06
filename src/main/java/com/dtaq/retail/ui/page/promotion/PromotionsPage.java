@@ -56,6 +56,9 @@ public final class PromotionsPage implements Page {
   private final StatefulView tableState;
   private final List<KhuyenMai> promotions = new ArrayList<>();
   private final List<DongSanPham> productLines = new ArrayList<>();
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
+  /** Bảng chỉ nạp khuyến mãi sau lần tìm kiếm đầu tiên của người dùng. */
+  private boolean daTimKiem;
 
   public PromotionsPage(KhuyenMaiController controller) {
     this.controller = Objects.requireNonNull(controller, "controller");
@@ -90,12 +93,17 @@ public final class PromotionsPage implements Page {
   }
 
   private JPanel buildFilterRow() {
-    JPanel row = new JPanel(new MigLayout("fillx, insets 0", "[][grow]16[][grow]push[]", "[bottom]"));
+    JPanel row = new JPanel(new MigLayout("fillx, insets 0", "[][grow]16[][grow]16[]push[]", "[bottom]"));
     row.setOpaque(false);
     row.add(new javax.swing.JLabel("Dòng sản phẩm"));
     row.add(lineFilter, "growx");
     row.add(new javax.swing.JLabel("Trạng thái"));
     row.add(statusFilter, "growx");
+    searchButton.addActionListener(e -> {
+      daTimKiem = true;
+      loadData();
+    });
+    row.add(searchButton);
     row.add(countPill, "align right, aligny center");
     return row;
   }
@@ -137,7 +145,9 @@ public final class PromotionsPage implements Page {
     refreshButton.setEnabled(false);
     new SwingWorker<PageData, Void>() {
       @Override protected PageData doInBackground() {
-        return new PageData(controller.layDanhSach(), controller.layDanhSachDongSanPham());
+        // Trước lần tìm kiếm đầu tiên chỉ nạp dòng sản phẩm cho bộ lọc, không nạp bảng.
+        return new PageData(
+            daTimKiem ? controller.layDanhSach() : List.of(), controller.layDanhSachDongSanPham());
       }
       @Override protected void done() {
         refreshButton.setEnabled(true);
@@ -166,6 +176,11 @@ public final class PromotionsPage implements Page {
 
   private void renderFilteredList() {
     tableModel.setRowCount(0);
+    if (!daTimKiem) {
+      countPill.setText("0 chương trình");
+      tableState.showEmpty("search", "Chưa tra cứu", "Chọn bộ lọc rồi bấm Tìm kiếm.");
+      return;
+    }
     DongSanPham selectedLine = (DongSanPham) lineFilter.getSelectedItem();
     String status = (String) statusFilter.getSelectedItem();
     LocalDate today = LocalDate.now();

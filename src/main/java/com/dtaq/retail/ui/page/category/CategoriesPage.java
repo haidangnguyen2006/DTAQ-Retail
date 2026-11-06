@@ -52,6 +52,8 @@ public class CategoriesPage implements Page {
   private final StatefulView tableState;
 
   private final List<DanhMucSanPham> cachedList = new ArrayList<>();
+  /** Bảng chỉ nạp dữ liệu sau lần tìm kiếm đầu tiên của người dùng. */
+  private boolean daTimKiem;
   private String currentFilter = "";
 
   /**
@@ -89,6 +91,7 @@ public class CategoriesPage implements Page {
 
     tableState = new StatefulView(dataTable, "folder", "Chưa có danh mục", "Bấm 'Thêm danh mục' để tạo mới.");
     tableState.setOnRetry(this::loadCategories);
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm; để trống để xem tất cả.");
 
     Card tableCard = Card.standard();
     tableCard.add(buildFilterRow(), "growx, wrap");
@@ -137,7 +140,7 @@ public class CategoriesPage implements Page {
 
   @Override
   public void onShow() {
-    loadCategories();
+    // Không tự tải: bảng chỉ nạp khi người dùng tìm kiếm.
   }
 
   @Override
@@ -171,6 +174,9 @@ public class CategoriesPage implements Page {
    * Tải danh sách danh mục từ cơ sở dữ liệu qua tiến trình nền.
    */
   public void loadCategories() {
+    if (!daTimKiem) {
+      return;
+    }
     tableState.showLoading();
     refreshButton.setEnabled(false);
 
@@ -199,7 +205,8 @@ public class CategoriesPage implements Page {
 
   private void applyFilter() {
     this.currentFilter = searchField.getText().trim().toLowerCase();
-    renderFilteredList();
+    daTimKiem = true;
+    loadCategories();
   }
 
   private void renderFilteredList() {

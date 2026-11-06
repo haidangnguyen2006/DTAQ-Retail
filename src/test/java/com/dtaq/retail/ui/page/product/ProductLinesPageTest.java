@@ -48,6 +48,20 @@ class ProductLinesPageTest {
     dongSanPhamDao = new FakeDongSanPhamDao();
     DongSanPhamController controller = new DongSanPhamController(dongSanPhamDao, new FakeDanhMucDao(), null);
     onEdt(() -> page = new ProductLinesPage(controller, new FakeDanhMucDao()));
+    onEdt(() -> {
+      assertEquals(0, bangHienTai().getRowCount(), "bảng không được tự nạp trước khi tìm kiếm");
+      page.timKiem();
+    });
+  }
+
+  private javax.swing.table.DefaultTableModel bangHienTai() {
+    try {
+      var field = ProductLinesPage.class.getDeclaredField("tableModel");
+      field.setAccessible(true);
+      return (javax.swing.table.DefaultTableModel) field.get(page);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   @AfterEach
