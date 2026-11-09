@@ -542,6 +542,7 @@ Template gồm cột `Mã nhóm` để gộp nhiều dòng thành một chương
 | Q6-03 | Nhập hàng loạt dòng sản phẩm | `controller/DongSanPhamController.java` | `nhapDanhSach`; sinh mã; một transaction |
 | Q6-04 | UI nhập dòng sản phẩm | `ui/page/product/ProductLinesPage.java` | Tải mẫu/Nhập Excel/xem trước |
 | Q6-05 | Test | Controller + DB | Trùng/FK/ngày/trạng thái/rollback/RB37 |
+| Q6-06 | Fix hồi quy SanPhamControllerTest.capNhatMay_thanhCong | `controller/SanPhamController.java` + `SanPhamControllerTest` | test/controller xử lý đúng FK khi đổi `maDongSP`; full suite xanh |
 
 ### 5.3.2. Nhập sản phẩm
 
@@ -564,6 +565,28 @@ Template gồm cột `Mã nhóm` để gộp nhiều dòng thành một chương
 - Nút Tải mẫu/Nhập Excel cho cả 2 actor.
 - Đọc/ghi ngoài EDT; dùng `ImportPreviewDialog`.
 - Lỗi hiển thị dòng/cột; không mất dữ liệu xem trước.
+
+### 5.3.5. Fix hồi quy SanPhamControllerTest.capNhatMay_thanhCong
+
+**Triệu chứng.** `mvn -q test` trên toàn bộ suite hiện có 659 test, 1 lỗi tại `SanPhamControllerTest.capNhatMay_thanhCong` (dòng 181). Test cập nhật một `SanPham` seed, đổi `maDongSP` sang dòng khác và kỳ vọng thành công, nhưng thực tế nhận về lỗi. Lỗi này **không** do diff W6 của Đăng gây ra; nó tái hiện độc lập bằng `mvn -q -Dtest=SanPhamControllerTest test`.
+
+**Nguyên nhân gốc.** Test lấy `sanPhamDao.findAll().stream().findFirst()` nên rơi vào seed `ELE-DR-0033`, một máy đang ở trạng thái `DA_BAN` và đã được tham chiếu bởi `ChiTietHoaDon` qua khóa ngoại tổ hợp `fk_chitiethoadon_sanpham`. Khi test đổi `maDongSP` của máy này, câu `UPDATE` vi phạm khóa ngoại đó và transaction bị rollback, nên `KetQua.thanhCong()` trả `false`.
+
+**Hai hướng xử lý.**
+
+1. **Sửa test (ưu tiên):** chọn một `SanPham` chưa từng được hóa đơn nào tham chiếu và hợp lệ để cập nhật, thay vì lấy phần tử đầu tiên. Cách này giữ nguyên hành vi nghiệp vụ hiện tại và chỉ làm test phản ánh đúng dữ liệu seed.
+2. **Thêm guard ở controller:** trong `SanPhamController.capNhat`, nếu `maDongSP` thay đổi mà máy đã có chi tiết hóa đơn tham chiếu, chặn cập nhật và trả lỗi nghiệp vụ tiếng Việt rõ ràng (ví dụ: không thể đổi dòng sản phẩm của máy đã bán). Chỉ chọn hướng này nếu có quy tắc nghiệp vụ yêu cầu; khi đó bổ sung test cho nhánh chặn.
+
+**Ràng buộc.**
+
+- Không được làm yếu, tắt hoặc xóa khóa ngoại `fk_chitiethoadon_sanpham`.
+- Không được xóa hay bỏ qua test `capNhatMay_thanhCong`.
+- Ưu tiên hướng 1 (test chọn sản phẩm an toàn); chỉ dùng hướng 2 khi nghiệp vụ thực sự cần chặn.
+
+**Nghiệm thu.**
+
+- `mvn -q -Dtest=SanPhamControllerTest test` → PASS.
+- `mvn -q test` → PASS toàn bộ (hoặc chỉ còn các skip không liên quan).
 
 ## 5.4. Tuấn Anh
 
@@ -854,6 +877,7 @@ Thứ tự phụ thuộc:
 | Sản phẩm nhập | `soLuongTon` = số máy sẵn bán | DB | Quý | RB37 |
 | Dòng sản phẩm nhập | Danh mục/ĐVT/giá/thuế | Controller | Quý | Lỗi; rollback |
 | Hồi quy | `mvn test` | Build | Đăng | Xanh |
+| Hồi quy | `SanPhamControllerTest.capNhatMay_thanhCong` (đổi `maDongSP` với máy đã bán) | Test/Controller | Quý | PASS; full suite xanh |
 
 ## 10.2. Cách chạy
 
@@ -962,6 +986,7 @@ mvn -q clean compile exec:java -Dexec.mainClass=com.dtaq.retail.Main
 - [ ] Nhập all-or-nothing; FK violation bị chặn.
 - [ ] Cả 2 actor nhập và bật ngay được (Q9).
 - [ ] `mvn test` xanh; báo cáo file/UC/test/điểm mở.
+- [ ] Q6-06: `SanPhamControllerTest.capNhatMay_thanhCong` PASS; `mvn -q test` xanh (không làm yếu/xóa FK, không xóa test).
 
 # 14. Nhật ký thay đổi
 
@@ -972,6 +997,7 @@ mvn -q clean compile exec:java -Dexec.mainClass=com.dtaq.retail.Main
 | 2026-11-09 | 1.2 | Chuyển sang Markdown, xóa DOCX |
 | 2026-11-09 | 1.3 | Chốt Q3/Q5/Q7/Q8/Q9: thêm bảng `ChiTietKhuyenMai`, 1 KM nhiều chi tiết; nhiều danh mục; cả 2 actor; chặn FK; commit template; bật ngay |
 | 2026-11-09 | 1.4 | Ghi nhận triển khai thực tế: V15 additive (giữ `KhuyenMai.maDongSP`); V16 bỏ cột sau khi mã Tài merge; template đã commit (Q8) |
+| 2026-11-09 | 1.5 | Thêm Q6-06 và §5.3.5: ghi chú giao Quý fix hồi quy `SanPhamControllerTest.capNhatMay_thanhCong` (vi phạm FK `fk_chitiethoadon_sanpham` khi đổi `maDongSP`) |
 
 # Phụ lục A — Hiện trạng mã nguồn đã đối chiếu
 
