@@ -114,3 +114,7 @@ Các mâu thuẫn **văn bản nguồn** còn lại (C-07 — mức hạt tồn 
 3. Giữ nguyên ID FR/NFR/UC; không đánh số lại.
 4. Nếu xung đột được giải quyết, ghi rõ quyết định và người/nhóm phê duyệt; không âm thầm sửa theo một bên.
 5. Cập nhật đồng thời các liên kết và bảng truy vết liên quan.
+
+## 8. Tài liệu triển khai
+
+- [backup-restore-workflows.md](backup-restore-workflows.md) — Mô hình và luồng backup/restore thủ công + tự động, HealthMonitor và các sơ đồ Mermaid (cập nhật 2026-11-06).
