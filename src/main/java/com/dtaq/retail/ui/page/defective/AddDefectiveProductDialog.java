@@ -1,12 +1,12 @@
 package com.dtaq.retail.ui.page.defective;
 
+import com.dtaq.retail.ui.component.DatePicker;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
 import com.dtaq.retail.ui.component.InfoCallout;
 import com.dtaq.retail.ui.component.ModalDialog;
 import java.awt.Frame;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.function.Consumer;
 
 /**
@@ -25,7 +25,7 @@ public class AddDefectiveProductDialog extends ModalDialog {
 
   private final FormField serialField = FormField.text("Số Serial máy", "Nhập chính xác số serial của máy lỗi", "hash");
   private final FormField moTaField = FormField.text("Mô tả lỗi phát hiện", "Mô tả triệu chứng hư hỏng", null);
-  private final FormField ngayPhatHienField = FormField.text("Ngày phát hiện (YYYY-MM-DD)", "Mặc định là ngày hôm nay", "calendar");
+  private final DatePicker ngayPhatHienPicker = new DatePicker("Ngày phát hiện");
   private final FormField ghiChuField = FormField.text("Ghi chú xử lý ban đầu", "Thông tin tiếp nhận thêm", null);
   private final FormField chungTuField = FormField.text("Mã chứng từ đổi/trả (nếu có)", "VD: PT-2026-000001 hoặc PD-2026-000001", null);
 
@@ -44,11 +44,11 @@ public class AddDefectiveProductDialog extends ModalDialog {
 
     serialField.setRequired(true);
     moTaField.setRequired(true);
-    ngayPhatHienField.setText(LocalDate.now().toString());
+    ngayPhatHienPicker.setDate(LocalDate.now());
 
     getBody().add(serialField, "growx, wrap, gapbottom 12");
     getBody().add(moTaField, "growx, wrap, gapbottom 12");
-    getBody().add(ngayPhatHienField, "growx, wrap, gapbottom 12");
+    getBody().add(ngayPhatHienPicker.field(), "growx, wrap, gapbottom 12");
     getBody().add(ghiChuField, "growx, wrap, gapbottom 12");
     getBody().add(chungTuField, "growx, wrap, gapbottom 16");
 
@@ -86,13 +86,12 @@ public class AddDefectiveProductDialog extends ModalDialog {
 
     String serial = serialField.getText().trim();
     String moTa = moTaField.getText().trim();
-    String ngayStr = ngayPhatHienField.getText().trim();
     String ghiChu = ghiChuField.getText().trim();
     String chungTu = chungTuField.getText().trim();
 
     serialField.setError(null);
     moTaField.setError(null);
-    ngayPhatHienField.setError(null);
+    ngayPhatHienPicker.setError(null);
 
     boolean coLoi = false;
     if (serial.isEmpty()) {
@@ -105,16 +104,16 @@ public class AddDefectiveProductDialog extends ModalDialog {
     }
 
     LocalDate ngayPhatHien = LocalDate.now();
-    if (!ngayStr.isEmpty()) {
-      try {
-        ngayPhatHien = LocalDate.parse(ngayStr);
-        if (ngayPhatHien.isAfter(LocalDate.now())) {
-          ngayPhatHienField.setError("Ngày phát hiện không được sau ngày hiện tại");
-          coLoi = true;
-        }
-      } catch (DateTimeParseException e) {
-        ngayPhatHienField.setError("Định dạng ngày không hợp lệ (YYYY-MM-DD)");
+    if (!ngayPhatHienPicker.isBlank()) {
+      LocalDate ngay = ngayPhatHienPicker.getDate();
+      if (ngay == null) {
+        ngayPhatHienPicker.setError(DatePicker.LOI_DINH_DANG);
         coLoi = true;
+      } else if (ngay.isAfter(ngayPhatHien)) {
+        ngayPhatHienPicker.setError("Ngày phát hiện không được sau ngày hiện tại");
+        coLoi = true;
+      } else {
+        ngayPhatHien = ngay;
       }
     }
 

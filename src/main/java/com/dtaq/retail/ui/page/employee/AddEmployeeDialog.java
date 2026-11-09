@@ -147,7 +147,7 @@ final class AddEmployeeDialog extends ModalDialog {
     onBlur(ngayVaoLam.textField(), () -> {
       if (!ngayVaoLam.textField().getText().isBlank()) {
         LocalDate ngay = ngayVaoLam.getDate();
-        ngayVaoLam.field().setError(ngay == null ? "Ngày không hợp lệ, nhập theo dạng dd/MM/yyyy"
+        ngayVaoLam.field().setError(ngay == null ? DatePicker.LOI_DINH_DANG
             : NhanVienController.kiemTraNgayVaoLam(ngay));
       }
     });
@@ -171,7 +171,8 @@ final class AddEmployeeDialog extends ModalDialog {
 
     LocalDate ngay = ngayVaoLam.getDate();
     if (ngay == null) {
-      ngayVaoLam.field().setError("Ngày vào làm phải theo dạng dd/MM/yyyy");
+      ngayVaoLam.setError(ngayVaoLam.isBlank()
+          ? "Vui lòng nhập hoặc chọn ngày vào làm" : DatePicker.LOI_DINH_DANG);
       return;
     }
 

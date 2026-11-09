@@ -6,6 +6,7 @@ import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
+import com.dtaq.retail.ui.component.InputFilters;
 import com.dtaq.retail.ui.component.KpiCard;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.StatefulView;
@@ -71,6 +72,7 @@ public class LongStockReportPage implements Page {
     view = new JPanel(new MigLayout("fill, insets " + DtaqSpacing.PAGE_PADDING,
         "[0:pref,grow]", "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[grow]"));
     view.setBackground(DtaqColors.BG_APP);
+    InputFilters.chiChoSo(thresholdField.getTextField(), 6);
     thresholdField.setText("60");
     thresholdField.setRequired(true);
     readyOnly.setOpaque(false);
