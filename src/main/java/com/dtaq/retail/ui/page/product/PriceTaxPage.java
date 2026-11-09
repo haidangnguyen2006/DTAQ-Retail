@@ -40,6 +40,10 @@ public final class PriceTaxPage implements Page {
   private final FormField priceField = FormField.money("Giá bán mới", "0");
   private final FormField taxField = FormField.money("Thuế suất mới %", "0");
   private final DtaqButton saveButton = DtaqButton.primary("Lưu cập nhật", "save");
+  private final FormField searchField =
+      FormField.search("Tìm dòng sản phẩm", "Nhập mã hoặc tên dòng sản phẩm");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private boolean daTimKiem;
 
   public PriceTaxPage(GiaThueController controller, DongSanPhamDao dongSanPhamDao) {
     this.controller = Objects.requireNonNull(controller, "controller");
@@ -72,18 +76,51 @@ public final class PriceTaxPage implements Page {
     table.setColumnWidths(160, 200, 140, 120, 140);
     statefulView = new StatefulView(table, "receipt-text", "Chưa có dữ liệu", "Chọn dòng sản phẩm để cập nhật giá và thuế.");
 
+    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[bottom]"));
+    filterRow.setOpaque(false);
+    searchField.getTextField().addActionListener(e -> timKiem());
+    searchButton.addActionListener(e -> timKiem());
+    filterRow.add(searchField, "growx");
+    filterRow.add(searchButton);
+
     Card listCard = Card.standard();
+    listCard.add(filterRow, "growx, wrap");
     listCard.setBody(statefulView);
     view.add(listCard, "grow, push");
 
     taiDanhSach();
   }
 
+  private void timKiem() {
+    if (searchField.getText().isBlank()) {
+      return;
+    }
+    daTimKiem = true;
+    hienThiBang();
+  }
+
+  /** Nạp lựa chọn dòng sản phẩm cho form; bảng chỉ nạp khi người dùng đã tìm kiếm. */
   private void taiDanhSach() {
     productBox.removeAllItems();
-    tableModel.setRowCount(0);
     for (DongSanPham dong : dongSanPhamDao.findAll()) {
       productBox.addItem(dong.maDongSP());
+    }
+    hienThiBang();
+  }
+
+  private void hienThiBang() {
+    tableModel.setRowCount(0);
+    if (!daTimKiem) {
+      statefulView.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
+      return;
+    }
+    String tuKhoa = searchField.getText().trim().toLowerCase();
+    for (DongSanPham dong : dongSanPhamDao.findAll()) {
+      if (!tuKhoa.isEmpty()
+          && !dong.maDongSP().toLowerCase().contains(tuKhoa)
+          && !dong.tenDongSP().toLowerCase().contains(tuKhoa)) {
+        continue;
+      }
       tableModel.addRow(new Object[] {
           dong.maDongSP(),
           dong.tenDongSP(),
@@ -93,7 +130,7 @@ public final class PriceTaxPage implements Page {
       });
     }
     if (tableModel.getRowCount() == 0) {
-      statefulView.showEmpty();
+      statefulView.showEmpty("search", "Không tìm thấy dòng sản phẩm", "Thử từ khóa khác.");
     } else {
       statefulView.showContent();
     }

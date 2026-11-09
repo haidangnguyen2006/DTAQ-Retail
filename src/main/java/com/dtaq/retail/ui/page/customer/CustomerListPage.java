@@ -84,6 +84,8 @@ public class CustomerListPage implements Page {
   private Consumer<CustomerRow> onOpenDetailListener;
   private Consumer<AddCustomerDialog.NewCustomerForm> onSaveCustomerListener;
   private String lastKeyword = "";
+  /** Bảng chỉ nạp dữ liệu sau lần tìm kiếm đầu tiên của người dùng. */
+  private boolean daTimKiem;
   private KhachHangController controller;
   private int currentPage = 1;
   private int loadRequest;
@@ -106,6 +108,7 @@ public class CustomerListPage implements Page {
     dataTable.setOnRowDoubleClick(this::openDetail);
     tableState = new StatefulView(dataTable, "users", "Chưa có khách hàng",
         "Bấm \"Thêm khách hàng\" để tạo hồ sơ đầu tiên.");
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
 
     Card tableCard = Card.standard();
     tableCard.add(buildFilterRow(), "growx, wrap");
@@ -145,6 +148,9 @@ public class CustomerListPage implements Page {
   }
 
   private void loadPage(int page) {
+    if (!daTimKiem) {
+      return;
+    }
     int request = ++loadRequest;
     String keyword = lastKeyword;
     showLoading();
@@ -200,6 +206,7 @@ public class CustomerListPage implements Page {
   private void showExistingCustomer(KhachHang khachHang) {
     searchField.setText(khachHang.soDienThoai());
     lastKeyword = khachHang.soDienThoai();
+    daTimKiem = true;
     Toast.show(view, "Đang dùng hồ sơ " + khachHang.maKH(), Toast.Kind.INFO);
     loadPage(1);
   }
@@ -335,6 +342,10 @@ public class CustomerListPage implements Page {
   private void triggerSearch() {
     if (onSearchListener != null) {
       lastKeyword = searchField.getText().trim();
+      if (lastKeyword.isEmpty()) {
+        return;
+      }
+      daTimKiem = true;
       onSearchListener.accept(lastKeyword);
     }
   }

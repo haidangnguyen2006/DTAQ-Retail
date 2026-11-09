@@ -58,6 +58,8 @@ public class DefectiveProductsPage implements Page {
   private final List<SanPhamLoi> cachedList = new ArrayList<>();
   private TrangThaiXuLyLoi currentStatusFilter = null;
   private String currentSearchKeyword = "";
+  /** Bảng chỉ nạp dữ liệu sau lần tìm kiếm đầu tiên của người dùng. */
+  private boolean daTimKiem;
 
   /**
    * Khởi tạo trang quản lý sản phẩm lỗi.
@@ -92,6 +94,7 @@ public class DefectiveProductsPage implements Page {
     dataTable.setOnRowDoubleClick(this::openStatusDialog);
 
     tableState = new StatefulView(dataTable, "alert-circle", "Chưa có sản phẩm lỗi", "Bấm 'Ghi nhận máy lỗi' để tạo mới hồ sơ.");
+    tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
     tableState.setOnRetry(this::loadDefects);
 
     Card tableCard = Card.standard();
@@ -153,7 +156,7 @@ public class DefectiveProductsPage implements Page {
 
   @Override
   public void onShow() {
-    loadDefects();
+    // Không tự tải: bảng chỉ nạp khi người dùng tìm kiếm.
   }
 
   @Override
@@ -187,6 +190,9 @@ public class DefectiveProductsPage implements Page {
    * Tải danh sách hồ sơ lỗi theo trạng thái lọc qua tiến trình nền.
    */
   public void loadDefects() {
+    if (!daTimKiem) {
+      return;
+    }
     tableState.showLoading();
     refreshButton.setEnabled(false);
 
@@ -215,7 +221,11 @@ public class DefectiveProductsPage implements Page {
 
   private void applySearchFilter() {
     this.currentSearchKeyword = searchField.getText().trim().toLowerCase();
-    renderFilteredList();
+    if (currentSearchKeyword.isEmpty()) {
+      return;
+    }
+    daTimKiem = true;
+    loadDefects();
   }
 
   private void renderFilteredList() {
