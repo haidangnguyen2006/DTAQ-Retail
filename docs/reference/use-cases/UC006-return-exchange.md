@@ -121,8 +121,17 @@ Hai tiểu mục sau nằm ngay sau bảng đặc tả trong DOCX. Bản sao hì
 
 - Bản sao: [`docs/reference/assets/diagrams/image27.png`](../assets/diagrams/image27.png)
 
+## Quyết định implementation (2026-11-05)
+
+> Quyết định `D17` của chủ dự án, chốt ngày **2026-11-05**. Mục này **bổ sung** quyết định implementation; bảng đặc tả phía trên vẫn giữ nguyên văn nguồn DOCX.
+
+| Mã | Nội dung | Nguồn/Ảnh hưởng |
+|---|---|---|
+| D17 | **Đổi hàng không hoàn tiền.** (1) Chỉ được đổi sang máy có giá trị sau thuế **ngang bằng hoặc thấp hơn** giá trị thanh toán thực tế của máy trả. (2) Phiếu đổi **không hoàn tiền** và **không thu thêm tiền**; phần chênh lệch khi máy mới rẻ hơn khách **không được hoàn**. (3) Chênh lệch `= giá trị máy mới − giá trị máy trả` (`<= 0`), lưu ở cấp phiếu `PhieuDoi.tienChenhLech` (implementation một máy/phiếu, khác mô hình nguồn là thuộc tính dẫn xuất theo chi tiết). (4) Phiếu đổi **không cần phê duyệt**, hoàn tất ngay; ngưỡng **3.000.000 VND chỉ áp cho số tiền hoàn của phiếu trả**. (5) Nguồn DOCX **không bị sửa**: bước 8.a.4–8.a.5, bước 12.a.1 và `RB48`/`RB49` (`max(0, …)`) trở thành nội dung nguồn bị thu hẹp bởi quyết định dự án, chỉ còn giá trị tham chiếu. | Quyết định chủ dự án 2026-11-05; thu hẹp bước 8.a.4–8.a.5 và 12.a.1 của bảng đặc tả; `RB48`/`RB49` chỉ còn giá trị tham chiếu nguồn; DOCX không sửa |
+
 ## Ghi chú biên tập
 
+- Bảng đặc tả phía trên vẫn giữ **nguyên văn nguồn**; riêng phần **đổi hàng** (bước 8.a.4–8.a.5 và 12.a.1) được **thu hẹp** bởi quyết định `D17` ngày 2026-11-05 — xem [Quyết định implementation (2026-11-05)](#quyết-định-implementation-2026-11-05).
 - Bản trích giữ nguyên nội dung bảng đặc tả của DOCX, bao gồm ngưỡng phê duyệt “3.000.000 đồng” tại bước 10.a.1; đối chiếu quy tắc canonical [BR-07](../requirements/scope-and-requirements.md#5-quy-tắc-nghiệp-vụ-chính) và [FR008](../requirements/scope-and-requirements.md#fr008--xử-lý-hoàn-trảđổi-sản-phẩm).
 - Bảng gốc không có trường “Ràng buộc” riêng; các ràng buộc nằm trong điều kiện trước, điều kiện sau và các bước của luồng sự kiện.
 - Hai sơ đồ nằm dưới dạng hình nhúng trong DOCX nguồn và bản sao byte-identical đã được liên kết trong tài liệu này tại `docs/reference/assets/diagrams/`; tài liệu này không vẽ lại và không diễn giải nội dung trực quan của sơ đồ.

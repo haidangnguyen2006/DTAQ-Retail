@@ -30,6 +30,8 @@
     <flyway.version>13.10.2</flyway.version>
     <bcrypt.version>0.10.2</bcrypt.version>
     <angus-mail.version>2.0.3</angus-mail.version>
+    <poi.version>5.4.1</poi.version>
+    <log4j-to-slf4j.version>2.24.3</log4j-to-slf4j.version>
 
     <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
     <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
@@ -117,6 +119,18 @@
       <artifactId>angus-mail</artifactId>
       <version>${angus-mail.version}</version>
       <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>${poi.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-to-slf4j</artifactId>
+      <version>${log4j-to-slf4j.version}</version>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>

@@ -13,6 +13,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.text.AbstractDocument;
@@ -52,12 +53,16 @@ public class FormField extends JPanel {
 
     messageLabel.setFont(DtaqFonts.CAPTION);
     messageLabel.setForeground(DtaqColors.TEXT_MUTED);
-    messageLabel.setVisible(false);
+    messageLabel.setText(" "); // Giữ chiều cao cố định để không đẩy lệch giao diện khi có lỗi
 
-    if (input.getClientProperty(FlatClientProperties.STYLE) == null) {
+    // JScrollPane (ô nhập nhiều dòng) tự vẽ viền và FlatLaf không nhận style "arc" cho nó.
+    if (input.getClientProperty(FlatClientProperties.STYLE) == null && !(input instanceof JScrollPane)) {
       input.putClientProperty(FlatClientProperties.STYLE, DtaqStyles.TEXT_FIELD);
     }
     input.setPreferredSize(new Dimension(input.getPreferredSize().width, DtaqSpacing.CONTROL_H));
+    input.setMinimumSize(new Dimension(0, DtaqSpacing.CONTROL_H));
+    labelComponent.setLabelFor(input);
+    input.getAccessibleContext().setAccessibleName(labelText);
 
     JPanel labelRow = new JPanel(new MigLayout("insets 0, gapx 3", "[][]", "[]"));
     labelRow.setOpaque(false);
@@ -67,7 +72,7 @@ public class FormField extends JPanel {
     add(labelRow, "align left");
     add(shortcutLabel, "align right, wrap");
     add(inputComponent, "span 2, growx, wrap");
-    add(messageLabel, "span 2, growx");
+    add(messageLabel, "span 2, growx, h 16!");
   }
 
   private static javax.swing.Icon leadingIcon(String iconName) {
@@ -131,18 +136,18 @@ public class FormField extends JPanel {
   }
 
   public void setHint(String hintText) {
-    messageLabel.setText(hintText);
+    boolean has = hintText != null && !hintText.trim().isEmpty();
+    messageLabel.setText(has ? hintText : " ");
     messageLabel.setForeground(DtaqColors.TEXT_MUTED);
-    messageLabel.setVisible(hintText != null && !hintText.trim().isEmpty());
     revalidate();
     repaint();
   }
 
   public void setError(String errorText) {
-    messageLabel.setText(errorText);
+    boolean has = errorText != null && !errorText.trim().isEmpty();
+    messageLabel.setText(has ? errorText : " ");
     messageLabel.setForeground(DtaqColors.DANGER);
-    messageLabel.setVisible(errorText != null && !errorText.trim().isEmpty());
-    if (errorText != null && !errorText.trim().isEmpty()) {
+    if (has) {
       inputComponent.putClientProperty(FlatClientProperties.OUTLINE, "error");
     } else {
       inputComponent.putClientProperty(FlatClientProperties.OUTLINE, null);

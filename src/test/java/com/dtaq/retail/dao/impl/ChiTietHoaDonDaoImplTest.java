@@ -3,6 +3,7 @@ package com.dtaq.retail.dao.impl;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -12,6 +13,7 @@ import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.HoaDon;
 import com.dtaq.retail.entity.KhachHang;
+import com.dtaq.retail.entity.KhuyenMai;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhaCungCap;
 import com.dtaq.retail.entity.NhanVien;
@@ -34,8 +36,10 @@ import org.junit.jupiter.api.Test;
 class ChiTietHoaDonDaoImplTest {
 
   private static final String HOA_DON_CO_SAN = "HD-2026-000001";
+  private static final String HOA_DON_NHIEU_DONG = "HD-2026-000021";
   private static final String HOA_DON_KHONG_TON_TAI = "HD-9999-999999";
   private static final String HOA_DON_TAM = "HD-2026-999999";
+  private static final String MA_KM_MAU = "KM-2026-000001";
 
   private static final String DEM_SO_DONG =
       "SELECT COUNT(*) FROM \"ChiTietHoaDon\" WHERE \"maHD\" = ?";
@@ -95,6 +99,7 @@ class ChiTietHoaDonDaoImplTest {
           "danh mục sản phẩm phải được nạp");
       assertNotNull(dong.sanPham().nhaCungCap(), "nhà cung cấp phải được nạp");
       assertNotNull(dong.hoaDon().nhanVienLap(), "nhân viên lập phải được nạp");
+      assertNull(dong.hoaDon().nhanVienLap().matKhau(), "không nạp mật khẩu nhân viên");
       assertNotNull(dong.hoaDon().khachHang(), "khách hàng phải được nạp");
 
       kiemTraThangBang(dong.donGiaBanTaiLucBan(), "donGiaBanTaiLucBan");
@@ -112,6 +117,20 @@ class ChiTietHoaDonDaoImplTest {
   }
 
   @Test
+  @DisplayName("findByHoaDon sắp xếp chi tiết theo số serial tăng dần")
+  void findByHoaDonSapXepTheoSerial() {
+    List<ChiTietHoaDon> chiTiet = dao.findByHoaDon(HOA_DON_NHIEU_DONG);
+    Assumptions.assumeTrue(chiTiet.size() >= 2, "seed V4 chưa có hóa đơn nhiều dòng");
+
+    for (int i = 1; i < chiTiet.size(); i++) {
+      String truoc = chiTiet.get(i - 1).sanPham().soSerial();
+      String sau = chiTiet.get(i).sanPham().soSerial();
+      assertTrue(truoc.compareTo(sau) <= 0,
+          "chi tiết phải sắp xếp theo số serial tăng dần: " + truoc + " > " + sau);
+    }
+  }
+
+  @Test
   @DisplayName("findByHoaDon trả về danh sách rỗng khi hóa đơn không tồn tại")
   void findByHoaDonKhongTonTaiTraVeRong() {
     assertTrue(dao.findByHoaDon(HOA_DON_KHONG_TON_TAI).isEmpty(),
@@ -122,8 +141,8 @@ class ChiTietHoaDonDaoImplTest {
   @DisplayName("insert ghi được một dòng chi tiết trong giao dịch của bên gọi")
   void insertGhiDuocDongChiTiet() throws SQLException {
     Connection ketNoi = ConnectDB.getDataSource().getConnection();
-    ketNoi.setAutoCommit(false);
     try {
+      ketNoi.setAutoCommit(false);
       SanPham sanPham = timMayChuaBan(ketNoi);
       Assumptions.assumeTrue(sanPham != null, "không còn máy SAN_SANG_BAN chưa bán");
 
@@ -154,8 +173,117 @@ class ChiTietHoaDonDaoImplTest {
           "phải ghi đúng một dòng chi tiết cho hóa đơn tạm");
       assertFalse(ketNoi.getAutoCommit(), "DAO không được đổi chế độ cam kết");
     } finally {
-      ketNoi.rollback();
-      ketNoi.setAutoCommit(true);
+      try {
+        ketNoi.rollback();
+        ketNoi.setAutoCommit(true);
+      } finally {
+        ketNoi.close();
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("insert ghi được mã khuyến mãi và tỷ lệ giảm tại lúc bán")
+  void insertGhiDuocKhuyenMai() throws SQLException {
+    Connection ketNoi = ConnectDB.getDataSource().getConnection();
+    try {
+      ketNoi.setAutoCommit(false);
+      SanPham sanPham = timMayChuaBan(ketNoi);
+      Assumptions.assumeTrue(sanPham != null, "không còn máy SAN_SANG_BAN chưa bán");
+      Assumptions.assumeTrue(
+          tonTaiKhuyenMai(ketNoi, MA_KM_MAU), "seed khuyến mãi chưa được áp dụng");
+
+      HoaDon hoaDon = new HoaDon(
+          HOA_DON_TAM,
+          LocalDate.of(2026, 12, 31),
+          null,
+          null,
+          true);
+      chenHoaDonTam(ketNoi);
+
+      KhuyenMai khuyenMai = new KhuyenMai(
+          MA_KM_MAU,
+          "Khuyến mãi Tivi Samsung",
+          LocalDate.of(2026, 1, 1),
+          LocalDate.of(2026, 1, 31),
+          new BigDecimal("10"),
+          null,
+          true,
+          sanPham.dongSanPham());
+      ChiTietHoaDon chiTiet = new ChiTietHoaDon(
+          hoaDon,
+          sanPham,
+          1,
+          new BigDecimal("100"),
+          new BigDecimal("10"),
+          khuyenMai,
+          new BigDecimal("10"),
+          new BigDecimal("10"),
+          new BigDecimal("100"),
+          new BigDecimal("90"),
+          new BigDecimal("9"));
+
+      dao.insert(ketNoi, chiTiet);
+
+      try (PreparedStatement statement = ketNoi.prepareStatement(
+          "SELECT \"maKM\", \"tyLeGiamTaiLucBan\" FROM \"ChiTietHoaDon\" WHERE \"maHD\" = ?")) {
+        statement.setString(1, HOA_DON_TAM);
+        try (ResultSet resultSet = statement.executeQuery()) {
+          assertTrue(resultSet.next(), "phải có dòng chi tiết vừa ghi");
+          assertEquals(MA_KM_MAU, resultSet.getString("maKM"));
+          assertEquals(
+              0,
+              new BigDecimal("10").compareTo(resultSet.getBigDecimal("tyLeGiamTaiLucBan")),
+              "tỷ lệ giảm tại lúc bán phải được lưu");
+        }
+      }
+    } finally {
+      try {
+        ketNoi.rollback();
+        ketNoi.setAutoCommit(true);
+      } finally {
+        ketNoi.close();
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("insert từ chối dòng chi tiết thiếu dòng sản phẩm")
+  void insertTuChoiChiTietThieuDongSanPham() throws SQLException {
+    HoaDon hoaDon = new HoaDon(
+        HOA_DON_TAM,
+        LocalDate.of(2026, 12, 31),
+        new NhanVien("NVBANHANG-2026-001", "Đăng bán hàng", "0900000002", null,
+            LocalDate.of(2026, 1, 1), "NVBH2026001", "khong-dung-toi",
+            LoaiQuyen.NHAN_VIEN_BAN_HANG, true),
+        new KhachHang("KH-2026-000001", "Nguyễn Văn An", "0902100001", null),
+        true);
+    SanPham sanPham = new SanPham(
+        "SERIAL-KIEM-THU",
+        new NhaCungCap("NCC-2026-000001", "Nhà cung cấp kiểm thử"),
+        null,
+        new BigDecimal("100"),
+        LocalDate.of(2026, 12, 31),
+        TrangThaiSanPham.SAN_SANG_BAN,
+        0,
+        0);
+    ChiTietHoaDon chiTiet = new ChiTietHoaDon(
+        hoaDon,
+        sanPham,
+        1,
+        new BigDecimal("100"),
+        new BigDecimal("10"),
+        null,
+        null,
+        BigDecimal.ZERO,
+        new BigDecimal("100"),
+        new BigDecimal("100"),
+        new BigDecimal("10"));
+
+    Connection ketNoi = ConnectDB.getDataSource().getConnection();
+    try {
+      assertThrows(IllegalArgumentException.class, () -> dao.insert(ketNoi, chiTiet));
+    } finally {
       ketNoi.close();
     }
   }
@@ -247,6 +375,16 @@ class ChiTietHoaDonDaoImplTest {
           TrangThaiSanPham.valueOf(resultSet.getString(6)),
           resultSet.getInt(7),
           resultSet.getInt(8));
+    }
+  }
+
+  private boolean tonTaiKhuyenMai(Connection ketNoi, String maKM) throws SQLException {
+    try (PreparedStatement statement =
+        ketNoi.prepareStatement("SELECT 1 FROM \"KhuyenMai\" WHERE \"maKM\" = ?")) {
+      statement.setString(1, maKM);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next();
+      }
     }
   }
 

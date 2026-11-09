@@ -202,7 +202,12 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - Đặc tả Ch.3 §IV ghi “Nhân viên bán hàng” cho cả bốn UC.
 - Mô tả tác nhân Ch.3 §II giao sản phẩm/dòng sản phẩm/danh mục/sản phẩm lỗi cho **Nhân viên quản lý**.
 - Ch.1 §II.1.b lại giao “Quản lý thông tin sản phẩm”, “Quản lý danh mục loại sản phẩm” cho **Nhân viên bán hàng**.
-- **Trạng thái:** mâu thuẫn ba chiều; cần quyết định trước khi phân quyền.
+- **Trạng thái:** mâu thuẫn ba chiều; **đã giải quyết một phần ngày 2026-11-04** (UC009), UC008/UC010/UC011 vẫn mở.
+- **Quyết định (chốt 2026-11-04, chủ dự án):** **Nhân viên bán hàng quản lý dòng sản phẩm (UC009)**.
+  - Tác nhân UC009 = **Nhân viên bán hàng**; **không** áp dụng kiểm quyền chỉ-Quản-lý cho `DongSanPhamController`/`ProductLinesPage`.
+  - Trang "Quản lý dòng sản phẩm" vẫn hiển thị cho cả hai vai trò như hiện tại (menu Quản lý và menu Bán hàng); quyết định này không thu hẹp quyền của Nhân viên quản lý.
+  - **UC008, UC010, UC011 vẫn chưa chốt** tác nhân và tiếp tục không có kiểm quyền chỉ-Quản-lý.
+  - DOCX **không bị sửa**; quyết định chỉ ghi tại tài liệu dẫn xuất này.
 
 ### C-04 — Khuyến mãi vừa ngoài phạm vi vừa có use case
 
@@ -226,6 +231,7 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - FR015, FR016, NFR011 và Ch.1 §II.7 yêu cầu sao lưu/phục hồi dữ liệu hóa đơn, khách hàng.
 - Danh mục 19 UC (UC001–UC019) **không có** use case sao lưu hoặc phục hồi.
 - **Trạng thái:** khoảng trống phủ; chưa xác nhận chức năng này được đặc tả ở tài liệu khác hay chưa được lập UC.
+- **Cập nhật 2026-11-05:** FR015/FR016 đã được triển khai theo quyết định 2026-11-05 — `pg_dump -Fc` toàn bộ CSDL, tệp phẳng `.dump` + `.meta.json` (SHA-256), giữ 7 ngày, giờ chạy cấu hình `DTAQ_BACKUP_TIME`, chỉ Nhân viên quản lý, phục hồi xác nhận 2 bước + safety backup + `--single-transaction`; **vẫn chưa có UC chính thức** trong DOCX, nên khoảng trống C-05 giữ nguyên về mặt nguồn.
 
 ### C-06 — Yêu cầu rộng hơn đặc tả use case
 
@@ -252,6 +258,7 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - Chỉ bán máy có `trangThai = 'SAN_SANG_BAN'`.
 - **Không** chuyển sang mô hình tồn theo số lượng hoặc đổi mức hạt dữ liệu khi chưa được duyệt.
 - Mâu thuẫn **văn bản nguồn** vẫn được giữ làm bằng chứng lịch sử; xem [V1](../database/schema-and-integrity.md#6-bản-đồ-ddl-v1-đã-phê-duyệt).
+- **Ghi chú trạng thái (2026-11-03):** đã chốt **mức hạt UI/giỏ** theo dòng sản phẩm + số lượng (D12) và phân bổ máy FIFO (D14); **mức hạt tồn kho vẫn theo serial** (V1); DOCX không bị sửa.
 - **Trạng thái:** đã giải quyết ở mức implementation, còn mở ở mức tài liệu nguồn.
 
 ### C-08 — Ai cập nhật giá bán và thuế suất?
@@ -306,6 +313,8 @@ Ngoài tên gọi, “Chức năng” trong danh mục thường rộng hơn lu�
 - **Trạng thái nguồn:** xung đột giữa các bước **nhập mã** trong DOCX và quy ước mã **tự sinh** tại Ch.4 §I.3 vẫn tồn tại trong nguồn; DOCX không bị sửa.
 - **Quyết định implementation hiện tại (đã duyệt 2026-10-20):** mã định danh do **ứng dụng sinh** khi lưu mới thành công, giữ đúng các định dạng đã tài liệu hóa (`TIỀN_TỐ-YYYY-NNNNNN`, ví dụ `NVQUANLY-YYYY-NNNNNN`, `NVBANHANG-YYYY-NNNNNN`); V1/PostgreSQL **không** dùng sequence, identity hay default để cấp ID. Đây là quyết định implementation, không phải chỉnh sửa DOCX.
 - Liên kết sổ đăng ký: [G-10](../traceability.md#6-khoảng-trống-và-câu-hỏi-cần-xác-nhận) · [BR-C11](../business-rules/rules-and-exceptions.md#6-xung-đột-nguồn-và-nội-dung-bị-cắt).
+- **Tên đăng nhập nhân viên (cùng dạng xung đột, chốt 2026-11-06):** UC013 bước 5 "Nhập tên đăng nhập" (nhập tay) mâu thuẫn với thiết kế lớp `NhanVien` mục 1.6 (tên đăng nhập **tự sinh** dạng `NVBHYYYYNNN`/`NVQLYYYYNNN`, đồng bộ với `maNV`); dữ liệu mẫu đi theo thiết kế lớp (`NVBH2025001`). **Quyết định implementation:** tên đăng nhập do ứng dụng sinh từ `maNV` trong cùng giao dịch cấp mã — `NVBH`/`NVQL` + năm của mã + số thứ tự tối thiểu 3 chữ số (ví dụ `NVBANHANG-2026-000006` → `NVBH2026006`); không nhập tay, không đổi sau khi tạo. DOCX không bị sửa.
+- **Email nhân viên bắt buộc (quyết định implementation, chốt 2026-11-06):** thiết kế lớp `NhanVien` mục 1.4 để email không bắt buộc ("nếu có nhập thì phải đúng định dạng"), nhưng chức năng quên mật khẩu chỉ gửi mã qua email nên nhân viên thiếu email không tự đặt lại được mật khẩu. Ứng dụng bắt buộc email hợp lệ khi thêm và khi cập nhật nhân viên (UC013); cột CSDL vẫn cho phép NULL để hồ sơ cũ không lỗi. DOCX không bị sửa.
 
 ## 7. Điều hướng sổ đăng ký: `C-xx` ↔ `G-xx` ↔ `BR-Cxx`
 
@@ -315,7 +324,7 @@ Bảng dưới đây chỉ nối các mã đã được lập ở tài liệu n�
 |---|---|---|
 | C-01 | — | — |
 | C-02 | — | — |
-| C-03 | G-09 | BR-C09 |
+| C-03 (UC009 đã chốt 2026-11-04; UC008/UC010/UC011 còn mở) | G-09 | BR-C09 |
 | C-04 (đã giải quyết phạm vi 2026-10-24) | — | BR-C08 |
 | C-05 | G-02 | — |
 | C-06 | G-05 | — |

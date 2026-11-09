@@ -44,8 +44,8 @@ Nguồn FR: Chương 1 mục IV. Cột “Ứng viên theo tên/chức năng” 
 | FR012 | Thống kê doanh số theo nhân viên | Không | UC016 | Tên trùng UC016 |
 | FR013 | Thống kê doanh số theo sản phẩm | Không | UC015 | Tên trùng UC015 |
 | FR014 | Báo cáo hàng tồn kho lâu ngày | Không | UC014 | Tên UC014 lệch “hằng ngày”/“lâu ngày”; xem C-01 |
-| FR015 | Sao lưu dữ liệu | Không | **Không có** | Danh mục 19 UC không có use case sao lưu |
-| FR016 | Phục hồi dữ liệu | Không | **Không có** | Danh mục 19 UC không có use case phục hồi |
+| FR015 | Sao lưu dữ liệu | Không | **Đã triển khai (FR015/FR016), không có UC** | Danh mục 19 UC không có use case sao lưu |
+| FR016 | Phục hồi dữ liệu | Không | **Đã triển khai (FR015/FR016), không có UC** | Danh mục 19 UC không có use case phục hồi |
 
 ## 4. Truy vết use case → tác nhân và thực thể (tường minh)
 
@@ -61,7 +61,7 @@ Nguồn: Chương 3 mục III (danh mục) và mục IV (tác nhân đặc tả)
 | UC006 | Xử lý đổi trả sản phẩm | Nhân viên bán hàng | `PhieuTra`, `ChiTietPhieuTra`, `PhieuDoi`, `ChiTietPhieuDoi`; chờ phê duyệt | Liên quan FR008, FR009 |
 | UC007 | Thêm khách hàng | Nhân viên bán hàng | `KhachHang`; giữ liên kết lịch sử hóa đơn | Tên danh mục khác đặc tả — C-02 |
 | UC008 | Thêm sản phẩm | Nhân viên bán hàng | `SanPham`, `DongSanPham`; `TrangThaiSanPham` | Tác nhân danh mục “Quản lý” — C-03 |
-| UC009 | Thêm dòng sản phẩm | Nhân viên bán hàng | `DongSanPham.trangThaiKinhDoanh`; `SanPham` có serial | Tác nhân danh mục khác — C-03 |
+| UC009 | Thêm dòng sản phẩm | Nhân viên bán hàng | `DongSanPham.trangThaiKinhDoanh`; `SanPham` có serial | Tác nhân danh mục khác — C-03; **đã chốt 2026-11-04: Nhân viên bán hàng** |
 | UC010 | Thêm danh mục sản phẩm | Nhân viên bán hàng | `DanhMucSanPham`, `DongSanPham`; không mất liên kết | Tác nhân danh mục khác — C-03 |
 | UC011 | Thêm sản phẩm lỗi | Nhân viên bán hàng | `SanPhamLoi`, `SanPham`, `TrangThaiXuLyLoi` | Tác nhân danh mục khác — C-03 |
 | UC012 | Thêm khuyến mãi | Nhân viên quản lý | `KhuyenMai`, `DongSanPham`; chỉ khi đang dùng và còn hiệu lực | Phạm vi đã chốt 2026-10-24: thuộc phạm vi — C-04 (trước đây là mâu thuẫn, nay đã giải quyết) |

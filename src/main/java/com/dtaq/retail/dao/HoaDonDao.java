@@ -18,7 +18,8 @@ public interface HoaDonDao {
    *
    * @param ketNoi kết nối của bên gọi; không được {@code null}
    * @param hoaDon hóa đơn cần ghi; mã hóa đơn phải có sẵn và không được để trống
-   * @throws IllegalArgumentException nếu hóa đơn {@code null} hoặc mã hóa đơn để trống
+   * @throws IllegalArgumentException nếu hóa đơn {@code null}, mã hóa đơn để trống, hoặc thiếu nhân
+   *     viên lập / khách hàng
    */
   void insert(Connection ketNoi, HoaDon hoaDon);
 

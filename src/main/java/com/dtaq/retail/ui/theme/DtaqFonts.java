@@ -49,24 +49,24 @@ public final class DtaqFonts {
   }
 
   // --- Display & Headings ---
-  public static final Font DISPLAY = semibold(32f, -1.0f);
-  public static final Font AMOUNT_XL = semibold(30f, -0.8f);
-  public static final Font PAGE_TITLE = semibold(26f, -0.5f);
-  public static final Font KPI_VALUE = semibold(28f, -0.6f);
-  public static final Font DIALOG_TITLE = semibold(22f, -0.4f);
-  public static final Font DONUT_CENTER = semibold(24f);
-  public static final Font BRAND = semibold(22f, 1.0f);
+  public static final Font DISPLAY = semibold(28f, -0.6f);
+  public static final Font AMOUNT_XL = semibold(32f, -0.8f);
+  public static final Font PAGE_TITLE = semibold(22f, -0.4f);
+  public static final Font KPI_VALUE = semibold(26f, -0.5f);
+  public static final Font DIALOG_TITLE = semibold(18f, -0.2f);
+  public static final Font DONUT_CENTER = semibold(20f, -0.3f);
+  public static final Font BRAND = semibold(17f, 0.4f);
 
   // --- Section & Card Titles ---
-  public static final Font SECTION_TITLE_STRONG = semibold(16f);
-  public static final Font CUSTOMER_NAME = semibold(17f);
-  public static final Font CARD_TITLE = semibold(16f);
-  public static final Font CARD_TITLE_SEMI = semibold(16f);
-  public static final Font EMPTY_TITLE = semibold(15f);
+  public static final Font SECTION_TITLE_STRONG = semibold(15f);
+  public static final Font CUSTOMER_NAME = semibold(16f);
+  public static final Font CARD_TITLE = semibold(15f);
+  public static final Font CARD_TITLE_SEMI = semibold(15f);
+  public static final Font EMPTY_TITLE = semibold(14f);
 
   // --- Body & Controls (14px) ---
   public static final Font BODY_14 = font(Font.PLAIN, 14f);
-  public static final Font BUTTON = semibold(14f);
+  public static final Font BUTTON = semibold(13f);
   public static final Font AMOUNT_ROW = semibold(14f);
 
   // --- Body, Table & Nav (13px) ---
@@ -75,17 +75,22 @@ public final class DtaqFonts {
   public static final Font LABEL = semibold(13f);
 
   // --- Table Header & Pills & Small Buttons (12px) ---
-  public static final Font TABLE_HEADER = semibold(12f);
+  public static final Font TABLE_HEADER = semibold(12f, 0.1f);
   public static final Font CAPTION = font(Font.PLAIN, 12f);
   public static final Font PILL = semibold(12f);
   public static final Font SMALL_BUTTON = semibold(12f);
-  public static final Font EYEBROW = semibold(12f, 1.2f);
+  public static final Font EYEBROW = semibold(11f, 0.6f);
   public static final Font ITALIC_HINT = font(Font.ITALIC, 12f);
 
   // --- Hints & Micro (10-11px) ---
   public static final Font HINT = font(Font.PLAIN, 11f);
   public static final Font HINT_ON_PRIMARY = semibold(11f);
   public static final Font KBD = semibold(11f);
-  public static final Font OVERLINE = semibold(10f, 1.3f);
-  public static final Font MICRO = font(Font.PLAIN, 10f);
+  public static final Font OVERLINE = semibold(11f, 0.8f);
+  public static final Font MICRO = font(Font.PLAIN, 10.5f);
+
+  // --- Bổ sung ---
+  public static final Font MONEY_TABLE = semibold(13f);
+  public static final Font CODE = semibold(12.5f, 0.2f);
+  public static final Font MONEY_INPUT = semibold(18f);
 }

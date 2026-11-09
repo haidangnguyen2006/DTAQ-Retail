@@ -36,6 +36,9 @@ public class DonutChartPanel extends JPanel {
   private final List<DonutSlice> slices = new ArrayList<>();
   private long totalAmount;
   private String emptyText = "Chưa có dữ liệu";
+  /** {@code null}: giá trị là tiền VND; khác {@code null}: giá trị là số lượng với đơn vị này. */
+  private String donViSoLuong;
+  private String tieuDeTong = "Tổng doanh thu";
   private final JPanel legendPanel = new JPanel(new MigLayout("fillx, insets 0", "[10!]10[grow]20[]20[]", "[]10[]"));
   private final Canvas canvas = new Canvas();
 
@@ -45,6 +48,25 @@ public class DonutChartPanel extends JPanel {
     legendPanel.setOpaque(false);
     add(canvas, "align center");
     add(legendPanel, "growx, aligny center");
+    Responsive.onSizeChange(this, size -> {
+      MigLayout layout = (MigLayout) getLayout();
+      boolean stacked = size == Responsive.Size.S;
+      layout.setColumnConstraints(stacked ? "[0:pref,grow]" : "[240!]32[0:pref,grow]");
+      layout.setComponentConstraints(canvas, "cell 0 0, align center");
+      layout.setComponentConstraints(legendPanel, stacked
+          ? "cell 0 1, growx, gaptop 16" : "cell 1 0, growx, aligny center");
+    });
+  }
+
+  /** Hiển thị giá trị là số lượng (ví dụ "máy") thay vì tiền, kèm nhãn ở tâm biểu đồ. */
+  public void setSoLuong(String donVi, String tieuDeTong) {
+    this.donViSoLuong = donVi;
+    this.tieuDeTong = tieuDeTong;
+    canvas.repaint();
+  }
+
+  private String dinhDang(long giaTri) {
+    return donViSoLuong == null ? MoneyFormat.formatVnd(giaTri) : giaTri + " " + donViSoLuong;
   }
 
   public void setEmptyText(String emptyText) {
@@ -62,7 +84,29 @@ public class DonutChartPanel extends JPanel {
       }
     }
     updateLegend();
-    canvas.repaint();
+    startSweep();
+  }
+
+  private float sweep = 1f;
+  private com.formdev.flatlaf.util.Animator sweepAnimator;
+
+  /** Vòng quét dần theo chiều kim đồng hồ khi có dữ liệu mới (≈180ms). */
+  private void startSweep() {
+    if (sweepAnimator != null) {
+      sweepAnimator.cancel();
+    }
+    if (slices.isEmpty() || !com.formdev.flatlaf.util.Animator.useAnimation() || !canvas.isShowing()) {
+      sweep = 1f;
+      canvas.repaint();
+      return;
+    }
+    sweep = 0f;
+    sweepAnimator = new com.formdev.flatlaf.util.Animator(180, fraction -> {
+      sweep = fraction;
+      canvas.repaint();
+    });
+    sweepAnimator.setInterpolator(com.formdev.flatlaf.util.CubicBezierEasing.EASE_OUT);
+    sweepAnimator.start();
   }
 
   private void updateLegend() {
@@ -75,11 +119,11 @@ public class DonutChartPanel extends JPanel {
       legendPanel.add(swatch);
 
       JLabel nameLbl = new JLabel(s.name());
-      nameLbl.setFont(DtaqFonts.BODY_14);
+      nameLbl.setFont(DtaqFonts.BODY_13);
       nameLbl.setForeground(DtaqColors.TEXT);
       legendPanel.add(nameLbl);
 
-      JLabel amtLbl = new JLabel(MoneyFormat.formatVnd(s.amount()));
+      JLabel amtLbl = new JLabel(dinhDang(s.amount()));
       amtLbl.setFont(DtaqFonts.BUTTON);
       amtLbl.setForeground(DtaqColors.TEXT);
       legendPanel.add(amtLbl, "align right");
@@ -125,7 +169,7 @@ public class DonutChartPanel extends JPanel {
       for (DonutSlice s : slices) {
         acc += s.amount();
         if (target <= acc) {
-          return s.name() + ": " + MoneyFormat.formatVnd(s.amount());
+          return s.name() + ": " + dinhDang(s.amount());
         }
       }
       return null;
@@ -160,16 +204,28 @@ public class DonutChartPanel extends JPanel {
 
       double startAngle = 90.0;
       for (DonutSlice slice : slices) {
-        double extent = -((slice.amount() * 360.0) / totalAmount);
+        double extent = -((slice.amount() * 360.0 * sweep) / totalAmount);
         g2.setColor(slice.color());
         g2.fill(new Arc2D.Double(x, y, size, size, startAngle, extent, Arc2D.PIE));
         startAngle += extent;
+      }
+      // Khe 2px giữa các lát bằng màu nền để các lát tách bạch.
+      g2.setColor(DtaqColors.SURFACE);
+      g2.setStroke(new java.awt.BasicStroke(2f));
+      double a = 90.0;
+      for (DonutSlice slice : slices) {
+        double ext = -((slice.amount() * 360.0 * sweep) / totalAmount);
+        g2.draw(new java.awt.geom.Line2D.Double(x + size / 2.0, y + size / 2.0,
+            x + size / 2.0 + Math.cos(Math.toRadians(a)) * size / 2.0,
+            y + size / 2.0 - Math.sin(Math.toRadians(a)) * size / 2.0));
+        a += ext;
       }
 
       g2.setColor(DtaqColors.SURFACE);
       g2.fill(new Ellipse2D.Double(innerX, innerY, innerSize, innerSize));
 
-      String totalStr = (totalAmount >= 1_000_000)
+      String totalStr = donViSoLuong != null ? String.valueOf(totalAmount)
+          : (totalAmount >= 1_000_000)
           ? (totalAmount / 1_000_000) + "M"
           : MoneyFormat.format(totalAmount);
       g2.setFont(DtaqFonts.DONUT_CENTER);
@@ -179,7 +235,7 @@ public class DonutChartPanel extends JPanel {
 
       g2.setFont(DtaqFonts.CAPTION);
       g2.setColor(DtaqColors.TEXT_MUTED);
-      String subStr = "Tổng doanh thu";
+      String subStr = tieuDeTong;
       g2.drawString(subStr, (getWidth() - g2.getFontMetrics().stringWidth(subStr)) / 2, cy + 18);
 
       g2.dispose();

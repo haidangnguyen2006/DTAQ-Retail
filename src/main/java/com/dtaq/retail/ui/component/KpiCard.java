@@ -15,7 +15,7 @@ public class KpiCard extends Card {
 
   /** Xu hướng so với kỳ trước; quyết định màu và mũi tên của chú thích. */
   public enum Trend {
-    UP("↑ ", DtaqColors.PRIMARY),
+    UP("↑ ", DtaqColors.SUCCESS),
     DOWN("↓ ", DtaqColors.DANGER),
     NEUTRAL("", DtaqColors.TEXT_MUTED);
 
@@ -40,7 +40,7 @@ public class KpiCard extends Card {
     setMinimumSize(new Dimension(0, 112));
 
     labelTitle.setText(labelText);
-    labelTitle.setFont(DtaqFonts.BODY_13);
+    labelTitle.setFont(DtaqFonts.LABEL);
     labelTitle.setForeground(DtaqColors.TEXT_MUTED);
     add(labelTitle, "wrap");
 
@@ -56,6 +56,9 @@ public class KpiCard extends Card {
 
   public void setValue(String value) {
     valueLabel.setText(value == null || value.isBlank() ? EMPTY_VALUE : value);
+    // Giá trị dài thì hạ cỡ chữ theo bậc để không bị cắt số.
+    int len = valueLabel.getText().length();
+    valueLabel.setFont(len > 22 ? DtaqFonts.DIALOG_TITLE : len > 16 ? DtaqFonts.semibold(22f, -0.4f) : DtaqFonts.KPI_VALUE);
   }
 
   public void setCaption(String caption) {

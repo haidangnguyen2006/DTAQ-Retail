@@ -1,6 +1,7 @@
 package com.dtaq.retail.ui.page.report;
 
 import com.dtaq.retail.ui.component.BarChartPanel;
+import com.dtaq.retail.controller.ThongKeDoanhThuController;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DonutChartPanel;
@@ -17,17 +18,24 @@ import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqIcons;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
+import com.dtaq.retail.util.DateRange;
 import com.formdev.flatlaf.FlatClientProperties;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.time.LocalDate;
+import java.io.File;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JOptionPane;
+import javax.swing.SwingWorker;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -55,12 +63,22 @@ public class RevenueStatisticsPage implements Page {
   ) {}
 
   private final JPanel view;
+  private final ThongKeDoanhThuController controller;
+  private ThongKeDoanhThuController.BaoCao baoCao;
+  private DateRange kyBaoCao = new DateRange(LocalDate.now().minusDays(29), LocalDate.now());
+  private int nhomThoiGian;
+  /** Tăng mỗi lần tải; kết quả của lần tải cũ hơn bị bỏ qua để không ghi đè kỳ mới chọn. */
+  private int maYeuCau;
   private final DtaqButton periodButton = DtaqButton.secondary(PERIOD_PLACEHOLDER, "calendar-days");
+  private final DtaqButton exportButton = DtaqButton.secondary("Xuất Excel", "download");
   private final JPanel alertBanner;
   private final JLabel alertCountLabel = new JLabel();
   private final KpiCard kpiRevenue = new KpiCard("Tổng doanh thu trong kỳ", "—", null);
-  private final KpiCard kpiPretax = new KpiCard("Tổng tiền hàng trước thuế", "—", "Đã trừ hoàn trả và đổi hàng");
-  private final KpiCard kpiTax = new KpiCard("Tổng tiền thuế phát sinh", "—", "Thuế VAT theo từng nhóm hàng");
+  private static final String CAPTION_PRETAX = "Đã trừ hoàn trả và đổi hàng";
+  private static final String CAPTION_TAX = "Thuế VAT theo từng nhóm hàng";
+  private static final String KHONG_PHAT_SINH = "Không có phát sinh trong kỳ";
+  private final KpiCard kpiPretax = new KpiCard("Tổng tiền hàng trước thuế", "—", CAPTION_PRETAX);
+  private final KpiCard kpiTax = new KpiCard("Tổng tiền thuế phát sinh", "—", CAPTION_TAX);
   private final KpiCard kpiOrders = new KpiCard("Hóa đơn bán lẻ thành công", "—", null);
   private final JLabel barTitle = new JLabel(GRANULARITY_TITLES[0]);
   private final BarChartPanel barChart = new BarChartPanel();
@@ -74,6 +92,11 @@ public class RevenueStatisticsPage implements Page {
   private Consumer<Integer> onGranularityChangeListener;
 
   public RevenueStatisticsPage() {
+    this(null);
+  }
+
+  public RevenueStatisticsPage(ThongKeDoanhThuController controller) {
+    this.controller = controller;
     view = new JPanel(new MigLayout(
         "fillx, insets " + DtaqSpacing.PAGE_PADDING,
         "[grow]",
@@ -86,10 +109,10 @@ public class RevenueStatisticsPage implements Page {
     periodButton.setToolTipText(NOT_CONNECTED_TIP);
     periodButton.setEnabled(false);
     periodButton.addActionListener(e -> openPeriodDialog());
-    DtaqButton exportBtn = DtaqButton.secondary("Xuất Excel", "download");
-    exportBtn.setEnabled(false);
-    exportBtn.setToolTipText("Chức năng xuất báo cáo Excel đang được hoàn thiện");
-    header.setTrailing(periodButton, exportBtn);
+    exportButton.setEnabled(false);
+    exportButton.setToolTipText(controller == null ? NOT_CONNECTED_TIP : null);
+    exportButton.addActionListener(e -> exportReport());
+    header.setTrailing(periodButton, exportButton);
     view.add(header, "growx, wrap");
 
     alertBanner = buildAlertBanner();
@@ -101,6 +124,7 @@ public class RevenueStatisticsPage implements Page {
         "[grow,fill]" + DtaqSpacing.KPI_GAP_COMPACT + "[grow,fill]" + DtaqSpacing.KPI_GAP_COMPACT
             + "[grow,fill]" + DtaqSpacing.KPI_GAP_COMPACT + "[grow,fill]", "[]"));
     kpiRow.setOpaque(false);
+    com.dtaq.retail.ui.component.Responsive.grid(kpiRow, 220, 4);
     kpiRow.add(kpiRevenue);
     kpiRow.add(kpiPretax);
     kpiRow.add(kpiTax);
@@ -109,6 +133,92 @@ public class RevenueStatisticsPage implements Page {
 
     view.add(buildBarCard(), "growx, wrap");
     view.add(buildDonutCard(), "growx");
+
+    if (controller != null) {
+      setPeriod(kyBaoCao.tuNgay(), kyBaoCao.denNgay());
+      setOnPeriodChange((from, to) -> {
+        kyBaoCao = new DateRange(from, to);
+        taiBaoCao();
+      });
+      setOnGranularityChange(index -> {
+        nhomThoiGian = index;
+        taiBaoCao();
+      });
+    }
+  }
+
+  /** Tải báo cáo cho kỳ và mức gộp thời gian đang chọn; không chặn EDT. */
+  private void taiBaoCao() {
+    DateRange ky = kyBaoCao;
+    int nhom = nhomThoiGian;
+    int yeuCau = ++maYeuCau;
+    showLoading();
+    exportButton.setEnabled(false);
+    new SwingWorker<ThongKeDoanhThuController.BaoCao, Void>() {
+      @Override
+      protected ThongKeDoanhThuController.BaoCao doInBackground() {
+        return controller.xem(ky, nhom);
+      }
+
+      @Override
+      protected void done() {
+        if (yeuCau != maYeuCau) {
+          return;
+        }
+        try {
+          ThongKeDoanhThuController.BaoCao ketQua = get();
+          baoCao = ketQua;
+          boolean rong = ketQua.dongExcel().isEmpty(); // 6.a: không có giao dịch phù hợp
+          barChart.setEmptyText(rong ? KHONG_PHAT_SINH : "Chưa có dữ liệu thống kê");
+          donutChart.setEmptyText(rong ? KHONG_PHAT_SINH : "Chưa có dữ liệu");
+          renderSummary(ketQua.kpi());
+          renderDailyRevenue(ketQua.doanhThuTheoThoiGian());
+          renderTopProductLines(ketQua.topDongSanPham());
+          exportButton.setEnabled(!rong);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          hienLoiTaiBaoCao();
+        } catch (ExecutionException e) {
+          if (e.getCause() instanceof SecurityException) {
+            showError("Chỉ Quản lý được xem thống kê doanh thu");
+          } else {
+            hienLoiTaiBaoCao();
+          }
+        } catch (SecurityException e) {
+          showError("Chỉ Quản lý được xem thống kê doanh thu");
+        }
+      }
+    }.execute();
+  }
+
+  /** Xóa số liệu cũ để không hiển thị nhầm báo cáo của kỳ trước khi tải thất bại. */
+  private void hienLoiTaiBaoCao() {
+    baoCao = null;
+    renderSummary(null);
+    renderDailyRevenue(null);
+    renderTopProductLines(null);
+    exportButton.setEnabled(false);
+    showError("Không thể tải dữ liệu thống kê doanh thu.");
+  }
+
+  private void exportReport() {
+    if (controller == null || baoCao == null) return;
+    JFileChooser chooser = new JFileChooser();
+    chooser.setDialogTitle("Xuất thống kê doanh thu");
+    chooser.setFileFilter(new FileNameExtensionFilter("Excel Workbook (*.xlsx)", "xlsx"));
+    if (chooser.showSaveDialog(view) != JFileChooser.APPROVE_OPTION) return;
+    File selected = chooser.getSelectedFile();
+    File target = selected.getName().toLowerCase().endsWith(".xlsx") ? selected
+        : new File(selected.getParentFile(), selected.getName() + ".xlsx");
+    exportButton.setEnabled(false);
+    new SwingWorker<Void, Void>() {
+      @Override protected Void doInBackground() { controller.xuatExcel(target, baoCao); return null; }
+      @Override protected void done() {
+        exportButton.setEnabled(baoCao != null);
+        try { get(); JOptionPane.showMessageDialog(view,"Xuất báo cáo Excel thành công","Xuất báo cáo",JOptionPane.INFORMATION_MESSAGE); }
+        catch(Exception e) { JOptionPane.showMessageDialog(view,"Không thể ghi tệp Excel. Báo cáo vẫn được giữ trên màn hình.","Xuất báo cáo",JOptionPane.ERROR_MESSAGE); }
+      }
+    }.execute();
   }
 
   private Card buildBarCard() {
@@ -197,6 +307,8 @@ public class RevenueStatisticsPage implements Page {
 
   /** Hiển thị 4 chỉ tiêu tổng hợp; {@code null} đưa về trạng thái rỗng. */
   public void renderSummary(RevenueSummary summary) {
+    kpiPretax.setCaption(CAPTION_PRETAX); // showLoading() ghi đè chú thích bằng "Đang tải…"
+    kpiTax.setCaption(CAPTION_TAX);
     if (summary == null) {
       kpiRevenue.setValue(null);
       kpiRevenue.setCaption("");
@@ -272,6 +384,13 @@ public class RevenueStatisticsPage implements Page {
       setPeriod(newFrom, newTo);
       onPeriodChangeListener.accept(newFrom, newTo);
     }).setVisible(true);
+  }
+
+  @Override
+  public void onShow() {
+    if (controller != null) {
+      taiBaoCao();
+    }
   }
 
   @Override

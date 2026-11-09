@@ -11,11 +11,12 @@ public interface ChiTietHoaDonDao {
    * Ghi một dòng chi tiết hóa đơn.
    *
    * <p>Bên gọi sở hữu {@code ketNoi} và giao dịch tương ứng: phương thức này không đóng kết nối,
-   * không tự bật hay tắt chế độ tự động cam kết.
+   * không tự bật hay tắt chế độ tự động xác nhận (auto-commit).
    *
    * @param ketNoi kết nối đang mở do bên gọi quản lý
    * @param chiTiet dòng chi tiết cần ghi; số lượng mỗi dòng phải bằng 1
-   * @throws IllegalArgumentException khi {@code chiTiet} là {@code null} hoặc số lượng khác 1
+   * @throws IllegalArgumentException khi {@code chiTiet} là {@code null}, số lượng khác 1, hoặc
+   *     thiếu hóa đơn / sản phẩm / dòng sản phẩm
    */
   void insert(Connection ketNoi, ChiTietHoaDon chiTiet);
 

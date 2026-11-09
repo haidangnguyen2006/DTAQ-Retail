@@ -3,6 +3,7 @@ package com.dtaq.retail.ui.component.table;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.format.MoneyFormat;
 import com.dtaq.retail.ui.theme.DtaqColors;
+import com.dtaq.retail.ui.theme.DtaqStyles;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import java.awt.Color;
 import java.awt.Component;
@@ -81,7 +82,8 @@ public final class TableRenderers {
     public Component getTableCellRendererComponent(
         JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
       super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-      setFont(DtaqFonts.BODY_13_MEDIUM);
+      setFont(DtaqFonts.CODE);
+      setForeground(DtaqColors.PRIMARY_STRONG);
       return this;
     }
   }
@@ -97,6 +99,14 @@ public final class TableRenderers {
   public static class MoneyRenderer extends TextRenderer {
     public MoneyRenderer() {
       setHorizontalAlignment(SwingConstants.RIGHT);
+    }
+
+    @Override
+    public Component getTableCellRendererComponent(
+        JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+      super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+      setFont(DtaqFonts.MONEY_TABLE);
+      return this;
     }
 
     @Override
@@ -144,33 +154,62 @@ public final class TableRenderers {
 
   /** Renderer và editor cho cột thao tác: hiển thị các nút bấm được trong ô bảng. */
   public static class ActionCell extends AbstractCellEditor implements TableCellRenderer, TableCellEditor {
-    private final List<RowAction> actions;
+    private final java.util.function.IntFunction<List<RowAction>> actionProvider;
     private final JPanel renderPanel;
     private final JPanel editPanel;
     private JTable editingTable;
     private int editingRow = -1;
 
     public ActionCell(List<RowAction> actions) {
-      this.actions = List.copyOf(actions);
-      this.renderPanel = buildPanel(false);
-      this.editPanel = buildPanel(true);
+      this(row -> actions);
     }
 
-    private JPanel buildPanel(boolean live) {
+    public ActionCell(java.util.function.IntFunction<List<RowAction>> actionProvider) {
+      this.actionProvider = actionProvider == null ? row -> List.of() : actionProvider;
+      this.renderPanel = buildPanel(false, -1);
+      this.editPanel = buildPanel(true, -1);
+    }
+
+    private JPanel buildPanel(boolean live, int rowIndex) {
       JPanel panel = new JPanel(new MigLayout("insets 0 12 0 12, gapx 6, fill", "[]", "[center]"));
       panel.setOpaque(true);
-      for (RowAction action : actions) {
+      int modelRow = rowIndex;
+      for (RowAction action : actionProvider.apply(modelRow)) {
         DtaqButton button = switch (action.style()) {
-          case PRIMARY -> DtaqButton.primarySmall(action.label());
-          case DANGER -> DtaqButton.dangerSmall(action.label());
+          case PRIMARY -> DtaqButton.secondarySmall(action.label());
+          case DANGER -> DtaqButton.secondarySmall(action.label());
           case SECONDARY -> DtaqButton.secondarySmall(action.label());
         };
+        // Trong bảng dùng nút nhẹ (viền/ghost) để các hành động không lấn át dữ liệu.
+        button.putClientProperty(com.formdev.flatlaf.FlatClientProperties.STYLE,
+            switch (action.style()) {
+              case PRIMARY -> "background: " + DtaqStyles.hex(DtaqColors.SURFACE)
+                  + "; foreground: " + DtaqStyles.hex(DtaqColors.PRIMARY_STRONG)
+                  + "; borderColor: " + DtaqStyles.hex(DtaqColors.PRIMARY_BORDER_SOFT)
+                  + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.PRIMARY_SOFT)
+                  + "; borderWidth: 1";
+              case DANGER -> "background: " + DtaqStyles.hex(DtaqColors.SURFACE)
+                  + "; foreground: " + DtaqStyles.hex(DtaqColors.DANGER)
+                  + "; borderColor: " + DtaqStyles.hex(DtaqColors.DANGER_SOFT_HOVER)
+                  + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.DANGER_SOFT)
+                  + "; borderWidth: 1";
+              case SECONDARY -> "background: " + DtaqStyles.hex(DtaqColors.SURFACE)
+                  + "; foreground: " + DtaqStyles.hex(DtaqColors.TEXT_MUTED)
+                  + "; borderColor: " + DtaqStyles.hex(DtaqColors.BORDER)
+                  + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.DISABLED_BG)
+                  + "; borderWidth: 1";
+            } + DtaqStyles.SMALL_BUTTON_EXTRA + "; arc: 12");
         if (live) {
           button.addActionListener(e -> fire(action));
         }
         panel.add(button);
       }
       return panel;
+    }
+
+    /** Độ rộng đủ hiển thị trọn các nút của ô. */
+    public int doRongToiThieu() {
+      return renderPanel.getPreferredSize().width;
     }
 
     private void fire(RowAction action) {
@@ -185,8 +224,10 @@ public final class TableRenderers {
     @Override
     public Component getTableCellRendererComponent(
         JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-      renderPanel.setBackground(rowBackground(table, row, isSelected));
-      return renderPanel;
+      int modelRow = table != null ? table.convertRowIndexToModel(row) : row;
+      JPanel panel = buildPanel(false, modelRow);
+      panel.setBackground(rowBackground(table, row, isSelected));
+      return panel;
     }
 
     @Override
@@ -194,8 +235,10 @@ public final class TableRenderers {
         JTable table, Object value, boolean isSelected, int row, int column) {
       editingTable = table;
       editingRow = row;
-      editPanel.setBackground(rowBackground(table, row, isSelected));
-      return editPanel;
+      int modelRow = table != null ? table.convertRowIndexToModel(row) : row;
+      JPanel panel = buildPanel(true, modelRow);
+      panel.setBackground(rowBackground(table, row, isSelected));
+      return panel;
     }
 
     @Override

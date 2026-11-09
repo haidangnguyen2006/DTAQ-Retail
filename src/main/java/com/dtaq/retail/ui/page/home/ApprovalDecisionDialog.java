@@ -19,7 +19,7 @@ import javax.swing.JTextArea;
  * Hộp thoại quyết định phê duyệt/từ chối phiếu đổi trả (UC018): phê duyệt nhập ý kiến,
  * từ chối bắt buộc nhập lý do. Việc ghi quyết định do controller thực hiện.
  */
-final class ApprovalDecisionDialog extends ModalDialog {
+public final class ApprovalDecisionDialog extends ModalDialog {
 
   private static final int TEXT_HEIGHT = 96;
 
@@ -29,7 +29,8 @@ final class ApprovalDecisionDialog extends ModalDialog {
   private final JTextArea textArea = new JTextArea();
   private final FormField field;
 
-  ApprovalDecisionDialog(Frame parent, boolean approve, String maPhieu, BiConsumer<String, String> onConfirm) {
+  public ApprovalDecisionDialog(
+      Frame parent, boolean approve, String maPhieu, BiConsumer<String, String> onConfirm) {
     super(parent,
         (approve ? "Phê duyệt phiếu " : "Từ chối phiếu ") + maPhieu,
         approve ? "Kiểm tra lý do, điều kiện xử lý và số tiền hoàn trước khi quyết định."

@@ -35,6 +35,8 @@ page: "Chưa xác minh"
 
 > **C-03 — Tác nhân không thống nhất:** Danh mục Ch.3 §III ghi tác nhân “Quản lý”; đặc tả Ch.3 §IV ghi tác nhân “Nhân viên bán hàng.”; mô tả tác nhân Ch.3 §II giao “Quản lý sản phẩm, dòng sản phẩm, danh mục và sản phẩm lỗi” cho Nhân viên quản lý. Ba nguồn không thống nhất; tài liệu này giữ nguyên cả ba và **không chọn** tác nhân. Xem [C-03 — Tác nhân UC008–UC011 không thống nhất](../requirements/scope-and-requirements.md#c-03--tác-nhân-uc008uc011-không-thống-nhất).
 
+> **Quyết định triển khai (chốt 2026-11-04):** tác nhân UC009 là **Nhân viên bán hàng** — nhân viên bán hàng được tạo, ngừng kinh doanh và kinh doanh lại dòng sản phẩm; không áp dụng kiểm quyền chỉ-Quản-lý cho chức năng này. Ba nguồn nêu trên vẫn giữ nguyên câu chữ và DOCX không bị sửa.
+
 > **C-12 — Mã định danh (đã giải quyết cho implementation hiện tại):** Bước 3 của luồng chính giữ nguyên văn “Nhập mã và tên dòng sản phẩm.” như bằng chứng nguồn. Quyết định implementation (đã duyệt 2026-10-20): mã định danh do **ứng dụng sinh** khi lưu mới thành công, giữ đúng định dạng `TIỀN_TỐ-YYYY-NNNNNN`; V1/PostgreSQL không dùng sequence, identity hay default. Xung đột với quy ước mã tự sinh tại Ch.4 §I.3, `RB02`, `RB03`, XBR-14 **vẫn tồn tại trong nguồn** và không bị sửa. Xem [C-12 — Nhập mã định danh so với mã tự sinh bất biến](../requirements/scope-and-requirements.md#c-12--nhập-mã-định-danh-so-với-mã-tự-sinh-bất-biến).
 
 ## Thông tin chung

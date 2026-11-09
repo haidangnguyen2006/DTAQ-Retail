@@ -65,17 +65,35 @@ public final class LoginFrame extends JFrame {
     setLayout(new MigLayout("fill, insets 0", "[40%,fill][60%,fill]", "[grow,fill]"));
     getContentPane().setBackground(DtaqColors.SURFACE);
 
-    add(new AuthBrandPanel());
-    add(buildFormPanel());
+    AuthBrandPanel brandPanel = new AuthBrandPanel();
+    add(brandPanel, "cell 0 0, hidemode 3");
+    // Cửa sổ hẹp thì ẩn panel thương hiệu để biểu mẫu luôn đủ chỗ.
+    addComponentListener(new java.awt.event.ComponentAdapter() {
+      @Override
+      public void componentResized(java.awt.event.ComponentEvent e) {
+        boolean wide = getWidth() >= 900;
+        if (brandPanel.isVisible() != wide) {
+          brandPanel.setVisible(wide);
+          ((net.miginfocom.swing.MigLayout) getContentPane().getLayout())
+              .setColumnConstraints(wide ? "[40%,fill][60%,fill]" : "[0!,fill][grow,fill]");
+          revalidate();
+        }
+      }
+    });
+    javax.swing.JScrollPane formScroll = new javax.swing.JScrollPane(
+        new com.dtaq.retail.ui.component.ViewportPanel(buildFormPanel()));
+    formScroll.setBorder(null);
+    formScroll.setHorizontalScrollBarPolicy(javax.swing.JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+    formScroll.getVerticalScrollBar().setUnitIncrement(24);
+    add(formScroll, "cell 1 0, grow");
 
-    setPreferredSize(new Dimension(1100, 720));
-    setMinimumSize(new Dimension(860, 560));
-    pack();
-    AppInfo.centerOnScreen(this);
+    setIconImages(com.dtaq.retail.ui.theme.DtaqTheme.windowIcons());
+    com.dtaq.retail.ui.component.Responsive.fitWindow(this,
+        new Dimension(1100, 720), new Dimension(640, 520));
   }
 
   private JPanel buildFormPanel() {
-    JPanel container = new JPanel(new MigLayout("fill, insets 48", "[center]", "[center]"));
+    JPanel container = new JPanel(new MigLayout("fill, insets 24", "[center]", "[center]"));
     container.setBackground(DtaqColors.SURFACE);
 
     JPanel form = new JPanel(new MigLayout("fillx, insets 0, hidemode 3", "[grow]", "[]28[]20[]12[]16[]20[]"));
@@ -127,7 +145,7 @@ public final class LoginFrame extends JFrame {
     form.add(loiCallout, "growx, wrap");
 
     dangNhapButton.addActionListener(event -> submit());
-    form.add(dangNhapButton, "growx, h 42!, wrap");
+    form.add(dangNhapButton, "growx, h 44!, wrap");
 
     JPanel support = new JPanel(new MigLayout("fillx, insets 0", "[center]", "[]12[]"));
     support.setOpaque(false);
@@ -137,7 +155,7 @@ public final class LoginFrame extends JFrame {
     support.add(quenMatKhauButton, "center");
     form.add(support, "growx");
 
-    container.add(form, "center, w " + FORM_WIDTH + "!");
+    container.add(form, "center, growx, w 0:" + FORM_WIDTH + ":" + FORM_WIDTH);
     return container;
   }
 

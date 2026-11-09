@@ -48,4 +48,17 @@ class PasswordHasherTest {
   void nullPasswordRejected() {
     assertThrows(IllegalArgumentException.class, () -> PasswordHasher.hash(null));
   }
+
+  @Test
+  void quaDaiDemTheoByteUtf8() {
+    assertFalse(PasswordHasher.quaDai("a".repeat(72).toCharArray()));
+    assertTrue(PasswordHasher.quaDai("a".repeat(73).toCharArray()));
+    assertTrue(PasswordHasher.quaDai("ệ".repeat(25).toCharArray()), "25 ký tự có dấu = 75 byte");
+  }
+
+  @Test
+  void verifyMatKhauQuaDaiTraVeFalseKhongNem() {
+    String h = PasswordHasher.hash("12345678".toCharArray());
+    assertFalse(PasswordHasher.verify("x".repeat(80).toCharArray(), h));
+  }
 }

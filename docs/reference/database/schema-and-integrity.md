@@ -105,7 +105,7 @@
 |---|---|---|
 | RB35 | Bán hàng và giao máy thay thế | Chỉ được xuất bán hoặc giao thay thế máy có trạng thái `SAN_SANG_BAN` và thuộc dòng sản phẩm đang kinh doanh. |
 | RB36 | Tồn kho | Số lượng bán hoặc giao thay thế không được vượt số lượng sẵn sàng bán. Tồn kho sau giao dịch không được âm. |
-| RB37 | DongSanPham – SanPham | `soLuongTon` của dòng sản phẩm phải bằng số máy thuộc dòng có trạng thái `SAN_SANG_BAN`, theo quy ước tồn sẵn sàng bán của hệ thống. |
+| RB37 | DongSanPham – SanPham | `soLuongTon` của dòng sản phẩm phải bằng số máy thuộc dòng có trạng thái `SAN_SANG_BAN`, theo quy ước tồn sẵn sàng bán của hệ thống. Từ `2026-11-03`, DB cưỡng chế bất biến này bằng trigger `trg_sanpham_cap_nhat_ton` (migration `V6__trigger_so_luong_ton.sql`) và `SanPhamController` cũng tính lại khi thêm máy; không có cột nhập tay. |
 | RB38 | Hoàn tất hóa đơn | Hóa đơn được thanh toán phải có ít nhất một chi tiết hợp lệ và khách đã thanh toán đủ. Khi giao dịch thành công, các máy bán phải chuyển sang `DA_BAN` và tồn sẵn sàng bán được cập nhật tương ứng. |
 | RB39 | Nhận hàng đổi/trả | Hàng nhận lại chỉ được chuyển sang `SAN_SANG_BAN` khi đã kiểm tra đủ điều kiện. Hàng lỗi phải được ghi nhận đúng trạng thái, không tự động cộng vào tồn sẵn sàng bán. |
 | RB40 | Xử lý đồng thời | Hai giao dịch không được cùng xuất bán một máy đang sẵn sàng bán. Trạng thái máy và tồn kho phải được kiểm tra lại trong giao dịch ghi nhận kết quả. |
@@ -127,6 +127,8 @@
 | RB49 | PhieuDoi | `tongTienChenhLech = Σ tienChenhLech`; `tongTienThuThem = max(0, tongTienChenhLech)`. Nếu tổng chênh lệch âm, tiền cần hoàn bằng `max(0, −tongTienChenhLech)`. Phải bù trừ cả chi tiết âm và dương trước khi xác định khoản thu hoặc hoàn của phiếu. |
 | RB50 | Thuộc tính dẫn xuất | Các thuộc tính dẫn xuất phải được tính từ dữ liệu nguồn theo công thức đã phê duyệt. Nếu lưu kết quả để phục vụ tra cứu thì phải có cơ chế cập nhật, đối soát để không lệch dữ liệu nguồn. Công thức còn được ghi là đề xuất chưa được xem là quy tắc chính thức. |
 | RB51 | Các phép tính tiền | Sử dụng cùng quy tắc về độ chính xác và làm tròn trong lưu trữ, hiển thị và báo cáo. Không dùng giá trị hiển thị đã bị làm tròn ở bước trung gian để tiếp tục tính toán. Các cột tiền và tỷ lệ trong CSDL nên sử dụng kiểu số thập phân chính xác với độ chính xác phù hợp. |
+
+> **Thu hẹp bởi D17 (2026-11-05):** implementation lưu `PhieuDoi.tienChenhLech` (một máy/phiếu) thay cho tổng dẫn xuất theo chi tiết; migration `V10` ràng buộc `tienChenhLech <= 0` và `tienKhachDuaThem = 0`. `tienThuThem`/`max(0, …)` của nguồn (`RB48`, `RB49`) **chỉ còn giá trị tham chiếu**; `RB48`/`RB49` giữ nguyên câu chữ nguồn.
 
 > **Ghi chú xung đột thiết kế nguồn (G-11 / BR-C12):** `RB22` yêu cầu mỗi chi tiết hóa đơn xác định được **máy thực tế được bán** và `RB46` yêu cầu **lưu đơn giá, thuế suất và khuyến mãi tại thời điểm giao dịch**, trong khi phần văn bản mô tả `ChiTietHoaDon` tại Ch.4 §I.3 chỉ hiển thị `sanPham: DongSanPham`, `soLuong` = 1 và các khoản dẫn xuất. **Bằng chứng trực quan ngày 2026-10-19**: EER thể hiện `maHD`, `maDongSP`, `soLuong`, `tienTruocKhuyenMai`, `tienSauKhuyenMai`, **không có cột serial/giá thực tế/thuế/khuyến mãi snapshot tường minh**; sơ đồ lớp thể hiện `hoaDon`, `sanPham: DongSanPham`, `soLuong`, `/tienTruocKhuyenMai`, `/tienSauKhuyenMai`, **không thấy trường serial/snapshot nào được vẽ trực tiếp**. Đây là **xung đột thiết kế nguồn được giữ làm bằng chứng lịch sử**; phần trích DOCX không thêm cột/quan hệ ngoài phần thấy được. **V1 đã quyết định mô hình theo amendment được phê duyệt** tại 6.2. Xem [ghi chú mô hình tại domain](../domain/class-model-and-entities.md), [G-11](../traceability.md), [BR-C12](../business-rules/rules-and-exceptions.md).
 
@@ -229,11 +231,15 @@ Hệ quả trong phạm vi ảnh chụp:
 | `ChiTietHoaDon` | `(maHD, soSerial)` | FK `maHD` → `HoaDon`; FK ghép `(soSerial, maDongSP)` → `SanPham`; FK `maKM` → `KhuyenMai`; CHECK `soLuong = 1`; CHECK snapshot; xem 6.2. |
 | `PhieuTra` | `maPhieuTra` | FK `nhanVienLap`/`nhanVienDuyet` → `NhanVien`, `hoaDon` → `HoaDon`; CHECK trạng thái, ngày, thông tin duyệt, tiền khách đưa. |
 | `ChiTietPhieuTra` | `(maPhieuTra, maHD, soSerial)` | FK `maPhieuTra` → `PhieuTra`; FK ghép `(maHD, soSerial)` → `ChiTietHoaDon`; CHECK `TinhTrangHangTra`, lý do không rỗng. |
-| `PhieuDoi` | `maPhieuDoi` | FK `nhanVienLap`/`nhanVienDuyet` → `NhanVien`, `hoaDon` → `HoaDon`; CHECK trạng thái, ngày, thông tin duyệt, tiền khách đưa thêm. |
+| `PhieuDoi` | `maPhieuDoi` | FK `nhanVienLap`/`nhanVienDuyet` → `NhanVien`, `hoaDon` → `HoaDon`; CHECK trạng thái, ngày, thông tin duyệt, tiền khách đưa thêm; từ `V10` (D17, 2026-11-05): CHECK `tienChenhLech <= 0`, `tienKhachDuaThem = 0`. |
 | `ChiTietPhieuDoi` | `(maPhieuDoi, maHD, soSerial)` | FK `maPhieuDoi` → `PhieuDoi`; FK ghép `(maHD, soSerial)` → `ChiTietHoaDon`; FK `chiTietSanPhamDoi` → `SanPham`; UQ `(maPhieuDoi, chiTietSanPhamDoi)`; CHECK máy thay thế khác máy trả. |
 | `SanPhamLoi` | `maLoi` | FK `soSerial` → `SanPham`; FK tùy chọn `maPhieuTra` → `PhieuTra`, `maPhieuDoi` → `PhieuDoi`; CHECK `TrangThaiXuLyLoi`, ngày cập nhật; trigger nguồn; xem 6.4. |
 
 Tất cả khóa ngoại dùng `ON DELETE RESTRICT`; không có `ON DELETE CASCADE`. Tên bảng/cột dùng identifier được quote để giữ đúng camelCase nguồn.
+
+> **Bổ sung V11 + V12 (2026-11-05):** `V11__backup_history.sql` thêm `"LichSuSaoLuu"` (lịch sử sao lưu/phục hồi) và `"SuCoSucKhoe"` (sự cố sức khỏe); `V12__lichsu_sao_luu_bo_rang_buoc_filepath.sql` bỏ UNIQUE `uq_lichsusaoluu_filepath` để một tệp có thể có bản ghi sao lưu và nhiều bản ghi phục hồi (lịch sử là log, không phải định danh duy nhất), đồng thời nới `"SuCoSucKhoe"."severity"` lên `VARCHAR(12)` và `"trangThai"` lên `VARCHAR(20)`, đổi CHECK thành `severity IN ('CRITICAL','SUSPICIOUS')` và `trangThai IN ('PENDING','RESOLVED_RESTORED','AUTO_RESTORED','DISMISSED','FAILED')` theo đặc tả FR015/FR016. Hai bảng là **cache hiển thị/audit**, **không** thuộc 14 bảng nghiệp vụ cốt lõi; nguồn sự thật của bản sao lưu vẫn là cặp tệp `.dump` + `.meta.json` trong thư mục backup.
+
+> **`"SuCoSucKhoe"` từ 2026-11-05:** bảng nay **được `HealthMonitor`/`RecoveryCoordinator` ghi và đọc** khi phát hiện sự cố sức khỏe dữ liệu (không còn là bảng dự phòng). Từ vựng sau `V12`: `severity` ∈ `CRITICAL`/`SUSPICIOUS`; `trangThai` ∈ `PENDING`/`RESOLVED_RESTORED`/`AUTO_RESTORED`/`DISMISSED`/`FAILED`. Trạng thái `UNAVAILABLE` (máy chủ tắt, mất mạng, sai quyền) **chỉ nằm trong `health_state.json`** và cảnh báo giao diện — **không** tạo dòng trong `"SuCoSucKhoe"`.
 
 ### 6.2. `ChiTietHoaDon` — cấu trúc và snapshot
 
@@ -260,6 +266,7 @@ Tất cả khóa ngoại dùng `ON DELETE RESTRICT`; không có `ON DELETE CASCA
 - `ChiTietPhieuTra` PK `(maPhieuTra, maHD, soSerial)`; `ChiTietPhieuDoi` PK `(maPhieuDoi, maHD, soSerial)`.
 - `ChiTietPhieuDoi.chiTietSanPhamDoi` là serial máy thay thế, FK tới `SanPham(soSerial)`. UQ `(maPhieuDoi, chiTietSanPhamDoi)` chặn dùng lặp một máy thay thế trong cùng phiếu; CHECK `chiTietSanPhamDoi <> soSerial` chặn thay thế chính máy khách mang đổi (RB25).
 - Các điều kiện "hóa đơn gốc đã thanh toán", "đúng hóa đơn gốc", "không xử lý trùng" và tổng số lượng đã đổi/trả vẫn là kiểm tra liên bảng của ứng dụng (RB23, RB24, RB52–RB53), không được mô phỏng bằng trigger trong V1.
+- **Thu hẹp bởi D17 (2026-11-05):** `PhieuDoi.tienChenhLech` là chênh lệch cấp phiếu (implementation một máy/phiếu), `<= 0`; migration `V10` thêm CHECK `tienChenhLech <= 0` và `tienKhachDuaThem = 0`; phiếu đổi không phát sinh hoàn/thu nên không dùng `tienThuThem`/`max(0, …)` của `RB48`/`RB49`.
 
 ### 6.4. `SanPhamLoi` và trigger nguồn
 
