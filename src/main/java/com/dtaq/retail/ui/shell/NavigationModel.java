@@ -50,7 +50,8 @@ public final class NavigationModel {
           new NavEntry("products", "Quản lý sản phẩm", "package", PageId.PRODUCTS),
           new NavEntry("product_lines", "Quản lý dòng sản phẩm", "shopping-cart", PageId.PRODUCT_LINES),
           new NavEntry("categories", "Quản lý danh mục sản phẩm", "info", PageId.CATEGORIES),
-          new NavEntry("defective_products", "Quản lý sản phẩm lỗi", "alert-circle", PageId.DEFECTIVE_PRODUCTS)
+          new NavEntry("defective_products", "Quản lý sản phẩm lỗi", "alert-circle", PageId.DEFECTIVE_PRODUCTS),
+          new NavEntry("promotions", "Quản lý khuyến mãi", "zap", PageId.PROMOTIONS)
       );
     }
   }

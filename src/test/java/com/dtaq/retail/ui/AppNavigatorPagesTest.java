@@ -99,8 +99,8 @@ class AppNavigatorPagesTest {
   }
 
   @Test
-  @DisplayName("Vai trò bán hàng đăng ký đúng 10 trang thật theo thứ tự menu")
-  void salesDangKyDung10TrangThat() {
+  @DisplayName("Vai trò bán hàng đăng ký đúng 11 trang thật theo thứ tự menu")
+  void salesDangKyDung11TrangThat() {
     List<Page> pages = AppNavigator.salesPages(NV_BAN_HANG, DS, KHONG_DIEU_HUONG);
 
     Set<PageId> ids = idsOf(pages);
@@ -114,8 +114,9 @@ class AppNavigatorPagesTest {
         PageId.PRODUCTS,
         PageId.PRODUCT_LINES,
         PageId.CATEGORIES,
-        PageId.DEFECTIVE_PRODUCTS), ids);
-    assertEquals(10, pages.size(), "không được đăng ký trùng PageId");
+        PageId.DEFECTIVE_PRODUCTS,
+        PageId.PROMOTIONS), ids);
+    assertEquals(11, pages.size(), "không được đăng ký trùng PageId");
     assertEquals(List.of(
         PageId.SALES_HOME,
         PageId.CUSTOMERS,
@@ -126,7 +127,8 @@ class AppNavigatorPagesTest {
         PageId.PRODUCTS,
         PageId.PRODUCT_LINES,
         PageId.CATEGORIES,
-        PageId.DEFECTIVE_PRODUCTS), idsTheoThuTu(pages),
+        PageId.DEFECTIVE_PRODUCTS,
+        PageId.PROMOTIONS), idsTheoThuTu(pages),
         "đúng thứ tự menu của vai trò bán hàng");
   }
 

@@ -487,11 +487,11 @@ public final class AppNavigator {
    * @param nhanVien nhân viên bán hàng đang đăng nhập; không được {@code null}
    * @param dataSource nguồn dữ liệu cho các lớp truy cập; không được {@code null}
    * @param onNavigate callback điều hướng giữa các trang; không được {@code null}
-   * @return 10 trang thật theo đúng thứ tự menu: {@link PageId#SALES_HOME}, {@link
+   * @return 11 trang thật theo đúng thứ tự menu: {@link PageId#SALES_HOME}, {@link
    *     PageId#CUSTOMERS}, {@link PageId#RETAIL_INVOICE}, {@link PageId#PRODUCT_LOOKUP}, {@link
    *     PageId#CUSTOMER_LOOKUP}, {@link PageId#RETURNS}, {@link PageId#PRODUCTS}, {@link
-   *     PageId#PRODUCT_LINES}, {@link PageId#CATEGORIES}, {@link PageId#DEFECTIVE_PRODUCTS}; mỗi
-   *     {@code PageId} xuất hiện tối đa một lần
+   *     PageId#PRODUCT_LINES}, {@link PageId#CATEGORIES}, {@link PageId#DEFECTIVE_PRODUCTS}, {@link
+   *     PageId#PROMOTIONS}; mỗi {@code PageId} xuất hiện tối đa một lần
    */
   static List<Page> salesPages(
       NhanVien nhanVien, DataSource dataSource, Consumer<PageId> onNavigate) {
@@ -536,6 +536,8 @@ public final class AppNavigator {
         new DanhMucController(danhMucDao, dataSource));
     DefectiveProductsPage defective = new DefectiveProductsPage(
         new SanPhamLoiController(sanPhamLoiDao, sanPhamDao, dataSource));
+    PromotionsPage promotions = new PromotionsPage(
+        new KhuyenMaiController(new KhuyenMaiDaoImpl(dataSource), dongSanPhamDao, dataSource));
     DoiTraController doiTra = new DoiTraController(
         new PhieuTraDaoImpl(dataSource),
         new PhieuDoiDaoImpl(dataSource),
@@ -563,7 +565,8 @@ public final class AppNavigator {
         products,
         productLines,
         categories,
-        defective);
+        defective,
+        promotions);
   }
 
   private static Set<PageId> idsOf(List<Page> pages) {

@@ -4,6 +4,8 @@ import com.dtaq.retail.controller.KhuyenMaiController;
 import com.dtaq.retail.controller.KhuyenMaiController.KetQua;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.KhuyenMai;
+import com.dtaq.retail.entity.LoaiQuyen;
+import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -57,11 +59,16 @@ public final class PromotionsPage implements Page {
   private final List<KhuyenMai> promotions = new ArrayList<>();
   private final List<DongSanPham> productLines = new ArrayList<>();
   private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
+  /** Chỉ Quản lý được tạo và bật/dừng chương trình khuyến mãi (UC012). */
+  private final boolean laQuanLy;
   /** Bảng chỉ nạp khuyến mãi sau lần tìm kiếm đầu tiên của người dùng. */
   private boolean daTimKiem;
 
   public PromotionsPage(KhuyenMaiController controller) {
     this.controller = Objects.requireNonNull(controller, "controller");
+    this.laQuanLy = CurrentSession.get()
+        .map(nhanVien -> nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY)
+        .orElse(false);
     view = new JPanel(new MigLayout(
         "fill, insets " + DtaqSpacing.PAGE_PADDING + ", gapy 16", "[grow]", "[][grow]"));
 
@@ -73,6 +80,10 @@ public final class PromotionsPage implements Page {
     refreshButton.addActionListener(e -> loadData());
     toggleButton.addActionListener(e -> toggleSelectedPromotion());
     header.setTrailing(refreshButton, addButton);
+    addButton.setVisible(laQuanLy);
+    addButton.setEnabled(laQuanLy);
+    toggleButton.setVisible(laQuanLy);
+    toggleButton.setEnabled(laQuanLy);
     view.add(header, "growx, wrap");
 
     dataTable.setCodeColumn(0);
@@ -165,7 +176,7 @@ public final class PromotionsPage implements Page {
             productLines.stream().filter(dsp -> dsp.maDongSP().equals(selected.maDongSP()))
                 .findFirst().ifPresent(lineFilter::setSelectedItem);
           }
-          addButton.setEnabled(!productLines.isEmpty());
+          addButton.setEnabled(laQuanLy && !productLines.isEmpty());
           renderFilteredList();
         } catch (Exception e) {
           tableState.showError("Không thể tải danh sách khuyến mãi: " + e.getMessage());
@@ -220,6 +231,10 @@ public final class PromotionsPage implements Page {
   }
 
   private void openAddDialog() {
+    if (!laQuanLy) {
+      Toast.show(view, "Chỉ Quản lý được tạo chương trình khuyến mãi", Toast.Kind.ERROR);
+      return;
+    }
     if (productLines.isEmpty()) {
       Toast.show(view, "Chưa có dòng sản phẩm để gắn khuyến mãi", Toast.Kind.ERROR);
       return;
@@ -254,6 +269,10 @@ public final class PromotionsPage implements Page {
   }
 
   private void toggleSelectedPromotion() {
+    if (!laQuanLy) {
+      Toast.show(view, "Chỉ Quản lý được bật/dừng chương trình khuyến mãi", Toast.Kind.ERROR);
+      return;
+    }
     int row = dataTable.getTable().getSelectedRow();
     if (row < 0) {
       Toast.show(view, "Vui lòng chọn chương trình khuyến mãi", Toast.Kind.ERROR);

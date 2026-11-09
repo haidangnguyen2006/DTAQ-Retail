@@ -23,10 +23,10 @@ class NavigationModelTest {
   }
 
   @Test
-  @DisplayName("Nhân viên bán hàng có đúng 10 mục menu và không có mục Thống kê")
+  @DisplayName("Nhân viên bán hàng có đúng 11 mục menu, kết thúc bằng Quản lý khuyến mãi")
   void testSalesNavEntries() {
     List<NavigationModel.NavEntry> entries = salesEntries();
-    assertEquals(10, entries.size());
+    assertEquals(11, entries.size());
 
     assertEquals(
         List.of(
@@ -39,7 +39,8 @@ class NavigationModelTest {
             PageId.PRODUCTS,
             PageId.PRODUCT_LINES,
             PageId.CATEGORIES,
-            PageId.DEFECTIVE_PRODUCTS
+            PageId.DEFECTIVE_PRODUCTS,
+            PageId.PROMOTIONS
         ),
         entries.stream().map(NavigationModel.NavEntry::pageId).toList()
     );
