@@ -163,9 +163,11 @@ class KhuyenMaiDaoImplTest {
         BigDecimal.TEN, "Mô tả cũ", false, dsp);
     dao.insert(km);
 
+    DongSanPham dongMoi = new DongSanPham(
+        DONG_SP_SEED, null, null, null, 0, null, null, true, null, null);
     KhuyenMai kmMoi = new KhuyenMai(
         MA_KM_TEST, "Tên mới cập nhật", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 20),
-        new BigDecimal("25.00"), "Mô tả mới", false, dsp);
+        new BigDecimal("25.00"), "Mô tả mới", false, dongMoi);
     dao.update(kmMoi);
 
     Optional<KhuyenMai> found = dao.findById(MA_KM_TEST);
@@ -173,6 +175,9 @@ class KhuyenMaiDaoImplTest {
     assertEquals("Tên mới cập nhật", found.get().tenKM());
     assertEquals(LocalDate.of(2026, 11, 20), found.get().ngayKetThuc());
     assertEquals(0, new BigDecimal("25.00").compareTo(found.get().tyLeGiam()));
+    assertEquals(DONG_SP_SEED, found.get().dongSanPham().maDongSP());
+    assertFalse(dao.findByDongSanPham(DONG_SP_TEST).stream()
+        .anyMatch(khuyenMai -> MA_KM_TEST.equals(khuyenMai.maKM())));
   }
 
   @Test

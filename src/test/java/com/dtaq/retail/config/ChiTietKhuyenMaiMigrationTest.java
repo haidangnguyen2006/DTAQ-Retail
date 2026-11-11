@@ -25,17 +25,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Kiểm thử migration V15 — bảng chi tiết khuyến mãi theo dòng sản phẩm.
+ * Kiểm thử schema khuyến mãi sau V15 và V16.
  *
- * <p>V15 là migration chỉ thêm: tạo {@code ChiTietKhuyenMai}, sao chép dữ liệu từ {@code
- * KhuyenMai.maDongSP} và tạo chỉ mục tra cứu; cột {@code KhuyenMai.maDongSP} vẫn phải còn. Mỗi bài
- * kiểm thử mở một giao dịch riêng và luôn rollback, nên dữ liệu thật không bị thay đổi. Nếu cơ sở dữ
- * liệu phát triển chưa chạy V15, lớp kiểm thử nạp chính nội dung tệp migration trong giao dịch đang
- * mở (giống cách {@code SoLuongTonTriggerTest} bảo đảm trigger V6 có mặt).
+ * <p>V15 tạo bảng chi tiết và backfill. V16 bỏ cột liên kết cũ. Các migration còn thiếu được chạy
+ * trong giao dịch của bài kiểm thử và rollback sau đó.
  */
 class ChiTietKhuyenMaiMigrationTest {
 
-  private static final String MIGRATION = "db/migration/V15__chi_tiet_khuyen_mai.sql";
+  private static final String V15 = "db/migration/V15__chi_tiet_khuyen_mai.sql";
+  private static final String V16 = "db/migration/V16__bo_khuyenmai_madongsp.sql";
 
   private Connection ketNoi;
 
@@ -72,16 +70,19 @@ class ChiTietKhuyenMaiMigrationTest {
   }
 
   @Test
-  @DisplayName("V15 chỉ thêm: cột KhuyenMai.maDongSP vẫn còn")
-  void cotMaDongSPCuaKhuyenMaiVanCon() throws SQLException {
+  @DisplayName("V16 xóa cột KhuyenMai.maDongSP")
+  void v16XoaCotMaDongSPCuaKhuyenMai() throws SQLException {
+    assertFalse(cotMaDongSPCuaKhuyenMaiTonTai(ketNoi), "V16 phải xóa cột KhuyenMai.maDongSP");
+  }
+
+  private boolean cotMaDongSPCuaKhuyenMaiTonTai(Connection conn) throws SQLException {
     String sql =
         "SELECT 1 FROM information_schema.columns "
             + "WHERE table_schema = current_schema() "
             + "AND table_name = 'KhuyenMai' AND column_name = 'maDongSP'";
-    try (Statement st = ketNoi.createStatement();
+    try (Statement st = conn.createStatement();
         ResultSet rs = st.executeQuery(sql)) {
-      assertTrue(rs.next(),
-          "V15 là migration chỉ thêm, không được xóa cột \"KhuyenMai\".\"maDongSP\"");
+      return rs.next();
     }
   }
 
@@ -198,12 +199,17 @@ class ChiTietKhuyenMaiMigrationTest {
     }
   }
 
-  /** Nạp V15 trong giao dịch hiện tại nếu cơ sở dữ liệu phát triển chưa có bảng chi tiết. */
   private void damBaoMigration(Connection conn) throws SQLException, IOException {
-    if (bangTonTai(conn, "ChiTietKhuyenMai")) {
-      return;
+    if (!bangTonTai(conn, "ChiTietKhuyenMai")) {
+      chayMigration(conn, V15);
     }
-    for (String lenh : docCacCauLenh()) {
+    if (cotMaDongSPCuaKhuyenMaiTonTai(conn)) {
+      chayMigration(conn, V16);
+    }
+  }
+
+  private void chayMigration(Connection conn, String migration) throws SQLException, IOException {
+    for (String lenh : docCacCauLenh(migration)) {
       try (Statement st = conn.createStatement()) {
         st.execute(lenh);
       }
@@ -211,15 +217,15 @@ class ChiTietKhuyenMaiMigrationTest {
   }
 
   /**
-   * Đọc file migration V15 và tách thành từng câu lệnh.
+   * Đọc file migration và tách thành từng câu lệnh.
    *
-   * <p>V15 chỉ có câu lệnh DDL/DML đơn giản, không chứa chuỗi có dấu {@code ;} hay khối {@code $$},
+   * <p>V15 và V16 chỉ có câu lệnh DDL/DML đơn giản, không chứa chuỗi có dấu {@code ;} hay khối {@code $$},
    * nên chỉ cần bỏ dòng chú thích rồi tách theo dấu chấm phẩy.
    */
-  private List<String> docCacCauLenh() throws IOException {
+  private List<String> docCacCauLenh(String migration) throws IOException {
     String script;
-    try (InputStream in = getClass().getClassLoader().getResourceAsStream(MIGRATION)) {
-      assertNotNull(in, "khong doc duoc file migration " + MIGRATION);
+    try (InputStream in = getClass().getClassLoader().getResourceAsStream(migration)) {
+      assertNotNull(in, "khong doc duoc file migration " + migration);
       script = new String(in.readAllBytes(), StandardCharsets.UTF_8);
     }
 
@@ -233,7 +239,7 @@ class ChiTietKhuyenMaiMigrationTest {
         ketQua.add(phan.strip());
       }
     }
-    assertFalse(ketQua.isEmpty(), "file migration " + MIGRATION + " khong co cau lenh nao");
+    assertFalse(ketQua.isEmpty(), "file migration " + migration + " khong co cau lenh nao");
     return ketQua;
   }
 }

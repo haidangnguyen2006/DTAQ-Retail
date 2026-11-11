@@ -18,18 +18,19 @@ import java.util.Optional;
 import javax.sql.DataSource;
 
 /**
- * Triển khai JDBC của {@link KhuyenMaiDao} thao tác trên bảng {@code "KhuyenMai"}.
+ * Triển khai JDBC của {@link KhuyenMaiDao} trên bảng chương trình và bảng chi tiết.
  */
 public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
 
   private static final String SELECT_BASE =
       "SELECT km.\"maKM\", km.\"tenKM\", km.\"ngayBatDau\", km.\"ngayKetThuc\", km.\"tyLeGiam\","
-          + " km.\"moTa\", km.\"dangApDung\", km.\"maDongSP\","
+          + " km.\"moTa\", km.\"dangApDung\", ct.\"maDongSP\","
           + " dsp.\"tenDongSP\", dsp.\"donViTinh\", dsp.\"soLuongTon\", dsp.\"thue\","
           + " dsp.\"donGiaBanTruocThue\", dsp.\"trangThaiKinhDoanh\", dsp.\"ngayNhapKho\","
           + " dsp.\"ngayCapNhapCuoi\", dsp.\"maDanhMuc\""
           + " FROM \"KhuyenMai\" km"
-          + " JOIN \"DongSanPham\" dsp ON km.\"maDongSP\" = dsp.\"maDongSP\"";
+          + " JOIN \"ChiTietKhuyenMai\" ct ON ct.\"maKM\" = km.\"maKM\""
+          + " JOIN \"DongSanPham\" dsp ON ct.\"maDongSP\" = dsp.\"maDongSP\"";
 
   private static final String SELECT_ALL =
       SELECT_BASE + " ORDER BY km.\"ngayBatDau\" DESC, km.\"maKM\" DESC";
@@ -38,25 +39,35 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
       SELECT_BASE + " WHERE km.\"maKM\" = ?";
 
   private static final String SELECT_BY_DONG_SP =
-      SELECT_BASE + " WHERE km.\"maDongSP\" = ? ORDER BY km.\"ngayBatDau\" DESC, km.\"maKM\" DESC";
+      SELECT_BASE + " WHERE ct.\"maDongSP\" = ? ORDER BY km.\"ngayBatDau\" DESC, km.\"maKM\" DESC";
 
   private static final String SELECT_HIEU_LUC =
       SELECT_BASE
-          + " WHERE km.\"maDongSP\" = ?"
+          + " WHERE ct.\"maDongSP\" = ?"
           + " AND km.\"dangApDung\" = true"
           + " AND ? >= km.\"ngayBatDau\" AND ? <= km.\"ngayKetThuc\""
           + " ORDER BY km.\"tyLeGiam\" DESC, km.\"ngayBatDau\" DESC"
           + " LIMIT 1";
 
   private static final String INSERT =
-      "INSERT INTO \"KhuyenMai\" (\"maKM\", \"tenKM\", \"ngayBatDau\", \"ngayKetThuc\", \"tyLeGiam\","
-          + " \"moTa\", \"dangApDung\", \"maDongSP\")"
-          + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+      """
+      WITH chuong_trinh AS (
+        INSERT INTO "KhuyenMai" ("maKM", "tenKM", "ngayBatDau", "ngayKetThuc",
+                                 "tyLeGiam", "moTa", "dangApDung")
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        RETURNING "maKM"
+      )
+      INSERT INTO "ChiTietKhuyenMai" ("maKM", "maDongSP")
+      SELECT "maKM", ? FROM chuong_trinh
+      """;
 
   private static final String UPDATE =
       "UPDATE \"KhuyenMai\" SET \"tenKM\" = ?, \"ngayBatDau\" = ?, \"ngayKetThuc\" = ?,"
-          + " \"tyLeGiam\" = ?, \"moTa\" = ?, \"dangApDung\" = ?, \"maDongSP\" = ?"
+          + " \"tyLeGiam\" = ?, \"moTa\" = ?, \"dangApDung\" = ?"
           + " WHERE \"maKM\" = ?";
+
+  private static final String UPDATE_CHI_TIET =
+      "UPDATE \"ChiTietKhuyenMai\" SET \"maDongSP\" = ? WHERE \"maKM\" = ?";
 
   private static final String UPDATE_TRANG_THAI_AP_DUNG =
       "UPDATE \"KhuyenMai\" SET \"dangApDung\" = ? WHERE \"maKM\" = ?";
@@ -66,11 +77,12 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
 
   private static final String EXISTS_CHONG_LAN =
       "SELECT EXISTS("
-          + " SELECT 1 FROM \"KhuyenMai\""
-          + " WHERE \"maDongSP\" = ?"
-          + " AND \"dangApDung\" = true"
-          + " AND NOT (\"ngayKetThuc\" < ? OR \"ngayBatDau\" > ?)"
-          + " AND (? IS NULL OR \"maKM\" <> ?)"
+          + " SELECT 1 FROM \"KhuyenMai\" km"
+          + " JOIN \"ChiTietKhuyenMai\" ct ON ct.\"maKM\" = km.\"maKM\""
+          + " WHERE ct.\"maDongSP\" = ?"
+          + " AND km.\"dangApDung\" = true"
+          + " AND NOT (km.\"ngayKetThuc\" < ? OR km.\"ngayBatDau\" > ?)"
+          + " AND (? IS NULL OR km.\"maKM\" <> ?)"
           + ")";
 
   private final DataSource dataSource;
@@ -182,19 +194,37 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
   @Override
   public void update(KhuyenMai km) {
     validateKhuyenMai(km);
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(UPDATE)) {
-      statement.setString(1, km.tenKM().trim());
-      statement.setDate(2, Date.valueOf(km.ngayBatDau()));
-      statement.setDate(3, Date.valueOf(km.ngayKetThuc()));
-      statement.setBigDecimal(4, km.tyLeGiam());
-      statement.setString(5, km.moTa());
-      statement.setBoolean(6, km.dangApDung());
-      statement.setString(7, km.dongSanPham().maDongSP().trim());
-      statement.setString(8, km.maKM().trim());
-      int affected = statement.executeUpdate();
-      if (affected == 0) {
-        throw new DataAccessException("Không tìm thấy chương trình khuyến mãi để cập nhật: " + km.maKM());
+    String maKM = km.maKM().trim();
+    try (Connection connection = dataSource.getConnection()) {
+      connection.setAutoCommit(false);
+      try {
+        try (PreparedStatement statement = connection.prepareStatement(UPDATE)) {
+          statement.setString(1, km.tenKM().trim());
+          statement.setDate(2, Date.valueOf(km.ngayBatDau()));
+          statement.setDate(3, Date.valueOf(km.ngayKetThuc()));
+          statement.setBigDecimal(4, km.tyLeGiam());
+          statement.setString(5, km.moTa());
+          statement.setBoolean(6, km.dangApDung());
+          statement.setString(7, maKM);
+          if (statement.executeUpdate() == 0) {
+            throw new DataAccessException("Không tìm thấy chương trình khuyến mãi để cập nhật: " + maKM);
+          }
+        }
+        try (PreparedStatement statement = connection.prepareStatement(UPDATE_CHI_TIET)) {
+          statement.setString(1, km.dongSanPham().maDongSP().trim());
+          statement.setString(2, maKM);
+          if (statement.executeUpdate() != 1) {
+            throw new DataAccessException("Chương trình khuyến mãi phải có đúng một dòng sản phẩm để cập nhật: " + maKM);
+          }
+        }
+        connection.commit();
+      } catch (SQLException | RuntimeException e) {
+        try {
+          connection.rollback();
+        } catch (SQLException rollbackError) {
+          e.addSuppressed(rollbackError);
+        }
+        throw e;
       }
     } catch (SQLException e) {
       handleSqlException("Không thể cập nhật chương trình khuyến mãi", e);
