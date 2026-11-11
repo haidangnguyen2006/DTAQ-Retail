@@ -1,6 +1,8 @@
 package com.dtaq.retail.dao.impl;
 
 import com.dtaq.retail.dao.KhuyenMaiDao;
+import com.dtaq.retail.entity.ChiTietKhuyenMai;
+import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.KhuyenMai;
 import com.dtaq.retail.exception.DataAccessException;
@@ -12,7 +14,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import javax.sql.DataSource;
@@ -39,35 +44,34 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
       SELECT_BASE + " WHERE km.\"maKM\" = ?";
 
   private static final String SELECT_BY_DONG_SP =
-      SELECT_BASE + " WHERE ct.\"maDongSP\" = ? ORDER BY km.\"ngayBatDau\" DESC, km.\"maKM\" DESC";
+      SELECT_BASE
+          + " WHERE km.\"maKM\" IN (SELECT \"maKM\" FROM \"ChiTietKhuyenMai\" WHERE \"maDongSP\" = ?)"
+          + " ORDER BY km.\"ngayBatDau\" DESC, km.\"maKM\" DESC,"
+          + " CASE WHEN ct.\"maDongSP\" = ? THEN 0 ELSE 1 END, ct.\"maDongSP\"";
 
   private static final String SELECT_HIEU_LUC =
       SELECT_BASE
-          + " WHERE ct.\"maDongSP\" = ?"
+          + " WHERE EXISTS (SELECT 1 FROM \"ChiTietKhuyenMai\" loc"
+          + " WHERE loc.\"maKM\" = km.\"maKM\" AND loc.\"maDongSP\" = ?)"
           + " AND km.\"dangApDung\" = true"
           + " AND ? >= km.\"ngayBatDau\" AND ? <= km.\"ngayKetThuc\""
-          + " ORDER BY km.\"tyLeGiam\" DESC, km.\"ngayBatDau\" DESC"
-          + " LIMIT 1";
+          + " ORDER BY km.\"tyLeGiam\" DESC, km.\"ngayBatDau\" DESC, km.\"maKM\" ASC,"
+          + " CASE WHEN ct.\"maDongSP\" = ? THEN 0 ELSE 1 END, ct.\"maDongSP\"";
 
   private static final String INSERT =
-      """
-      WITH chuong_trinh AS (
-        INSERT INTO "KhuyenMai" ("maKM", "tenKM", "ngayBatDau", "ngayKetThuc",
-                                 "tyLeGiam", "moTa", "dangApDung")
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        RETURNING "maKM"
-      )
-      INSERT INTO "ChiTietKhuyenMai" ("maKM", "maDongSP")
-      SELECT "maKM", ? FROM chuong_trinh
-      """;
+      "INSERT INTO \"KhuyenMai\" (\"maKM\", \"tenKM\", \"ngayBatDau\", \"ngayKetThuc\","
+          + " \"tyLeGiam\", \"moTa\", \"dangApDung\") VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+  private static final String INSERT_CHI_TIET =
+      "INSERT INTO \"ChiTietKhuyenMai\" (\"maKM\", \"maDongSP\") VALUES (?, ?)";
+
+  private static final String DELETE_CHI_TIET =
+      "DELETE FROM \"ChiTietKhuyenMai\" WHERE \"maKM\" = ?";
 
   private static final String UPDATE =
       "UPDATE \"KhuyenMai\" SET \"tenKM\" = ?, \"ngayBatDau\" = ?, \"ngayKetThuc\" = ?,"
           + " \"tyLeGiam\" = ?, \"moTa\" = ?, \"dangApDung\" = ?"
           + " WHERE \"maKM\" = ?";
-
-  private static final String UPDATE_CHI_TIET =
-      "UPDATE \"ChiTietKhuyenMai\" SET \"maDongSP\" = ? WHERE \"maKM\" = ?";
 
   private static final String UPDATE_TRANG_THAI_AP_DUNG =
       "UPDATE \"KhuyenMai\" SET \"dangApDung\" = ? WHERE \"maKM\" = ?";
@@ -107,11 +111,16 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
       Date sqlDate = Date.valueOf(ngay);
       statement.setDate(2, sqlDate);
       statement.setDate(3, sqlDate);
+      statement.setString(4, maDongSP.trim());
       try (ResultSet resultSet = statement.executeQuery()) {
         if (!resultSet.next()) {
           return Optional.empty();
         }
-        return Optional.of(mapKhuyenMai(resultSet));
+        Map<String, KhuyenMaiAccumulator> rows = new LinkedHashMap<>();
+        do {
+          mapKhuyenMai(resultSet, rows);
+        } while (resultSet.next());
+        return Optional.of(rows.values().iterator().next().toEntity());
       }
     } catch (SQLException e) {
       throw new DataAccessException("Không thể tra cứu khuyến mãi hiệu lực cho dòng sản phẩm: " + maDongSP, e);
@@ -127,10 +136,8 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
         PreparedStatement statement = connection.prepareStatement(SELECT_BY_ID)) {
       statement.setString(1, maKM.trim());
       try (ResultSet resultSet = statement.executeQuery()) {
-        if (!resultSet.next()) {
-          return Optional.empty();
-        }
-        return Optional.of(mapKhuyenMai(resultSet));
+        Map<String, KhuyenMaiAccumulator> rows = readKhuyenMai(resultSet);
+        return rows.values().stream().findFirst().map(KhuyenMaiAccumulator::toEntity);
       }
     } catch (SQLException e) {
       throw new DataAccessException("Không thể tra cứu khuyến mãi theo mã: " + maKM, e);
@@ -142,11 +149,7 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(SELECT_ALL);
         ResultSet resultSet = statement.executeQuery()) {
-      List<KhuyenMai> list = new ArrayList<>();
-      while (resultSet.next()) {
-        list.add(mapKhuyenMai(resultSet));
-      }
-      return list;
+      return toEntities(readKhuyenMai(resultSet));
     } catch (SQLException e) {
       throw new DataAccessException("Không thể tải danh sách chương trình khuyến mãi", e);
     }
@@ -160,12 +163,9 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(SELECT_BY_DONG_SP)) {
       statement.setString(1, maDongSP.trim());
+      statement.setString(2, maDongSP.trim());
       try (ResultSet resultSet = statement.executeQuery()) {
-        List<KhuyenMai> list = new ArrayList<>();
-        while (resultSet.next()) {
-          list.add(mapKhuyenMai(resultSet));
-        }
-        return list;
+        return toEntities(readKhuyenMai(resultSet));
       }
     } catch (SQLException e) {
       throw new DataAccessException("Không thể tải danh sách khuyến mãi của dòng sản phẩm: " + maDongSP, e);
@@ -173,10 +173,85 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
   }
 
   @Override
+  public List<DongApDung> findDongTheoDieuKien(
+      String maDongSP, List<String> maDanhMuc, LocalDate ngayNhapMuonNhat) {
+    String dieuKienNgay = ngayNhapMuonNhat == null ? "" : " AND sp.\"ngayNhapKhoBanDau\" <= ?";
+    String sql = """
+        SELECT dsp.*, dm."tenDanhMuc", dm."moTa", may."soMay"
+        FROM "DongSanPham" dsp
+        JOIN "DanhMucSanPham" dm ON dm."maDanhMuc" = dsp."maDanhMuc"
+        CROSS JOIN LATERAL (
+          SELECT count(*) AS "soMay" FROM "SanPham" sp
+          WHERE sp."maDongSP" = dsp."maDongSP" AND sp."trangThai" = 'SAN_SANG_BAN'%s
+        ) may
+        WHERE dsp."trangThaiKinhDoanh" = true
+        """.formatted(dieuKienNgay);
+    if (maDongSP != null) {
+      sql += " AND dsp.\"maDongSP\" = ?";
+    } else if (!maDanhMuc.isEmpty()) {
+      sql += " AND dsp.\"maDanhMuc\" IN ("
+          + String.join(", ", Collections.nCopies(maDanhMuc.size(), "?")) + ")";
+    }
+    if (ngayNhapMuonNhat != null) {
+      sql += " AND may.\"soMay\" > 0";
+    }
+    sql += " ORDER BY dsp.\"maDongSP\"";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement statement = conn.prepareStatement(sql)) {
+      int index = 1;
+      if (ngayNhapMuonNhat != null) {
+        statement.setObject(index++, ngayNhapMuonNhat);
+      }
+      if (maDongSP != null) {
+        statement.setString(index++, maDongSP);
+      } else {
+        for (String ma : maDanhMuc) {
+          statement.setString(index++, ma);
+        }
+      }
+      try (ResultSet rs = statement.executeQuery()) {
+        List<DongApDung> ketQua = new ArrayList<>();
+        while (rs.next()) {
+          ketQua.add(new DongApDung(mapDongSanPham(rs, new DanhMucSanPham(
+              rs.getString("maDanhMuc"), rs.getString("tenDanhMuc"), rs.getString("moTa"))),
+              rs.getInt("soMay")));
+        }
+        return ketQua;
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tìm dòng sản phẩm theo điều kiện khuyến mãi", e);
+    }
+  }
+
+  @Override
   public void insert(KhuyenMai km) {
     validateKhuyenMai(km);
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(INSERT)) {
+    try (Connection connection = dataSource.getConnection()) {
+      connection.setAutoCommit(false);
+      try {
+        insert(connection, km);
+        connection.commit();
+      } catch (SQLException | RuntimeException e) {
+        try {
+          connection.rollback();
+        } catch (SQLException rollbackError) {
+          e.addSuppressed(rollbackError);
+        }
+        if (e instanceof SQLException sqlException) {
+          handleSqlException("Không thể thêm mới chương trình khuyến mãi", sqlException);
+        }
+        throw e;
+      }
+    } catch (SQLException e) {
+      handleSqlException("Không thể thêm mới chương trình khuyến mãi", e);
+    }
+  }
+
+  @Override
+  public void insert(Connection ketNoi, KhuyenMai km) {
+    validateKhuyenMai(km);
+    Objects.requireNonNull(ketNoi, "ketNoi");
+    try (PreparedStatement statement = ketNoi.prepareStatement(INSERT)) {
       statement.setString(1, km.maKM().trim());
       statement.setString(2, km.tenKM().trim());
       statement.setDate(3, Date.valueOf(km.ngayBatDau()));
@@ -184,8 +259,22 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
       statement.setBigDecimal(5, km.tyLeGiam());
       statement.setString(6, km.moTa());
       statement.setBoolean(7, km.dangApDung());
-      statement.setString(8, km.dongSanPham().maDongSP().trim());
-      statement.executeUpdate();
+      if (statement.executeUpdate() != 1) {
+        throw new DataAccessException("Không thể lưu chương trình khuyến mãi " + km.maKM());
+      }
+      try (PreparedStatement detail = ketNoi.prepareStatement(INSERT_CHI_TIET)) {
+        for (ChiTietKhuyenMai row : km.chiTiet()) {
+          detail.setString(1, km.maKM().trim());
+          String maDongSP = row.dongSanPham().maDongSP().trim();
+          detail.setString(2, maDongSP);
+          try {
+            detail.executeUpdate();
+          } catch (SQLException e) {
+            if ("23503".equals(e.getSQLState())) throw new LoiDongKhuyenMai(maDongSP, e);
+            throw e;
+          }
+        }
+      }
     } catch (SQLException e) {
       handleSqlException("Không thể thêm mới chương trình khuyến mãi", e);
     }
@@ -210,11 +299,15 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
             throw new DataAccessException("Không tìm thấy chương trình khuyến mãi để cập nhật: " + maKM);
           }
         }
-        try (PreparedStatement statement = connection.prepareStatement(UPDATE_CHI_TIET)) {
-          statement.setString(1, km.dongSanPham().maDongSP().trim());
-          statement.setString(2, maKM);
-          if (statement.executeUpdate() != 1) {
-            throw new DataAccessException("Chương trình khuyến mãi phải có đúng một dòng sản phẩm để cập nhật: " + maKM);
+        try (PreparedStatement statement = connection.prepareStatement(DELETE_CHI_TIET)) {
+          statement.setString(1, maKM);
+          statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement(INSERT_CHI_TIET)) {
+          for (ChiTietKhuyenMai row : km.chiTiet()) {
+            statement.setString(1, maKM);
+            statement.setString(2, row.dongSanPham().maDongSP().trim());
+            statement.executeUpdate();
           }
         }
         connection.commit();
@@ -310,16 +403,37 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
     if (km.tyLeGiam().compareTo(BigDecimal.ZERO) < 0 || km.tyLeGiam().compareTo(BigDecimal.valueOf(100)) > 0) {
       throw new IllegalArgumentException("Tỷ lệ giảm giá phải từ 0% đến 100%");
     }
-    if (km.dongSanPham() == null || km.dongSanPham().maDongSP() == null || km.dongSanPham().maDongSP().isBlank()) {
-      throw new IllegalArgumentException("Chương trình khuyến mãi phải gán cho một dòng sản phẩm cụ thể");
+    if (km.chiTiet().isEmpty()) {
+      throw new IllegalArgumentException("Chương trình khuyến mãi phải có ít nhất một dòng sản phẩm");
+    }
+    for (ChiTietKhuyenMai row : km.chiTiet()) {
+      if (row == null || row.dongSanPham() == null || row.dongSanPham().maDongSP() == null
+          || row.dongSanPham().maDongSP().isBlank()) {
+        throw new IllegalArgumentException("Dòng sản phẩm khuyến mãi không hợp lệ");
+      }
+      if (row.maKM() != null && !km.maKM().trim().equals(row.maKM().trim())) {
+        throw new IllegalArgumentException("Mã khuyến mãi trong chi tiết không khớp với chương trình");
+      }
     }
   }
 
-  private KhuyenMai mapKhuyenMai(ResultSet rs) throws SQLException {
-    DongSanPham dsp = new DongSanPham(
+  private Map<String, KhuyenMaiAccumulator> readKhuyenMai(ResultSet resultSet) throws SQLException {
+    Map<String, KhuyenMaiAccumulator> rows = new LinkedHashMap<>();
+    while (resultSet.next()) {
+      mapKhuyenMai(resultSet, rows);
+    }
+    return rows;
+  }
+
+  private List<KhuyenMai> toEntities(Map<String, KhuyenMaiAccumulator> rows) {
+    return rows.values().stream().map(KhuyenMaiAccumulator::toEntity).toList();
+  }
+
+  private DongSanPham mapDongSanPham(ResultSet rs, DanhMucSanPham danhMuc) throws SQLException {
+    return new DongSanPham(
         rs.getString("maDongSP"),
         rs.getString("tenDongSP"),
-        null,
+        danhMuc,
         rs.getString("donViTinh"),
         rs.getInt("soLuongTon"),
         rs.getBigDecimal("thue"),
@@ -328,15 +442,50 @@ public class KhuyenMaiDaoImpl implements KhuyenMaiDao {
         rs.getObject("ngayNhapKho", LocalDate.class),
         rs.getObject("ngayCapNhapCuoi", LocalDate.class));
 
-    return new KhuyenMai(
-        rs.getString("maKM"),
-        rs.getString("tenKM"),
-        rs.getObject("ngayBatDau", LocalDate.class),
-        rs.getObject("ngayKetThuc", LocalDate.class),
-        rs.getBigDecimal("tyLeGiam"),
-        rs.getString("moTa"),
-        rs.getBoolean("dangApDung"),
-        dsp);
+  }
+
+  private void mapKhuyenMai(ResultSet rs, Map<String, KhuyenMaiAccumulator> rows) throws SQLException {
+    DongSanPham dsp = mapDongSanPham(rs, null);
+    String maKM = rs.getString("maKM");
+    KhuyenMaiAccumulator accumulator = rows.get(maKM);
+    if (accumulator == null) {
+      accumulator = new KhuyenMaiAccumulator(
+          maKM,
+          rs.getString("tenKM"),
+          rs.getObject("ngayBatDau", LocalDate.class),
+          rs.getObject("ngayKetThuc", LocalDate.class),
+          rs.getBigDecimal("tyLeGiam"),
+          rs.getString("moTa"),
+          rs.getBoolean("dangApDung"));
+      rows.put(maKM, accumulator);
+    }
+    accumulator.chiTiet.add(new ChiTietKhuyenMai(maKM, dsp));
+  }
+
+  private static final class KhuyenMaiAccumulator {
+    private final String maKM;
+    private final String tenKM;
+    private final LocalDate ngayBatDau;
+    private final LocalDate ngayKetThuc;
+    private final BigDecimal tyLeGiam;
+    private final String moTa;
+    private final boolean dangApDung;
+    private final List<ChiTietKhuyenMai> chiTiet = new ArrayList<>();
+
+    KhuyenMaiAccumulator(String maKM, String tenKM, LocalDate ngayBatDau, LocalDate ngayKetThuc,
+        BigDecimal tyLeGiam, String moTa, boolean dangApDung) {
+      this.maKM = maKM;
+      this.tenKM = tenKM;
+      this.ngayBatDau = ngayBatDau;
+      this.ngayKetThuc = ngayKetThuc;
+      this.tyLeGiam = tyLeGiam;
+      this.moTa = moTa;
+      this.dangApDung = dangApDung;
+    }
+
+    KhuyenMai toEntity() {
+      return new KhuyenMai(maKM, tenKM, ngayBatDau, ngayKetThuc, tyLeGiam, moTa, chiTiet, dangApDung);
+    }
   }
 
   private void handleSqlException(String defaultMessage, SQLException e) {

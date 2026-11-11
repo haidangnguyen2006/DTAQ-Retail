@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.dtaq.retail.config.ConnectDB;
+import com.dtaq.retail.entity.ChiTietKhuyenMai;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.KhuyenMai;
 import com.dtaq.retail.exception.DataAccessException;
@@ -132,6 +133,58 @@ class KhuyenMaiDaoImplTest {
     assertEquals("Khuyến mãi Test JUnit", found.get().tenKM());
     assertEquals(0, new BigDecimal("10.50").compareTo(found.get().tyLeGiam()));
     assertFalse(found.get().dangApDung());
+  }
+
+  @Test
+  @DisplayName("insert lưu nhiều dòng và các truy vấn trả đủ chi tiết")
+  void insertPromotionWithMultipleProductLines() {
+    DongSanPham dongMot = new DongSanPham(
+        DONG_SP_TEST, null, null, null, 0, null, null, true, null, null);
+    DongSanPham dongHai = new DongSanPham(
+        DONG_SP_SEED, null, null, null, 0, null, null, true, null, null);
+    KhuyenMai km = new KhuyenMai(
+        MA_KM_TEST,
+        "Khuyến mãi nhiều dòng",
+        LocalDate.of(2026, 12, 1),
+        LocalDate.of(2026, 12, 15),
+        new BigDecimal("10"),
+        "Mô tả",
+        List.of(
+            new ChiTietKhuyenMai(MA_KM_TEST, dongMot),
+            new ChiTietKhuyenMai(MA_KM_TEST, dongHai)),
+        false);
+
+    dao.insert(km);
+
+    assertEquals(2, dao.findById(MA_KM_TEST).orElseThrow().chiTiet().size());
+    assertTrue(dao.findByDongSanPham(DONG_SP_TEST).stream()
+        .filter(found -> MA_KM_TEST.equals(found.maKM()))
+        .anyMatch(found -> found.chiTiet().size() == 2));
+    assertTrue(dao.findByDongSanPham(DONG_SP_SEED).stream()
+        .anyMatch(found -> MA_KM_TEST.equals(found.maKM())));
+  }
+
+  @Test
+  @DisplayName("insert quay lui header khi một dòng chi tiết vi phạm FK")
+  void insertPromotionRollsBackHeaderWhenDetailFails() {
+    DongSanPham dongHopLe = new DongSanPham(
+        DONG_SP_TEST, null, null, null, 0, null, null, true, null, null);
+    DongSanPham dongKhongTonTai = new DongSanPham(
+        "DSP-DOES-NOT-EXIST", null, null, null, 0, null, null, true, null, null);
+    KhuyenMai km = new KhuyenMai(
+        MA_KM_TEST,
+        "Khuyến mãi lỗi chi tiết",
+        LocalDate.of(2026, 12, 1),
+        LocalDate.of(2026, 12, 15),
+        BigDecimal.TEN,
+        "Mô tả",
+        List.of(
+            new ChiTietKhuyenMai(MA_KM_TEST, dongHopLe),
+            new ChiTietKhuyenMai(MA_KM_TEST, dongKhongTonTai)),
+        false);
+
+    assertThrows(DataAccessException.class, () -> dao.insert(km));
+    assertFalse(dao.existsTrungMa(MA_KM_TEST));
   }
 
   @Test

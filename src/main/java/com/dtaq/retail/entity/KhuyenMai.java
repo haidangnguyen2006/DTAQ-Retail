@@ -2,6 +2,7 @@ package com.dtaq.retail.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
 
 /** Chương trình khuyến mãi, ánh xạ bảng "KhuyenMai". */
@@ -14,17 +15,15 @@ public class KhuyenMai {
   private BigDecimal tyLeGiam;
   private String moTa;
   private boolean dangApDung;
-  private DongSanPham dongSanPham;
+  private List<ChiTietKhuyenMai> chiTiet = List.of();
 
   /** Tạo đối tượng rỗng. */
   public KhuyenMai() {
   }
 
   /**
-   * Tạo đối tượng với đầy đủ giá trị.
-   *
-   * <p>Constructor chỉ gán trực tiếp các trường, không kiểm tra ràng buộc, để giữ tương thích với
-   * các nơi dựng đối tượng tạm hoặc đọc dữ liệu cũ (cho phép {@code null}).
+   * Tạo đối tượng từ dữ liệu của một dòng sản phẩm, gồm cả snapshot hóa đơn cũ.
+   * Dòng sản phẩm có thể là {@code null} khi dựng đối tượng tạm.
    */
   public KhuyenMai(
       String maKM,
@@ -35,6 +34,21 @@ public class KhuyenMai {
       String moTa,
       boolean dangApDung,
       DongSanPham dongSanPham) {
+    this(maKM, tenKM, ngayBatDau, ngayKetThuc, tyLeGiam, moTa,
+        dongSanPham == null ? List.of() : List.of(new ChiTietKhuyenMai(maKM, dongSanPham)),
+        dangApDung);
+  }
+
+  /** Tạo chương trình với danh sách dòng sản phẩm áp dụng. */
+  public KhuyenMai(
+      String maKM,
+      String tenKM,
+      LocalDate ngayBatDau,
+      LocalDate ngayKetThuc,
+      BigDecimal tyLeGiam,
+      String moTa,
+      List<ChiTietKhuyenMai> chiTiet,
+      boolean dangApDung) {
     this.maKM = maKM;
     this.tenKM = tenKM;
     this.ngayBatDau = ngayBatDau;
@@ -42,7 +56,7 @@ public class KhuyenMai {
     this.tyLeGiam = tyLeGiam;
     this.moTa = moTa;
     this.dangApDung = dangApDung;
-    this.dongSanPham = dongSanPham;
+    this.chiTiet = List.copyOf(chiTiet);
   }
 
   public String maKM() {
@@ -133,16 +147,22 @@ public class KhuyenMai {
     this.dangApDung = dangApDung;
   }
 
+  public List<ChiTietKhuyenMai> chiTiet() {
+    return chiTiet;
+  }
+
+  /** Trả dòng đầu tiên cho các điểm gọi còn dùng mô hình một dòng. */
   public DongSanPham dongSanPham() {
-    return dongSanPham;
+    return chiTiet.isEmpty() ? null : chiTiet.getFirst().dongSanPham();
   }
 
   public DongSanPham getDongSanPham() {
-    return dongSanPham;
+    return dongSanPham();
   }
 
   public void setDongSanPham(DongSanPham dongSanPham) {
-    this.dongSanPham = RangBuoc.batBuoc(dongSanPham, "dongSanPham");
+    this.chiTiet = List.of(
+        new ChiTietKhuyenMai(maKM, RangBuoc.batBuoc(dongSanPham, "dongSanPham")));
   }
 
   @Override
@@ -160,13 +180,13 @@ public class KhuyenMai {
         && Objects.equals(ngayKetThuc, khac.ngayKetThuc)
         && Objects.equals(tyLeGiam, khac.tyLeGiam)
         && Objects.equals(moTa, khac.moTa)
-        && Objects.equals(dongSanPham, khac.dongSanPham);
+        && Objects.equals(chiTiet, khac.chiTiet);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        maKM, tenKM, ngayBatDau, ngayKetThuc, tyLeGiam, moTa, dangApDung, dongSanPham);
+        maKM, tenKM, ngayBatDau, ngayKetThuc, tyLeGiam, moTa, dangApDung, chiTiet);
   }
 
   @Override
@@ -179,7 +199,7 @@ public class KhuyenMai {
         + ", tyLeGiam=" + tyLeGiam
         + ", moTa=" + moTa
         + ", dangApDung=" + dangApDung
-        + ", dongSanPham=" + dongSanPham
+        + ", chiTiet=" + chiTiet
         + "]";
   }
 }

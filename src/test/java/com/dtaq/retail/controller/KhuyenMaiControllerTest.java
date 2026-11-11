@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.dtaq.retail.dao.DongSanPhamDao;
+import com.dtaq.retail.dao.DanhMucSanPhamDao;
 import com.dtaq.retail.dao.KhuyenMaiDao;
 import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
@@ -15,6 +16,11 @@ import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.exception.DataAccessException;
 import com.dtaq.retail.session.CurrentSession;
+import com.dtaq.retail.service.KhuyenMaiExcel;
+import com.dtaq.retail.util.ExcelImporter;
+import com.dtaq.retail.util.ExcelImporter.ImportResult;
+import com.dtaq.retail.util.ExcelImporter.ImportRow;
+import java.io.File;
 import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -23,6 +29,7 @@ import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -40,11 +47,23 @@ class KhuyenMaiControllerTest {
   private final FakeKhuyenMaiDao khuyenMaiDao = new FakeKhuyenMaiDao();
   private final FakeDongSanPhamDao dongSanPhamDao = new FakeDongSanPhamDao();
   private KhuyenMaiController controller;
+  private int soLanCommit;
+  private int soLanRollback;
 
   @BeforeEach
   void setUp() {
     CurrentSession.set(nhanVien(LoaiQuyen.NHAN_VIEN_QUAN_LY));
-    controller = new KhuyenMaiController(khuyenMaiDao, dongSanPhamDao, dataSourceSinhMa(0));
+    DanhMucSanPhamDao danhMucDao = (DanhMucSanPhamDao) Proxy.newProxyInstance(
+        DanhMucSanPhamDao.class.getClassLoader(), new Class<?>[] {DanhMucSanPhamDao.class},
+        (proxy, method, args) -> {
+          if (method.getName().equals("findById")) {
+            String ma = (String) args[0];
+            return List.of("DM", "DM2").contains(ma)
+                ? Optional.of(new DanhMucSanPham(ma, ma, null)) : Optional.empty();
+          }
+          throw new UnsupportedOperationException(method.getName());
+        });
+    controller = new KhuyenMaiController(khuyenMaiDao, dongSanPhamDao, danhMucDao, dataSourceSinhMa(0));
   }
 
   @AfterEach
@@ -113,7 +132,6 @@ class KhuyenMaiControllerTest {
   @Test
   @DisplayName("Từ chối mã khuyến mãi bị trùng")
   void themMoi_maTrung() {
-    controller = new KhuyenMaiController(khuyenMaiDao, dongSanPhamDao, dataSourceSinhMa(1));
     khuyenMaiDao.maTrung = true;
     var ketQua = them(BigDecimal.TEN);
     assertFalse(ketQua.thanhCong());
@@ -136,6 +154,95 @@ class KhuyenMaiControllerTest {
         BAT_DAU, KET_THUC, MA_DONG, true);
     assertTrue(ketQua.thanhCong());
     assertEquals(1, khuyenMaiDao.soLanKiemTraChongLan);
+  }
+
+  @Test
+  void themMoiTheoHaiDanhMucLuuMotChuongTrinhVaHaiChiTiet() {
+    khuyenMaiDao.dongApDung = List.of(dongSanPham(), dongSanPhamThuHai());
+    var ketQua = themTheoHaiDanhMuc();
+
+    assertTrue(ketQua.thanhCong());
+    assertEquals(List.of("DM", "DM2"), khuyenMaiDao.danhMucDaLoc);
+    assertEquals(LocalDate.now().minusDays(30), khuyenMaiDao.ngayGioiHan);
+    assertEquals(1, khuyenMaiDao.soLanInsert);
+    assertEquals(2, ketQua.duLieu().chiTiet().size());
+  }
+
+  @Test
+  void xungDotDongThuHaiChanCaChuongTrinh() {
+    khuyenMaiDao.dongApDung = List.of(dongSanPham(), dongSanPhamThuHai());
+    khuyenMaiDao.dongChongLan = dongSanPhamThuHai().maDongSP();
+
+    assertFalse(themTheoHaiDanhMuc().thanhCong());
+    assertEquals(2, khuyenMaiDao.soLanKiemTraChongLan);
+    assertEquals(0, khuyenMaiDao.soLanInsert);
+  }
+
+  private KhuyenMaiController.KetQua<KhuyenMai> themTheoHaiDanhMuc() {
+    return controller.themMoiTheoDieuKien("Khuyến mãi", null, BigDecimal.TEN, BAT_DAU,
+        KET_THUC, null, List.of("DM", "DM2"), 30, true);
+  }
+
+  private static DongSanPham dongSanPhamThuHai() {
+    return new DongSanPham("DSP-2026-000002", "Quạt", new DanhMucSanPham("DM2", "Gia dụng", null),
+        "cái", 0, BigDecimal.ZERO, BigDecimal.ZERO, true, null, null);
+  }
+
+  @Test
+  void mauExcelTrongRepoDocDuocVaGomNhieuDong() {
+    var tep = ExcelImporter.doc(
+        new File("docs/reference/templates/mau_nhap_khuyen_mai.xlsx"), KhuyenMaiExcel.MAU);
+    var loi = new ArrayList<ExcelImporter.ImportError>();
+    assertTrue(tep.hopLe(), () -> tep.loi().toString());
+    var nhom = KhuyenMaiExcel.gomNhom(tep, loi);
+    assertTrue(loi.isEmpty(), loi::toString);
+    assertTrue(nhom.stream().anyMatch(n -> n.dongTheoMaSP().size() == 2));
+  }
+
+  @Test
+  void banHangDuocNhapMotNhomHaiDongVaBatApDung() {
+    CurrentSession.set(nhanVien(LoaiQuyen.NHAN_VIEN_BAN_HANG));
+    var result = controller.nhapExcel(tepNhap(
+        dongNhap(1, "A", MA_DONG), dongNhap(2, "A", dongSanPhamThuHai().maDongSP())));
+    assertTrue(result.ketQua().hopLe());
+    assertEquals(1, result.soChuongTrinh());
+    assertEquals(1, soLanCommit);
+    assertEquals(2, khuyenMaiDao.ds.getFirst().chiTiet().size());
+    assertTrue(khuyenMaiDao.ds.getFirst().dangApDung());
+  }
+
+  @Test
+  void loiFkTrongNhomSauRollbackToanTepVaChiDungDongExcel() {
+    String maDongLoi = dongSanPhamThuHai().maDongSP();
+    khuyenMaiDao.dongLoiKhiGhi = maDongLoi;
+    var result = controller.nhapExcel(tepNhap(
+        dongNhap(1, "A", MA_DONG), dongNhap(2, "B", maDongLoi)));
+    assertFalse(result.ketQua().hopLe());
+    assertEquals(0, result.soChuongTrinh());
+    assertEquals(1, soLanRollback);
+    assertEquals(0, soLanCommit);
+    assertEquals(2, result.ketQua().loi().getFirst().soDongExcel());
+    assertEquals(KhuyenMaiExcel.MA_DONG, result.ketQua().loi().getFirst().cot());
+  }
+
+  @Test
+  void chongLanTrongTepChanTruocKhiGhi() {
+    var result = controller.nhapExcel(tepNhap(dongNhap(1, "A", MA_DONG), dongNhap(2, "B", MA_DONG)));
+    assertFalse(result.ketQua().hopLe());
+    assertEquals(2, result.ketQua().loi().getFirst().soDongExcel());
+    assertEquals(0, khuyenMaiDao.soLanInsert);
+  }
+
+  private static ImportResult tepNhap(ImportRow... dong) {
+    return new ImportResult(List.of(dong), List.of(), dong.length);
+  }
+
+  private static ImportRow dongNhap(int soDong, String nhom, String maDong) {
+    return new ImportRow(soDong, Map.of(
+        KhuyenMaiExcel.MA_NHOM, nhom, KhuyenMaiExcel.TEN, "Ưu đãi",
+        KhuyenMaiExcel.TY_LE, BigDecimal.TEN, KhuyenMaiExcel.BAT_DAU, BAT_DAU,
+        KhuyenMaiExcel.KET_THUC, KET_THUC, KhuyenMaiExcel.AP_DUNG, true,
+        KhuyenMaiExcel.MA_DONG, maDong));
   }
 
   @Test
@@ -188,7 +295,7 @@ class KhuyenMaiControllerTest {
   }
 
   /** JDBC proxy nhỏ chỉ phục vụ MAX mã trong MaGenerator; không phụ thuộc PostgreSQL. */
-  private static DataSource dataSourceSinhMa(long maxMa) {
+  private DataSource dataSourceSinhMa(long maxMa) {
     ResultSet resultSet = (ResultSet) Proxy.newProxyInstance(ResultSet.class.getClassLoader(),
         new Class<?>[] {ResultSet.class}, (proxy, method, args) -> switch (method.getName()) {
           case "next" -> true;
@@ -206,6 +313,8 @@ class KhuyenMaiControllerTest {
     Connection connection = (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
         new Class<?>[] {Connection.class}, (proxy, method, args) -> switch (method.getName()) {
           case "prepareStatement" -> statement;
+          case "commit" -> { soLanCommit++; yield null; }
+          case "rollback" -> { soLanRollback++; yield null; }
           case "close" -> null;
           default -> defaultValue(method.getReturnType());
         });
@@ -231,7 +340,10 @@ class KhuyenMaiControllerTest {
     boolean tonTai = true;
 
     @Override public Optional<DongSanPham> findById(String maDongSP) {
-      return tonTai ? Optional.of(dongSanPham()) : Optional.empty();
+      if (!tonTai) return Optional.empty();
+      if (MA_DONG.equals(maDongSP)) return Optional.of(dongSanPham());
+      if (dongSanPhamThuHai().maDongSP().equals(maDongSP)) return Optional.of(dongSanPhamThuHai());
+      return Optional.empty();
     }
     @Override public void insert(java.sql.Connection ketNoi, DongSanPham dongSanPham) {}
     @Override public List<DongSanPham> findAll() { return List.of(); }
@@ -245,6 +357,11 @@ class KhuyenMaiControllerTest {
     Optional<KhuyenMai> hieuLuc = Optional.empty();
     boolean maTrung;
     boolean chongLan;
+    String dongChongLan;
+    String dongLoiKhiGhi;
+    List<DongSanPham> dongApDung = List.of(dongSanPham());
+    List<String> danhMucDaLoc;
+    LocalDate ngayGioiHan;
     int soLanInsert;
     int soLanKiemTraChongLan;
     int soLanTimHieuLuc;
@@ -259,7 +376,24 @@ class KhuyenMaiControllerTest {
     }
     @Override public List<KhuyenMai> findAll() { return List.copyOf(ds); }
     @Override public List<KhuyenMai> findByDongSanPham(String maDongSP) { return List.of(); }
+    @Override public List<DongApDung> findDongTheoDieuKien(
+        String maDongSP, List<String> maDanhMuc, LocalDate ngayNhapMuonNhat) {
+      danhMucDaLoc = maDanhMuc;
+      ngayGioiHan = ngayNhapMuonNhat;
+      return dongApDung.stream().map(dong -> new DongApDung(dong, 1)).toList();
+    }
     @Override public void insert(KhuyenMai khuyenMai) { soLanInsert++; ds.add(khuyenMai); }
+    @Override public void insert(java.sql.Connection ketNoi, KhuyenMai khuyenMai) {
+      if (maTrung) {
+        throw new DataAccessException("Mã khuyến mãi đã tồn tại trong hệ thống");
+      }
+      for (var chiTiet : khuyenMai.chiTiet()) {
+        String maDong = chiTiet.dongSanPham().maDongSP();
+        if (maDong.equals(dongLoiKhiGhi)) throw new LoiDongKhuyenMai(maDong, null);
+      }
+      soLanInsert++;
+      ds.add(khuyenMai);
+    }
     @Override public void update(KhuyenMai khuyenMai) {}
     @Override public void updateTrangThaiApDung(String maKM, boolean dangApDung) {
       trangThaiCapNhat = dangApDung;
@@ -272,7 +406,7 @@ class KhuyenMaiControllerTest {
     @Override public boolean existsChongLan(String maDongSP, LocalDate ngayBatDau,
         LocalDate ngayKetThuc, String excludeMaKM) {
       soLanKiemTraChongLan++;
-      return chongLan;
+      return chongLan || maDongSP.equals(dongChongLan);
     }
   }
 }

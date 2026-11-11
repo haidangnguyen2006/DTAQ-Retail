@@ -2,14 +2,18 @@ package com.dtaq.retail.ui.page.promotion;
 
 import com.dtaq.retail.controller.KhuyenMaiController;
 import com.dtaq.retail.controller.KhuyenMaiController.KetQua;
+import com.dtaq.retail.dao.KhuyenMaiDao.DongApDung;
+import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.KhuyenMai;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.session.CurrentSession;
+import com.dtaq.retail.service.KhuyenMaiExcel;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
+import com.dtaq.retail.ui.component.ImportPreviewDialog;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.StatefulView;
 import com.dtaq.retail.ui.component.StatusPill;
@@ -17,23 +21,35 @@ import com.dtaq.retail.ui.component.Toast;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
+import com.dtaq.retail.util.ExcelImporter;
+import com.dtaq.retail.util.ExcelImporter.ImportResult;
+import com.dtaq.retail.util.ExcelTemplate;
+import java.awt.Component;
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.io.File;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Locale;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.InputMap;
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JComponent;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingWorker;
+import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
 
@@ -50,14 +66,17 @@ public final class PromotionsPage implements Page {
   private final DtaqButton refreshButton = DtaqButton.secondary("Làm mới", "refresh-cw");
   private final DtaqButton addButton = DtaqButton.primary("Thêm khuyến mãi", "plus");
   private final DtaqButton toggleButton = DtaqButton.secondary("Bật / Dừng áp dụng");
+  private final DtaqButton templateButton = DtaqButton.secondary("Tải mẫu", "download");
+  private final DtaqButton importButton = DtaqButton.secondary("Nhập Excel");
   private final StatusPill countPill = StatusPill.neutral("0 chương trình");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {
-      "Mã khuyến mãi", "Tên chương trình", "Dòng sản phẩm áp dụng", "% Giảm",
+      "Mã khuyến mãi", "Tên chương trình", "Số dòng áp dụng", "% Giảm",
       "Ngày bắt đầu", "Ngày kết thúc", "Trạng thái hiệu lực"}, 6);
   private final DataTable dataTable = new DataTable(tableModel, 48);
   private final StatefulView tableState;
   private final List<KhuyenMai> promotions = new ArrayList<>();
   private final List<DongSanPham> productLines = new ArrayList<>();
+  private List<DanhMucSanPham> danhMuc = List.of();
   private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
   /** Chỉ Quản lý được tạo và bật/dừng chương trình khuyến mãi (UC012). */
   private final boolean laQuanLy;
@@ -79,7 +98,10 @@ public final class PromotionsPage implements Page {
     refreshButton.setShortcutKey("F5");
     refreshButton.addActionListener(e -> loadData());
     toggleButton.addActionListener(e -> toggleSelectedPromotion());
-    header.setTrailing(refreshButton, addButton);
+    templateButton.addActionListener(e -> xuatTep(view,
+        "mau_nhap_khuyen_mai.xlsx", file -> ExcelTemplate.xuat(file, KhuyenMaiExcel.MAU, List.of())));
+    importButton.addActionListener(e -> chonTepNhap());
+    header.setTrailing(refreshButton, templateButton, importButton, addButton);
     addButton.setVisible(laQuanLy);
     addButton.setEnabled(laQuanLy);
     toggleButton.setVisible(laQuanLy);
@@ -87,10 +109,10 @@ public final class PromotionsPage implements Page {
     view.add(header, "growx, wrap");
 
     dataTable.setCodeColumn(0);
-    dataTable.setColumnWidths(150, 240, 220, 80, 120, 120, 150);
+    dataTable.setColumnWidths(150, 240, 125, 80, 120, 120, 150);
     dataTable.setOnRowDoubleClick(row -> toggleSelectedPromotion());
     tableState = new StatefulView(dataTable, "badge-percent", "Chưa có khuyến mãi",
-        "Bấm 'Thêm khuyến mãi' để tạo chương trình đầu tiên.");
+        "Thử bộ lọc khác hoặc nhập chương trình từ Excel.");
     tableState.setOnRetry(this::loadData);
 
     Card tableCard = Card.standard();
@@ -158,7 +180,8 @@ public final class PromotionsPage implements Page {
       @Override protected PageData doInBackground() {
         // Trước lần tìm kiếm đầu tiên chỉ nạp dòng sản phẩm cho bộ lọc, không nạp bảng.
         return new PageData(
-            daTimKiem ? controller.layDanhSach() : List.of(), controller.layDanhSachDongSanPham());
+            daTimKiem ? controller.layDanhSach() : List.of(), controller.layDanhSachDongSanPham(),
+            laQuanLy ? controller.layDanhSachDanhMuc() : List.of());
       }
       @Override protected void done() {
         refreshButton.setEnabled(true);
@@ -168,6 +191,7 @@ public final class PromotionsPage implements Page {
           promotions.addAll(data.promotions());
           productLines.clear();
           productLines.addAll(data.productLines());
+          danhMuc = data.danhMuc();
           DongSanPham selected = (DongSanPham) lineFilter.getSelectedItem();
           lineFilter.removeAllItems();
           lineFilter.addItem(null);
@@ -196,7 +220,8 @@ public final class PromotionsPage implements Page {
     String status = (String) statusFilter.getSelectedItem();
     LocalDate today = LocalDate.now();
     List<KhuyenMai> filtered = promotions.stream()
-        .filter(km -> selectedLine == null || km.dongSanPham().maDongSP().equals(selectedLine.maDongSP()))
+        .filter(km -> selectedLine == null || km.chiTiet().stream()
+            .anyMatch(ct -> ct.dongSanPham().maDongSP().equals(selectedLine.maDongSP())))
         .filter(km -> switch (status == null ? STATUS_FILTERS[0] : status) {
           case "Đang áp dụng" -> dangHieuLuc(km, today);
           case "Đã kết thúc" -> km.ngayKetThuc().isBefore(today);
@@ -211,7 +236,7 @@ public final class PromotionsPage implements Page {
     countPill.setText(filtered.size() + " chương trình");
     for (KhuyenMai km : filtered) {
       tableModel.addRow(new Object[] {
-          km.maKM(), km.tenKM(), km.dongSanPham().tenDongSP(),
+          km.maKM(), km.tenKM(), km.chiTiet().size(),
           km.tyLeGiam().stripTrailingZeros().toPlainString(), km.ngayBatDau(), km.ngayKetThuc(),
           trangThai(km, today)
       });
@@ -240,32 +265,136 @@ public final class PromotionsPage implements Page {
       return;
     }
     Frame parent = ConfirmDialog.frameOf(view);
-    AddPromotionDialog dialog = new AddPromotionDialog(parent, List.copyOf(productLines));
-    dialog.setOnSave(form -> {
+    AddPromotionDialog dialog = new AddPromotionDialog(parent, List.copyOf(productLines), danhMuc);
+    dialog.setOnSubmit((form, luu) -> {
       dialog.setBusy(true);
-      new SwingWorker<KetQua<KhuyenMai>, Void>() {
-        @Override protected KetQua<KhuyenMai> doInBackground() {
-          return controller.themMoi(form.ten(), form.moTa(), form.tyLeGiam(), form.ngayBatDau(),
-              form.ngayKetThuc(), form.maDongSP(), form.dangApDung());
+      new SwingWorker<KetQua<List<DongApDung>>, Void>() {
+        @Override protected KetQua<List<DongApDung>> doInBackground() {
+          return controller.xemTruocDongApDung(
+              form.maDongSP(), form.maDanhMuc(), form.soNgayTonToiThieu());
         }
         @Override protected void done() {
           dialog.setBusy(false);
           try {
-            KetQua<KhuyenMai> result = get();
-            if (result.thanhCong()) {
-              dialog.dispose();
-              Toast.show(view, result.thongBao(), Toast.Kind.SUCCESS);
-              loadData();
-            } else {
+            var result = get();
+            if (!result.thanhCong()) {
+              dialog.showPreview(List.of());
               dialog.setErrorMessage(result.thongBao());
+              return;
+            }
+            dialog.showPreview(result.duLieu());
+            if (luu && JOptionPane.showConfirmDialog(dialog,
+                "Tạo 1 chương trình với " + result.duLieu().size() + " dòng sản phẩm?",
+                "Xác nhận tạo khuyến mãi", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+              luuKhuyenMai(dialog, form, result.duLieu().stream()
+                  .map(dong -> dong.dong().maDongSP()).toList());
             }
           } catch (Exception e) {
-            dialog.setErrorMessage("Không thể lưu khuyến mãi: " + e.getMessage());
+            dialog.setErrorMessage("Không thể xem trước dòng áp dụng");
           }
         }
       }.execute();
     });
     dialog.setVisible(true);
+  }
+
+  private void luuKhuyenMai(
+      AddPromotionDialog dialog, AddPromotionDialog.PromotionFormData form, List<String> maDong) {
+    dialog.setBusy(true);
+    new SwingWorker<KetQua<KhuyenMai>, Void>() {
+      @Override protected KetQua<KhuyenMai> doInBackground() {
+        return controller.themMoiTheoDieuKien(form.ten(), form.moTa(), form.tyLeGiam(),
+            form.ngayBatDau(), form.ngayKetThuc(), form.maDongSP(), form.maDanhMuc(),
+            form.soNgayTonToiThieu(), form.dangApDung(), maDong);
+      }
+      @Override protected void done() {
+        dialog.setBusy(false);
+        try {
+          var result = get();
+          if (result.thanhCong()) {
+            dialog.dispose();
+            Toast.show(view, result.thongBao(), Toast.Kind.SUCCESS);
+            daTimKiem = true;
+            loadData();
+          } else {
+            dialog.setErrorMessage(result.thongBao());
+          }
+        } catch (Exception e) {
+          dialog.setErrorMessage("Không thể lưu khuyến mãi");
+        }
+      }
+    }.execute();
+  }
+
+  private void chonTepNhap() {
+    JFileChooser chooser = chonTepExcel();
+    if (chooser.showOpenDialog(view) != JFileChooser.APPROVE_OPTION) return;
+    File tep = chooser.getSelectedFile();
+    importButton.setEnabled(false);
+    chayExcel(() -> controller.xemTruocNhapExcel(ExcelImporter.doc(tep, KhuyenMaiExcel.MAU)),
+        this::moXemTruocNhap, () -> importButton.setEnabled(true));
+  }
+
+  private void moXemTruocNhap(ImportResult ketQua) {
+    var cot = KhuyenMaiExcel.MAU.cot().stream().map(ExcelImporter.CotNhap::tieuDe).toList();
+    ImportPreviewDialog dialog = new ImportPreviewDialog(
+        ConfirmDialog.frameOf(view), "Nhập khuyến mãi từ Excel", ketQua, cot, 50);
+    dialog.setOnChooseAnother(() -> SwingUtilities.invokeLater(this::chonTepNhap));
+    dialog.setOnExportErrors(loi -> xuatTep(dialog,
+        "loi_nhap_khuyen_mai.xlsx", file -> ExcelImporter.xuatBaoCaoLoi(file, loi)));
+    dialog.setOnConfirm(tep -> {
+      dialog.setBusy(true);
+      chayExcel(() -> controller.nhapExcel(tep), daNhap -> {
+        dialog.dispose();
+        if (!daNhap.ketQua().hopLe()) {
+          moXemTruocNhap(daNhap.ketQua());
+        } else {
+          Toast.show(view, "Đã nhập " + daNhap.soChuongTrinh() + " chương trình", Toast.Kind.SUCCESS);
+          daTimKiem = true;
+          loadData();
+        }
+      }, () -> dialog.setBusy(false));
+    });
+    dialog.setVisible(true);
+  }
+
+  private void xuatTep(Component parent, String tenMacDinh, Consumer<File> ghiTep) {
+    JFileChooser chooser = chonTepExcel();
+    chooser.setSelectedFile(new File(tenMacDinh));
+    if (chooser.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return;
+    File daChon = chooser.getSelectedFile();
+    File dich = daChon.getName().toLowerCase(Locale.ROOT).endsWith(".xlsx")
+        ? daChon : new File(daChon.getParentFile(), daChon.getName() + ".xlsx");
+    if (dich.exists() && JOptionPane.showConfirmDialog(parent,
+        "Ghi đè tệp " + dich.getName() + "?", "Xác nhận ghi đè",
+        JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+    chayExcel(() -> {
+      ghiTep.accept(dich);
+      return dich.getName();
+    }, ten -> Toast.show(view, "Đã xuất " + ten, Toast.Kind.SUCCESS), () -> {});
+  }
+
+  private static JFileChooser chonTepExcel() {
+    JFileChooser chooser = new JFileChooser();
+    chooser.setFileFilter(new FileNameExtensionFilter("Excel (*.xlsx)", "xlsx"));
+    chooser.setAcceptAllFileFilterUsed(false);
+    return chooser;
+  }
+
+  private <T> void chayExcel(Callable<T> thaoTac, Consumer<T> khiXong, Runnable khoiPhuc) {
+    new SwingWorker<T, Void>() {
+      @Override protected T doInBackground() throws Exception {
+        return thaoTac.call();
+      }
+      @Override protected void done() {
+        khoiPhuc.run();
+        try {
+          khiXong.accept(get());
+        } catch (Exception e) {
+          Toast.show(view, "Không thể xử lý tệp Excel", Toast.Kind.ERROR);
+        }
+      }
+    }.execute();
   }
 
   private void toggleSelectedPromotion() {
@@ -298,5 +427,6 @@ public final class PromotionsPage implements Page {
     }.execute();
   }
 
-  private record PageData(List<KhuyenMai> promotions, List<DongSanPham> productLines) {}
+  private record PageData(
+      List<KhuyenMai> promotions, List<DongSanPham> productLines, List<DanhMucSanPham> danhMuc) {}
 }
