@@ -16,7 +16,10 @@ import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.NhaCungCap;
 import com.dtaq.retail.entity.SanPham;
 import com.dtaq.retail.entity.TrangThaiSanPham;
+import com.dtaq.retail.util.ExcelTemplate;
+import java.io.File;
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.time.LocalDate;
@@ -258,5 +261,43 @@ class SanPhamControllerTest {
       dongCanReset.add(dong.maDongSP());
       tonCu.add(tonBanDau);
     }
+  }
+
+  @Test
+  @DisplayName("Nhập Excel sản phẩm theo file mẫu phải thành công")
+  void nhapDanhSach_thanhCong() throws Exception {
+    Assumptions.assumeTrue(ConnectDB.isAvailable(), "Cơ sở dữ liệu không khả dụng");
+
+    SanPhamDao sanPhamDao = new SanPhamImpl(ConnectDB.getDataSource());
+    DongSanPhamDao dongSanPhamDao = new DongSanPhamImpl(ConnectDB.getDataSource());
+    NhaCungCapDao nhaCungCapDao = new NhaCungCapImpl(ConnectDB.getDataSource());
+    SanPhamController controller = new SanPhamController(
+        sanPhamDao, dongSanPhamDao, nhaCungCapDao, ConnectDB.getDataSource());
+
+    DongSanPham dong = dongSanPhamDao.findAll().stream()
+        .filter(DongSanPham::trangThaiKinhDoanh)
+        .findFirst()
+        .orElseThrow();
+    NhaCungCap nhaCungCap = nhaCungCapDao.findAll().stream().findFirst().orElseThrow();
+    File file = Files.createTempFile("san-pham-import", ".xlsx").toFile();
+    String serial = "UC008-IMPORT-" + System.nanoTime();
+
+    ExcelTemplate.xuat(file, SanPhamController.specNhapSanPham(), List.<Object[]>of(new Object[] {
+        serial,
+        nhaCungCap.maNCC(),
+        dong.maDongSP(),
+        new BigDecimal("12000000"),
+        LocalDate.now(),
+        "SAN_SANG_BAN"
+    }));
+
+    SanPhamController.KetQua<SanPhamController.NhapKetQua> ketQua = controller.nhapDanhSach(file);
+    assertTrue(ketQua.thanhCong(), ketQua.thongBao());
+    assertEquals(1, ketQua.duLieu().soDong());
+    file.delete();
+
+    serialsCanXoa.add(serial);
+    dongCanReset.add(dong.maDongSP());
+    tonCu.add(dongSanPhamDao.findById(dong.maDongSP()).orElseThrow().soLuongTon() - 1);
   }
 }

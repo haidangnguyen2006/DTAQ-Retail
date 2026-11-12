@@ -17,6 +17,7 @@ import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
 import java.awt.Component;
+import java.io.File;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,9 +25,12 @@ import java.util.Objects;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JList;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingWorker;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
 
@@ -45,6 +49,7 @@ public final class ProductLinesPage implements Page {
   private final FormField unitField = FormField.text("Đơn vị tính", "Ví dụ: Chiếc / Cái", "package");
   private final FormField priceField = FormField.money("Giá bán trước thuế", "0");
   private final FormField taxField = FormField.money("Thuế suất %", "0");
+  private final DtaqButton importButton = DtaqButton.secondary("Import Excel", "upload");
   private final DtaqButton saveButton = DtaqButton.primary("Lưu", "save");
   private final DtaqButton ngungButton = DtaqButton.secondary("Ngừng kinh doanh");
   private final DtaqButton kinhDoanhLaiButton = DtaqButton.secondary("Kinh doanh lại");
@@ -72,7 +77,8 @@ public final class ProductLinesPage implements Page {
     PageHeader header = new PageHeader(
         "Quản lý dòng sản phẩm",
         "Tạo mới và cập nhật thông tin dòng sản phẩm, giá bán trước thuế và thuế suất.");
-    header.setTrailing(ngungButton, kinhDoanhLaiButton, saveButton);
+    importButton.addActionListener(e -> importExcel());
+    header.setTrailing(importButton, ngungButton, kinhDoanhLaiButton, saveButton);
     view.add(header, "growx, wrap");
 
     categoryField.setRequired(true);
@@ -316,6 +322,59 @@ public final class ProductLinesPage implements Page {
     clearErrors();
     capNhatLuaChon();
     table.repaint();
+  }
+
+  private void importExcel() {
+    JFileChooser chooser = new JFileChooser();
+    chooser.setDialogTitle("Chọn file Excel nhập dòng sản phẩm");
+    chooser.setFileFilter(new FileNameExtensionFilter("Excel Workbook (*.xlsx)", "xlsx"));
+    chooser.setAcceptAllFileFilterUsed(false);
+    if (chooser.showOpenDialog(view) != JFileChooser.APPROVE_OPTION) {
+      return;
+    }
+    File file = chooser.getSelectedFile();
+    if (file == null || !file.exists()) {
+      JOptionPane.showMessageDialog(view, "Vui lòng chọn file Excel hợp lệ.", "Import dòng sản phẩm", JOptionPane.ERROR_MESSAGE);
+      return;
+    }
+
+    importButton.setBusy(true);
+    new SwingWorker<DongSanPhamController.KetQua<DongSanPhamController.NhapKetQua>, Void>() {
+      @Override
+      protected DongSanPhamController.KetQua<DongSanPhamController.NhapKetQua> doInBackground() {
+        return controller.nhapDanhSach(file);
+      }
+
+      @Override
+      protected void done() {
+        importButton.setBusy(false);
+        try {
+          DongSanPhamController.KetQua<DongSanPhamController.NhapKetQua> ketQua = get();
+          if (ketQua.thanhCong()) {
+            JOptionPane.showMessageDialog(
+                view,
+                ketQua.thongBao(),
+                "Import dòng sản phẩm",
+                JOptionPane.INFORMATION_MESSAGE);
+            resetForm();
+            daTimKiem = true;
+            taiDanhSach();
+          } else {
+            JOptionPane.showMessageDialog(
+                view,
+                ketQua.thongBao(),
+                "Import dòng sản phẩm",
+                JOptionPane.ERROR_MESSAGE);
+          }
+        } catch (Exception ex) {
+          JOptionPane.showMessageDialog(
+              view,
+              "Không thể import file Excel. Vui lòng kiểm tra cấu trúc dữ liệu.",
+              "Import dòng sản phẩm",
+              JOptionPane.ERROR_MESSAGE);
+        }
+      }
+    }.execute();
   }
 
   private void xacNhanNgungKinhDoanh() {

@@ -8,13 +8,20 @@ import com.dtaq.retail.entity.NhaCungCap;
 import com.dtaq.retail.entity.SanPham;
 import com.dtaq.retail.entity.TrangThaiSanPham;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.util.ExcelImporter;
+import com.dtaq.retail.util.ExcelTemplate;
+import java.io.File;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,6 +198,101 @@ public final class SanPhamController {
     }
   }
 
+  public static ExcelImporter.ImportSpec specNhapSanPham() {
+    return new ExcelImporter.ImportSpec(
+        ExcelTemplate.TEN_SHEET_DU_LIEU,
+        List.of(
+            new ExcelImporter.CotNhap("Số serial", ExcelImporter.KieuDuLieu.CHUOI, true, List.of()),
+            new ExcelImporter.CotNhap("Mã nhà cung cấp", ExcelImporter.KieuDuLieu.CHUOI, true, List.of()),
+            new ExcelImporter.CotNhap("Mã dòng sản phẩm", ExcelImporter.KieuDuLieu.CHUOI, true, List.of()),
+            new ExcelImporter.CotNhap("Giá nhập", ExcelImporter.KieuDuLieu.SO_THAP_PHAN, true, List.of()),
+            new ExcelImporter.CotNhap("Ngày nhập kho ban đầu", ExcelImporter.KieuDuLieu.NGAY, true, List.of()),
+            new ExcelImporter.CotNhap("Trạng thái", ExcelImporter.KieuDuLieu.ENUM, false,
+                List.of(TrangThaiSanPham.SAN_SANG_BAN.name()))),
+        5000);
+  }
+
+  public KetQua<NhapKetQua> nhapDanhSach(File tep) {
+    if (tep == null || !tep.isFile()) {
+      return KetQua.loi("Tệp nhập không tồn tại");
+    }
+    ExcelImporter.ImportResult ketQuaDoc = ExcelImporter.doc(tep, specNhapSanPham());
+    if (!ketQuaDoc.hopLe()) {
+      String thongBao = ketQuaDoc.loi().stream()
+          .limit(3)
+          .map(loi -> loi.thongBao())
+          .reduce((a, b) -> a + "; " + b)
+          .orElse("Tệp Excel không hợp lệ");
+      return KetQua.loi(thongBao);
+    }
+
+    Set<String> serialDaXem = new LinkedHashSet<>();
+    List<String> maDongCapNhat = new ArrayList<>();
+    try (Connection ketNoi = dataSource.getConnection()) {
+      boolean oldAutoCommit = ketNoi.getAutoCommit();
+      ketNoi.setAutoCommit(false);
+      try {
+        for (ExcelImporter.ImportRow dong : ketQuaDoc.dong()) {
+          String serial = String.valueOf(dong.giaTri().get("Số serial")).trim();
+          if (!serialDaXem.add(serial)) {
+            throw new DataAccessException("Dòng excel trùng số serial: " + serial);
+          }
+
+          String maNcc = String.valueOf(dong.giaTri().get("Mã nhà cung cấp")).trim();
+          String maDong = String.valueOf(dong.giaTri().get("Mã dòng sản phẩm")).trim();
+          BigDecimal giaNhap = (BigDecimal) dong.giaTri().get("Giá nhập");
+          LocalDate ngayNhap = (LocalDate) dong.giaTri().get("Ngày nhập kho ban đầu");
+          String trangThaiText = String.valueOf(dong.giaTri().getOrDefault("Trạng thái", TrangThaiSanPham.SAN_SANG_BAN.name()));
+          TrangThaiSanPham trangThai = trangThaiText == null || trangThaiText.isBlank()
+              ? TrangThaiSanPham.SAN_SANG_BAN
+              : TrangThaiSanPham.valueOf(trangThaiText.trim());
+
+          Optional<NhaCungCap> nhaCungCap = nhaCungCapDao.findById(maNcc);
+          if (nhaCungCap.isEmpty()) {
+            throw new DataAccessException("Mã nhà cung cấp không tồn tại: " + maNcc);
+          }
+          Optional<DongSanPham> dongSanPham = dongSanPhamDao.findById(maDong);
+          if (dongSanPham.isEmpty()) {
+            throw new DataAccessException("Mã dòng sản phẩm không tồn tại: " + maDong);
+          }
+          if (!dongSanPham.get().trangThaiKinhDoanh()) {
+            throw new DataAccessException("Dòng sản phẩm đang ngừng kinh doanh: " + maDong);
+          }
+          if (sanPhamDao.findById(serial).isPresent()) {
+            throw new DataAccessException("Số serial đã tồn tại: " + serial);
+          }
+          SanPham sanPham = new SanPham(
+              serial,
+              nhaCungCap.get(),
+              dongSanPham.get(),
+              giaNhap,
+              ngayNhap,
+              trangThai,
+              0,
+              0);
+          sanPhamDao.insert(ketNoi, sanPham);
+          if (!maDongCapNhat.contains(maDong)) {
+            maDongCapNhat.add(maDong);
+          }
+        }
+        for (String maDong : maDongCapNhat) {
+          capNhatSoLuongTon(ketNoi, maDong);
+        }
+        ketNoi.commit();
+        return KetQua.thanhCong(new NhapKetQua(ketQuaDoc.dong().size()),
+            "Nhập " + ketQuaDoc.dong().size() + " dòng sản phẩm thành công");
+      } catch (Exception e) {
+        ketNoi.rollback();
+        throw e;
+      } finally {
+        ketNoi.setAutoCommit(oldAutoCommit);
+      }
+    } catch (Exception e) {
+      log.error("Lỗi khi nhập danh sách sản phẩm từ Excel", e);
+      return KetQua.loi(e.getMessage() == null ? "Không thể nhập danh sách sản phẩm" : e.getMessage());
+    }
+  }
+
   private void capNhatSoLuongTon(Connection ketNoi, String maDongSP) throws SQLException {
     try (PreparedStatement ps = ketNoi.prepareStatement(
         "UPDATE \"DongSanPham\" d SET \"soLuongTon\" = ("
@@ -202,6 +304,8 @@ public final class SanPhamController {
       ps.executeUpdate();
     }
   }
+
+  public record NhapKetQua(int soDong) {}
 
   public record KetQua<T>(boolean thanhCong, String thongBao, T duLieu) {
     public static <T> KetQua<T> thanhCong(T duLieu, String thongBao) {

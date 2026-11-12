@@ -1,5 +1,6 @@
 target/
 .idea/
+.venv/
 *.iml
 *.log
 hs_err_pid*.log
