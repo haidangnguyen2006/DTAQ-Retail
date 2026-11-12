@@ -14,27 +14,32 @@ class DtaqColorsTest {
   }
 
   @Test
-  @DisplayName("Các mã màu Brand & Primary phải khớp chính xác đặc tả Figma")
+  @DisplayName("Các mã màu Brand & Primary phải khớp chính xác đặc tả DTAQ Azure")
   void testBrandAndPrimaryColors() {
-    assertEquals("#2457F5", toHex(DtaqColors.PRIMARY));
-    assertEquals("#1A3FB0", toHex(DtaqColors.PRIMARY_STRONG));
-    assertEquals("#EEF3FF", toHex(DtaqColors.PRIMARY_SOFT));
-    assertEquals("#DCE6FF", toHex(DtaqColors.PRIMARY_SOFT_2));
-    assertEquals("#BCCDFF", toHex(DtaqColors.PRIMARY_BORDER_SOFT));
-    assertEquals("#111826", toHex(DtaqColors.BRAND_DARK));
-    assertEquals("#8B97AB", toHex(DtaqColors.BRAND_ON_DARK_MUTED));
+    assertEquals("#0384FF", toHex(DtaqColors.BRAND));
+    assertEquals("#62A6FE", toHex(DtaqColors.BRAND_400));
+    assertEquals("#006DD7", toHex(DtaqColors.PRIMARY));
+    assertEquals("#0058B0", toHex(DtaqColors.PRIMARY_STRONG));
+    assertEquals("#E4F0FF", toHex(DtaqColors.PRIMARY_SOFT));
+    assertEquals("#C9E0FE", toHex(DtaqColors.PRIMARY_SOFT_2));
+    assertEquals("#9DC7FF", toHex(DtaqColors.PRIMARY_BORDER_SOFT));
+    assertEquals("#001D44", toHex(DtaqColors.BRAND_DARK));
+    assertEquals("#88A7D0", toHex(DtaqColors.BRAND_ON_DARK_MUTED));
   }
 
   @Test
   @DisplayName("Các mã màu Neutral, Background và Border phải khớp đặc tả")
   void testNeutralColors() {
-    assertEquals("#151A24", toHex(DtaqColors.TEXT));
-    assertEquals("#5B6577", toHex(DtaqColors.TEXT_MUTED));
-    assertEquals("#8792A3", toHex(DtaqColors.TEXT_SUBTLE));
-    assertEquals("#F4F6FA", toHex(DtaqColors.BG_APP));
+    assertEquals("#111B28", toHex(DtaqColors.TEXT));
+    assertEquals("#5A6472", toHex(DtaqColors.TEXT_MUTED));
+    assertEquals("#6B7583", toHex(DtaqColors.TEXT_SUBTLE));
+    assertEquals("#F3F6FA", toHex(DtaqColors.BG_APP));
     assertEquals("#FFFFFF", toHex(DtaqColors.SURFACE));
-    assertEquals("#DDE2EB", toHex(DtaqColors.BORDER));
-    assertEquals("#ECEFF5", toHex(DtaqColors.DISABLED_BG));
+    assertEquals("#F8FAFD", toHex(DtaqColors.SURFACE_SUNKEN));
+    assertEquals("#DAE0E8", toHex(DtaqColors.BORDER));
+    assertEquals("#AFB8C4", toHex(DtaqColors.BORDER_STRONG));
+    assertEquals("#77818F", toHex(DtaqColors.BORDER_HOVER));
+    assertEquals("#EAEEF4", toHex(DtaqColors.DISABLED_BG));
   }
 
   @Test
@@ -47,23 +52,34 @@ class DtaqColorsTest {
   }
 
   @Test
-  @DisplayName("Các mã màu Biểu đồ Top 5 phải khớp đặc tả")
+  @DisplayName("Các mã màu Biểu đồ phải khớp đặc tả (thứ tự cố định)")
   void testChartColors() {
-    assertEquals("#2457F5", toHex(DtaqColors.CHART_1));
-    assertEquals("#12A594", toHex(DtaqColors.CHART_2));
-    assertEquals("#D98A0B", toHex(DtaqColors.CHART_3));
-    assertEquals("#8E5CF6", toHex(DtaqColors.CHART_4));
-    assertEquals("#E5484D", toHex(DtaqColors.CHART_5));
+    assertEquals("#1886FE", toHex(DtaqColors.CHART_1));
+    assertEquals("#EB6834", toHex(DtaqColors.CHART_2));
+    assertEquals("#1BAF7A", toHex(DtaqColors.CHART_3));
+    assertEquals("#EDA100", toHex(DtaqColors.CHART_4));
+    assertEquals("#6250D6", toHex(DtaqColors.CHART_5));
+    assertEquals("#77818F", toHex(DtaqColors.CHART_6));
+  }
+
+  @Test
+  @DisplayName("Sidebar dùng navy của logo")
+  void testSidebarColors() {
+    assertEquals("#001D44", toHex(DtaqColors.SIDEBAR_BG));
+    assertEquals("#002957", toHex(DtaqColors.SIDEBAR_HOVER));
+    assertEquals("#003671", toHex(DtaqColors.SIDEBAR_ACTIVE_BG));
+    assertEquals("#C4D9F6", toHex(DtaqColors.SIDEBAR_TEXT));
+    assertEquals("#62A6FE", toHex(DtaqColors.SIDEBAR_ACCENT));
   }
 
   @Test
   @DisplayName("Các token trạng thái và tương tác bổ sung phải đúng mã màu")
   void testStatusAndInteractionColors() {
-    assertEquals("#1F4FD8", toHex(DtaqColors.PRIMARY_HOVER));
+    assertEquals("#0062C2", toHex(DtaqColors.PRIMARY_HOVER));
     assertEquals("#FAD7D4", toHex(DtaqColors.DANGER_SOFT_HOVER));
     assertEquals("#B4540A", toHex(DtaqColors.WARNING));
     assertEquals("#FFF4DB", toHex(DtaqColors.WARNING_SOFT));
-    assertEquals("#F7F9FC", toHex(DtaqColors.ROW_HOVER));
+    assertEquals("#F2F7FE", toHex(DtaqColors.ROW_HOVER));
     assertEquals("#0F7B55", toHex(DtaqColors.SUCCESS));
     assertEquals("#E4F5EC", toHex(DtaqColors.SUCCESS_SOFT));
   }
