@@ -295,6 +295,11 @@ public final class ProductPage implements Page {
   }
 
   private void luuMay() {
+    if (dateField.hasInvalidText()) {
+      dateField.setError(DatePicker.LOI_DINH_DANG);
+      dateField.textField().requestFocusInWindow();
+      return;
+    }
     LocalDate ngayNhap = dateField.getDate();
 
     SanPhamController.KetQua<SanPham> ketQua;

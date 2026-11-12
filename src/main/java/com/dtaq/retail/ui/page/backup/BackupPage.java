@@ -11,6 +11,7 @@ import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
 import com.dtaq.retail.ui.component.InfoCallout;
+import com.dtaq.retail.ui.component.InputFilters;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.StatefulView;
 import com.dtaq.retail.ui.component.StatusPill;
@@ -27,6 +28,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -57,7 +59,8 @@ public final class BackupPage implements Page {
   private static final String SAI_DINH_DANG_GIO = "Giờ phải có dạng HH:mm";
   private static final String SAI_CHU_KY = "Chu kỳ phải từ 1 đến 168 giờ";
   private static final ZoneId MUI_GIO = ZoneId.of("Asia/Ho_Chi_Minh");
-  private static final DateTimeFormatter DINH_DANG_GIO = DateTimeFormatter.ofPattern("HH:mm");
+  private static final DateTimeFormatter DINH_DANG_GIO =
+      DateTimeFormatter.ofPattern("HH:mm").withResolverStyle(ResolverStyle.STRICT);
 
   private final BackupController controller;
   private final JPanel view;
@@ -121,6 +124,8 @@ public final class BackupPage implements Page {
 
     runTimeField = FormField.text("Giờ chạy tự động", "HH:mm", "clock");
     intervalField = FormField.text("Chu kỳ (giờ)", "1–168", null);
+    InputFilters.gioPhut(runTimeField.getTextField());
+    InputFilters.chiChoSo(intervalField.getTextField(), 3);
     napLaiCauHinh();
 
     JPanel body = new JPanel(new MigLayout(
