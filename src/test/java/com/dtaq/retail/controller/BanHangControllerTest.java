@@ -747,7 +747,18 @@ class BanHangControllerTest {
     }
 
     @Override
+    public List<DongApDung> findDongTheoDieuKien(
+        String maDongSP, List<String> maDanhMuc, LocalDate ngayNhapMuonNhat) {
+      throw new UnsupportedOperationException("Không dùng trong kiểm thử");
+    }
+
+    @Override
     public void insert(KhuyenMai khuyenMai) {
+      throw new UnsupportedOperationException("Không dùng trong kiểm thử");
+    }
+
+    @Override
+    public void insert(Connection ketNoi, KhuyenMai khuyenMai) {
       throw new UnsupportedOperationException("Không dùng trong kiểm thử");
     }
 

@@ -1,19 +1,30 @@
 package com.dtaq.retail.controller;
 
 import com.dtaq.retail.dao.DongSanPhamDao;
+import com.dtaq.retail.dao.DanhMucSanPhamDao;
 import com.dtaq.retail.dao.KhuyenMaiDao;
+import com.dtaq.retail.dao.KhuyenMaiDao.DongApDung;
+import com.dtaq.retail.entity.ChiTietKhuyenMai;
+import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.KhuyenMai;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.service.KhuyenMaiExcel;
+import com.dtaq.retail.service.KhuyenMaiExcel.Nhom;
 import com.dtaq.retail.session.CurrentSession;
+import com.dtaq.retail.util.ExcelImporter.ImportError;
+import com.dtaq.retail.util.ExcelImporter.ImportResult;
 import com.dtaq.retail.util.MaGenerator;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import javax.sql.DataSource;
@@ -31,6 +42,7 @@ public final class KhuyenMaiController {
 
   private final KhuyenMaiDao khuyenMaiDao;
   private final DongSanPhamDao dongSanPhamDao;
+  private final DanhMucSanPhamDao danhMucDao;
   private final DataSource dataSource;
 
   /**
@@ -38,14 +50,17 @@ public final class KhuyenMaiController {
    *
    * @param khuyenMaiDao lớp truy cập dữ liệu chương trình khuyến mãi; không được {@code null}
    * @param dongSanPhamDao lớp truy cập dữ liệu dòng sản phẩm; không được {@code null}
+   * @param danhMucDao lớp truy cập dữ liệu danh mục; không được {@code null}
    * @param dataSource nguồn kết nối CSDL phục vụ sinh mã định danh tự động; không được {@code null}
    */
   public KhuyenMaiController(
       KhuyenMaiDao khuyenMaiDao,
       DongSanPhamDao dongSanPhamDao,
+      DanhMucSanPhamDao danhMucDao,
       DataSource dataSource) {
     this.khuyenMaiDao = Objects.requireNonNull(khuyenMaiDao, "khuyenMaiDao");
     this.dongSanPhamDao = Objects.requireNonNull(dongSanPhamDao, "dongSanPhamDao");
+    this.danhMucDao = Objects.requireNonNull(danhMucDao, "danhMucDao");
     this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
   }
 
@@ -71,6 +86,11 @@ public final class KhuyenMaiController {
       log.error("Lỗi khi tải danh sách dòng sản phẩm cho khuyến mãi", e);
       return Collections.emptyList();
     }
+  }
+
+  public List<DanhMucSanPham> layDanhSachDanhMuc() {
+    yeuCauQuanLy();
+    return danhMucDao.findAll();
   }
 
   /**
@@ -149,81 +169,109 @@ public final class KhuyenMaiController {
       LocalDate ngayKetThuc,
       String maDongSP,
       boolean dangApDung) {
+    return themMoiTheoDieuKien(tenKM, moTa, tyLeGiam, ngayBatDau, ngayKetThuc,
+        maDongSP, List.of(), null, dangApDung);
+  }
 
+  /** Tìm các dòng áp dụng cho phần xem trước. Lúc lưu hệ thống xét lại cùng điều kiện. */
+  public KetQua<List<DongApDung>> xemTruocDongApDung(
+      String maDongSP, List<String> maDanhMucs, Integer soNgayTonToiThieu) {
     yeuCauQuanLy();
+    String maDong = maDongSP == null || maDongSP.isBlank() ? null : maDongSP.trim();
+    List<String> danhMucs = maDanhMucs == null ? List.of() : maDanhMucs.stream()
+        .filter(Objects::nonNull).map(String::trim).filter(ma -> !ma.isEmpty()).distinct().toList();
+    if (maDong == null && danhMucs.isEmpty() && soNgayTonToiThieu == null) {
+      return KetQua.loi("Chọn ít nhất một đối tượng hoặc điều kiện");
+    }
+    if (maDong != null && !danhMucs.isEmpty()) {
+      return KetQua.loi("Không thể chọn đồng thời dòng sản phẩm và danh mục");
+    }
+    if (soNgayTonToiThieu != null && soNgayTonToiThieu < 0) {
+      return KetQua.loi("Số ngày tồn tối thiểu không được âm");
+    }
 
-    // 1. Validate thông tin nhập liệu (Luồng phụ 9.a)
-    String loiNhapLieu = validateThongTin(tenKM, tyLeGiam, ngayBatDau, ngayKetThuc, maDongSP);
+    try {
+      if (maDong != null && dongSanPhamDao.findById(maDong).isEmpty()) {
+        return KetQua.loi("Dòng sản phẩm áp dụng không tồn tại trong hệ thống");
+      }
+      for (String ma : danhMucs) {
+        if (danhMucDao.findById(ma).isEmpty()) {
+          return KetQua.loi("Danh mục áp dụng không tồn tại: " + ma);
+        }
+      }
+      LocalDate ngayGioiHan = soNgayTonToiThieu == null
+          ? null : LocalDate.now().minusDays(soNgayTonToiThieu);
+      List<DongApDung> cacDong = khuyenMaiDao.findDongTheoDieuKien(maDong, danhMucs, ngayGioiHan);
+      if (cacDong.isEmpty()) {
+        return KetQua.loi("Không có dòng sản phẩm nào thỏa điều kiện");
+      }
+      return KetQua.thanhCong(cacDong, "Số dòng áp dụng: " + cacDong.size());
+    } catch (DataAccessException e) {
+      log.error("Lỗi khi tìm dòng áp dụng khuyến mãi", e);
+      return KetQua.loi("Không thể tìm dòng sản phẩm theo điều kiện khuyến mãi");
+    }
+  }
+
+  /** Tạo một chương trình khuyến mãi cho tất cả dòng thỏa điều kiện. */
+  public KetQua<KhuyenMai> themMoiTheoDieuKien(
+      String tenKM, String moTa, BigDecimal tyLeGiam, LocalDate ngayBatDau, LocalDate ngayKetThuc,
+      String maDongSP, List<String> maDanhMucs, Integer soNgayTonToiThieu, boolean dangApDung) {
+    return themMoiTheoDieuKien(tenKM, moTa, tyLeGiam, ngayBatDau, ngayKetThuc,
+        maDongSP, maDanhMucs, soNgayTonToiThieu, dangApDung, null);
+  }
+
+  public KetQua<KhuyenMai> themMoiTheoDieuKien(
+      String tenKM, String moTa, BigDecimal tyLeGiam, LocalDate ngayBatDau, LocalDate ngayKetThuc,
+      String maDongSP, List<String> maDanhMucs, Integer soNgayTonToiThieu, boolean dangApDung,
+      List<String> maDongDaXacNhan) {
+    yeuCauQuanLy();
+    String loiNhapLieu = validateThongTin(tenKM, tyLeGiam, ngayBatDau, ngayKetThuc);
     if (loiNhapLieu != null) {
       return KetQua.loi(loiNhapLieu);
     }
-
-    String tenChuanHoa = tenKM.trim();
-    String moTaChuanHoa = (moTa != null && !moTa.isBlank()) ? moTa.trim() : null;
-    String maDongChuanHoa = maDongSP.trim();
-
-    // 2. Kiểm tra dòng sản phẩm tồn tại (Điều kiện trước UC012)
-    Optional<DongSanPham> optDongSP;
+    var xemTruoc = xemTruocDongApDung(maDongSP, maDanhMucs, soNgayTonToiThieu);
+    if (!xemTruoc.thanhCong()) {
+      return KetQua.loi(xemTruoc.thongBao());
+    }
+    List<DongSanPham> cacDong = xemTruoc.duLieu().stream().map(DongApDung::dong).toList();
+    if (maDongDaXacNhan != null
+        && !maDongDaXacNhan.equals(cacDong.stream().map(DongSanPham::maDongSP).toList())) {
+      return KetQua.loi("Danh sách dòng áp dụng đã thay đổi. Vui lòng xem trước lại.");
+    }
     try {
-      optDongSP = dongSanPhamDao.findById(maDongChuanHoa);
-    } catch (DataAccessException e) {
-      log.error("Lỗi kiểm tra dòng sản phẩm: {}", maDongChuanHoa, e);
-      return KetQua.loi("Lỗi hệ thống khi kiểm tra dòng sản phẩm: " + e.getMessage());
-    }
-
-    if (optDongSP.isEmpty()) {
-      return KetQua.loi("Dòng sản phẩm áp dụng không tồn tại trong hệ thống");
-    }
-
-    // 3. Kiểm tra xung đột thời gian áp dụng (Luồng phụ 10.b & Quyết định D11)
-    if (dangApDung) {
-      try {
-        if (khuyenMaiDao.existsChongLan(maDongChuanHoa, ngayBatDau, ngayKetThuc, null)) {
-          return KetQua.loi("Dòng sản phẩm đã có chương trình khuyến mãi khác đang áp dụng trong cùng khoảng thời gian");
+      if (dangApDung) {
+        for (DongSanPham dong : cacDong) {
+          if (khuyenMaiDao.existsChongLan(dong.maDongSP(), ngayBatDau, ngayKetThuc, null)) {
+            return KetQua.loi("Dòng sản phẩm đã có khuyến mãi trong cùng thời gian: " + dong.maDongSP());
+          }
         }
-      } catch (DataAccessException e) {
-        log.error("Lỗi kiểm tra chồng lấn khuyến mãi: {}", maDongChuanHoa, e);
-        return KetQua.loi("Không thể kiểm tra xung đột thời gian khuyến mãi: " + e.getMessage());
       }
-    }
-
-    // 4. Sinh mã khuyến mãi tự động (KM-YYYY-NNNNNN theo Quyết định C-12 / D7)
-    String maKM;
-    try (Connection conn = dataSource.getConnection()) {
-      maKM = MaGenerator.next(conn, "KhuyenMai", "maKM", "KM");
-    } catch (SQLException | DataAccessException e) {
-      log.error("Lỗi khi sinh mã khuyến mãi mới", e);
-      return KetQua.loi("Không thể khởi tạo mã khuyến mãi mới: " + e.getMessage());
-    }
-
-    // 5. Kiểm tra trùng mã (Luồng phụ 10.a)
-    try {
-      if (khuyenMaiDao.existsTrungMa(maKM)) {
-        return KetQua.loi("Mã chương trình khuyến mãi đã tồn tại: " + maKM);
+      try (Connection conn = dataSource.getConnection()) {
+        conn.setAutoCommit(false);
+        try {
+          String maKM = MaGenerator.next(conn, "KhuyenMai", "maKM", "KM");
+          List<ChiTietKhuyenMai> chiTiet = cacDong.stream()
+              .map(dong -> new ChiTietKhuyenMai(maKM, dong)).toList();
+          KhuyenMai km = new KhuyenMai(maKM, tenKM.trim(), ngayBatDau, ngayKetThuc, tyLeGiam,
+              moTa == null || moTa.isBlank() ? null : moTa.trim(), chiTiet, dangApDung);
+          khuyenMaiDao.insert(conn, km);
+          conn.commit();
+          return KetQua.thanhCong(km, "Đã thêm chương trình cho " + chiTiet.size() + " dòng sản phẩm");
+        } catch (SQLException | RuntimeException e) {
+          try {
+            conn.rollback();
+          } catch (SQLException rollbackError) {
+            e.addSuppressed(rollbackError);
+          }
+          throw e;
+        }
       }
     } catch (DataAccessException e) {
-      log.warn("Lỗi kiểm tra trùng mã khuyến mãi: {}", e.getMessage());
-    }
-
-    // 6. Lưu khuyến mãi vào CSDL
-    KhuyenMai khuyenMaiMoi = new KhuyenMai(
-        maKM,
-        tenChuanHoa,
-        ngayBatDau,
-        ngayKetThuc,
-        tyLeGiam,
-        moTaChuanHoa,
-        dangApDung,
-        optDongSP.get()
-    );
-
-    try {
-      khuyenMaiDao.insert(khuyenMaiMoi);
-      log.info("Thêm mới khuyến mãi thành công: mã {}, tên {}", maKM, tenChuanHoa);
-      return KetQua.thanhCong(khuyenMaiMoi, "Thêm chương trình khuyến mãi thành công");
-    } catch (DataAccessException e) {
-      log.error("Lỗi khi lưu chương trình khuyến mãi mới", e);
-      return KetQua.loi("Thêm khuyến mãi thất bại: " + e.getMessage());
+      log.error("Lỗi khi tạo chương trình khuyến mãi", e);
+      return KetQua.loi(e.getMessage());
+    } catch (SQLException e) {
+      log.error("Lỗi khi tạo chương trình khuyến mãi", e);
+      return KetQua.loi("Thêm khuyến mãi thất bại");
     }
   }
 
@@ -267,7 +315,13 @@ public final class KhuyenMaiController {
       return KetQua.loi("Không tìm thấy chương trình khuyến mãi mã: " + maChuanHoa);
     }
 
-    String loiNhapLieu = validateThongTin(tenKM, tyLeGiam, ngayBatDau, ngayKetThuc, maDongSP);
+    if (optHienTai.get().chiTiet().size() > 1) {
+      return KetQua.loi("Chức năng sửa hiện chỉ hỗ trợ chương trình có một dòng sản phẩm");
+    }
+    if (maDongSP == null || maDongSP.isBlank()) {
+      return KetQua.loi("Dòng sản phẩm áp dụng không được để trống");
+    }
+    String loiNhapLieu = validateThongTin(tenKM, tyLeGiam, ngayBatDau, ngayKetThuc);
     if (loiNhapLieu != null) {
       return KetQua.loi(loiNhapLieu);
     }
@@ -354,8 +408,11 @@ public final class KhuyenMaiController {
 
     // Kiểm tra chồng lấn thời gian với chương trình đang áp dụng khác
     try {
-      if (khuyenMaiDao.existsChongLan(km.dongSanPham().maDongSP(), km.ngayBatDau(), km.ngayKetThuc(), maChuanHoa)) {
-        return KetQua.loi("Không thể kích hoạt do xung đột thời gian với chương trình khuyến mãi khác đang áp dụng");
+      for (ChiTietKhuyenMai chiTiet : km.chiTiet()) {
+        String maDong = chiTiet.dongSanPham().maDongSP();
+        if (khuyenMaiDao.existsChongLan(maDong, km.ngayBatDau(), km.ngayKetThuc(), maChuanHoa)) {
+          return KetQua.loi("Không thể kích hoạt do xung đột thời gian trên dòng sản phẩm: " + maDong);
+        }
       }
     } catch (DataAccessException e) {
       return KetQua.loi("Lỗi khi kiểm tra xung đột thời gian: " + e.getMessage());
@@ -419,12 +476,129 @@ public final class KhuyenMaiController {
     }
   }
 
+  /** Kiểm tra tệp trước khi hiển thị hoặc xác nhận nhập. */
+  public ImportResult xemTruocNhapExcel(ImportResult tep) {
+    yeuCauQuyenNhap();
+    return kiemTraTep(tep).ketQua();
+  }
+
+  /** Nhập tất cả nhóm trong một giao dịch sau khi kiểm tra lại tệp. */
+  public KetQuaNhap nhapExcel(ImportResult tep) {
+    yeuCauQuyenNhap();
+    TepKhuyenMai daKiemTra = kiemTraTep(tep);
+    if (!daKiemTra.ketQua().hopLe()) {
+      return new KetQuaNhap(0, daKiemTra.ketQua());
+    }
+    Nhom nhomDangLuu = null;
+    try (Connection conn = dataSource.getConnection()) {
+      conn.setAutoCommit(false);
+      try {
+        for (Nhom nhom : daKiemTra.nhom()) {
+          nhomDangLuu = nhom;
+          String maKM = MaGenerator.next(conn, "KhuyenMai", "maKM", "KM");
+          var tt = nhom.thongTin();
+          List<ChiTietKhuyenMai> chiTiet = nhom.dongTheoMaSP().keySet().stream()
+              .map(maDong -> new ChiTietKhuyenMai(maKM, daKiemTra.dongSanPham().get(maDong))).toList();
+          khuyenMaiDao.insert(conn, new KhuyenMai(maKM, tt.ten(), tt.batDau(), tt.ketThuc(),
+              tt.tyLe(), tt.moTa(), chiTiet, tt.apDung()));
+        }
+        nhomDangLuu = null;
+        conn.commit();
+        return new KetQuaNhap(daKiemTra.nhom().size(), tep);
+      } catch (SQLException | RuntimeException e) {
+        try {
+          conn.rollback();
+        } catch (SQLException rollbackError) {
+          e.addSuppressed(rollbackError);
+        }
+        throw e;
+      }
+    } catch (SQLException | DataAccessException e) {
+      log.error("Lỗi khi nhập chương trình khuyến mãi", e);
+      int dong = nhomDangLuu == null ? 0 : nhomDangLuu.dongDau();
+      String cot = nhomDangLuu == null ? "" : KhuyenMaiExcel.MA_NHOM;
+      String thongBao = "Không thể lưu tệp khuyến mãi";
+      if (e instanceof KhuyenMaiDao.LoiDongKhuyenMai loiDong && nhomDangLuu != null) {
+        dong = nhomDangLuu.dongTheoMaSP().getOrDefault(loiDong.maDongSP(), dong);
+        cot = KhuyenMaiExcel.MA_DONG;
+        thongBao = loiDong.getMessage();
+      }
+      return new KetQuaNhap(0, new ImportResult(tep.dong(),
+          List.of(KhuyenMaiExcel.loi(dong, cot, thongBao)), tep.tongSoDong()));
+    }
+  }
+
+  private TepKhuyenMai kiemTraTep(ImportResult tep) {
+    List<ImportError> loi = new ArrayList<>(tep.loi());
+    if (!loi.isEmpty()) {
+      return new TepKhuyenMai(tep, List.of(), Map.of());
+    }
+    if (tep.dong().isEmpty()) {
+      loi.add(KhuyenMaiExcel.loi(0, "", "Tệp không có dòng dữ liệu"));
+    }
+    List<Nhom> nhom = KhuyenMaiExcel.gomNhom(tep, loi);
+    Map<String, DongSanPham> dongSanPham = new HashMap<>();
+    if (loi.isEmpty()) {
+      kiemTraDongNhap(nhom, dongSanPham, loi);
+    }
+    return new TepKhuyenMai(new ImportResult(tep.dong(), loi, tep.tongSoDong()), nhom, dongSanPham);
+  }
+
+  private void kiemTraDongNhap(
+      List<Nhom> cacNhom, Map<String, DongSanPham> dongSanPham, List<ImportError> loi) {
+    Map<String, List<Nhom>> nhomApDungTheoDong = new HashMap<>();
+    for (Nhom nhom : cacNhom) {
+      var tt = nhom.thongTin();
+      for (var chiTiet : nhom.dongTheoMaSP().entrySet()) {
+        String maDong = chiTiet.getKey();
+        int dongExcel = chiTiet.getValue();
+        try {
+          DongSanPham dong = dongSanPham.computeIfAbsent(maDong,
+              ma -> dongSanPhamDao.findById(ma).orElse(null));
+          if (dong == null) {
+            loi.add(KhuyenMaiExcel.loi(dongExcel, KhuyenMaiExcel.MA_DONG,
+                "Dòng sản phẩm không tồn tại: " + maDong));
+            continue;
+          }
+          if (!tt.apDung()) continue;
+          List<Nhom> nhomTruoc = nhomApDungTheoDong.computeIfAbsent(maDong,
+              ma -> new ArrayList<>());
+          boolean chongLanTrongTep = nhomTruoc.stream().anyMatch(truoc ->
+              !truoc.thongTin().ketThuc().isBefore(tt.batDau())
+                  && !truoc.thongTin().batDau().isAfter(tt.ketThuc()));
+          nhomTruoc.add(nhom);
+          if (chongLanTrongTep || khuyenMaiDao.existsChongLan(
+              maDong, tt.batDau(), tt.ketThuc(), null)) {
+            loi.add(KhuyenMaiExcel.loi(dongExcel, KhuyenMaiExcel.MA_DONG,
+                "Dòng sản phẩm có khuyến mãi đang áp dụng trong cùng khoảng ngày: " + maDong));
+          }
+        } catch (DataAccessException e) {
+          log.error("Lỗi kiểm tra dòng khuyến mãi trong tệp", e);
+          loi.add(KhuyenMaiExcel.loi(dongExcel, KhuyenMaiExcel.MA_DONG,
+              "Không thể kiểm tra dòng sản phẩm: " + maDong));
+          return;
+        }
+      }
+    }
+  }
+
+  private static void yeuCauQuyenNhap() {
+    boolean duocNhap = CurrentSession.get().map(nv ->
+        nv.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY
+            || nv.loaiQuyen() == LoaiQuyen.NHAN_VIEN_BAN_HANG).orElse(false);
+    if (!duocNhap) throw new SecurityException("Cần đăng nhập để nhập khuyến mãi");
+  }
+
+  public record KetQuaNhap(int soChuongTrinh, ImportResult ketQua) {}
+
+  private record TepKhuyenMai(
+      ImportResult ketQua, List<Nhom> nhom, Map<String, DongSanPham> dongSanPham) {}
+
   private String validateThongTin(
       String tenKM,
       BigDecimal tyLeGiam,
       LocalDate ngayBatDau,
-      LocalDate ngayKetThuc,
-      String maDongSP) {
+      LocalDate ngayKetThuc) {
 
     if (tenKM == null || tenKM.isBlank()) {
       return "Tên chương trình khuyến mãi không được để trống";
@@ -437,6 +611,12 @@ public final class KhuyenMaiController {
     if (tyLeGiam.compareTo(BigDecimal.ZERO) < 0 || tyLeGiam.compareTo(new BigDecimal("100")) > 0) {
       return "Tỷ lệ giảm giá phải nằm trong khoảng từ 0% đến 100%";
     }
+    if (tenKM.trim().length() > 200) {
+      return "Tên chương trình khuyến mãi không được vượt quá 200 ký tự";
+    }
+    if (tyLeGiam.stripTrailingZeros().scale() > 2) {
+      return "Tỷ lệ giảm giá chỉ được có tối đa 2 chữ số thập phân";
+    }
 
     if (ngayBatDau == null) {
       return "Ngày bắt đầu không được để trống";
@@ -448,10 +628,6 @@ public final class KhuyenMaiController {
 
     if (ngayBatDau.isAfter(ngayKetThuc)) {
       return "Ngày bắt đầu không được sau ngày kết thúc";
-    }
-
-    if (maDongSP == null || maDongSP.isBlank()) {
-      return "Dòng sản phẩm áp dụng không được để trống";
     }
 
     return null;

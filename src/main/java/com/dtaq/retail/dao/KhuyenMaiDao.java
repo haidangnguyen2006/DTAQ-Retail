@@ -1,6 +1,9 @@
 package com.dtaq.retail.dao;
 
 import com.dtaq.retail.entity.KhuyenMai;
+import com.dtaq.retail.entity.DongSanPham;
+import com.dtaq.retail.exception.DataAccessException;
+import java.sql.Connection;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +51,26 @@ public interface KhuyenMaiDao {
    */
   List<KhuyenMai> findByDongSanPham(String maDongSP);
 
+  /** Tìm dòng đang kinh doanh, có ít nhất một máy sẵn sàng bán đủ tuổi tồn nếu có ngày giới hạn. */
+  List<DongApDung> findDongTheoDieuKien(
+      String maDongSP, List<String> maDanhMuc, LocalDate ngayNhapMuonNhat);
+
+  record DongApDung(DongSanPham dong, int soMayDuDieuKien) {}
+
+  /** Chi tiết không ghi được vì dòng sản phẩm đã mất khỏi CSDL. */
+  final class LoiDongKhuyenMai extends DataAccessException {
+    private final String maDongSP;
+
+    public LoiDongKhuyenMai(String maDongSP, Throwable cause) {
+      super("Dòng sản phẩm không còn tồn tại: " + maDongSP, cause);
+      this.maDongSP = maDongSP;
+    }
+
+    public String maDongSP() {
+      return maDongSP;
+    }
+  }
+
   /**
    * Thêm mới một chương trình khuyến mãi vào bảng {@code "KhuyenMai"}.
    *
@@ -55,6 +78,9 @@ public interface KhuyenMaiDao {
    * @throws IllegalArgumentException nếu thông tin không hợp lệ
    */
   void insert(KhuyenMai khuyenMai);
+
+  /** Ghi chương trình và các dòng chi tiết trên kết nối/giao dịch do bên gọi sở hữu. */
+  void insert(Connection ketNoi, KhuyenMai khuyenMai);
 
   /**
    * Cập nhật thông tin của một chương trình khuyến mãi.

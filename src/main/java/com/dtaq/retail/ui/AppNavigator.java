@@ -259,7 +259,7 @@ public final class AppNavigator {
     DefectiveProductsPage defective = new DefectiveProductsPage(
         new SanPhamLoiController(new SanPhamLoiDaoImpl(dataSource), sanPhamDao, dataSource));
     PromotionsPage promotions = new PromotionsPage(
-        new KhuyenMaiController(new KhuyenMaiDaoImpl(dataSource), dongSanPhamDao, dataSource));
+        new KhuyenMaiController(new KhuyenMaiDaoImpl(dataSource), dongSanPhamDao, danhMucDao, dataSource));
     EmployeePage employees = new EmployeePage(
         new NhanVienController(new NhanVienDaoImpl(dataSource), dataSource));
     SalesByProductPage salesByProduct = new SalesByProductPage(
@@ -537,7 +537,7 @@ public final class AppNavigator {
     DefectiveProductsPage defective = new DefectiveProductsPage(
         new SanPhamLoiController(sanPhamLoiDao, sanPhamDao, dataSource));
     PromotionsPage promotions = new PromotionsPage(
-        new KhuyenMaiController(new KhuyenMaiDaoImpl(dataSource), dongSanPhamDao, dataSource));
+        new KhuyenMaiController(new KhuyenMaiDaoImpl(dataSource), dongSanPhamDao, danhMucDao, dataSource));
     DoiTraController doiTra = new DoiTraController(
         new PhieuTraDaoImpl(dataSource),
         new PhieuDoiDaoImpl(dataSource),
