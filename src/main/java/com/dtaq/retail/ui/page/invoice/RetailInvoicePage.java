@@ -362,7 +362,8 @@ public class RetailInvoicePage implements Page {
     searchRow.add(phoneLookupField, "growx");
 
     lookupCustomerBtn.addActionListener(e -> triggerCustomerLookup());
-    searchRow.add(lookupCustomerBtn);
+    // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
+    searchRow.add(lookupCustomerBtn, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
     searchRow.addComponentListener(new java.awt.event.ComponentAdapter() {
       @Override
       public void componentResized(java.awt.event.ComponentEvent e) {
@@ -371,7 +372,7 @@ public class RetailInvoicePage implements Page {
         layout.setColumnConstraints(narrow ? "[0:pref,grow]" : "[0:pref,grow]12[]");
         layout.setComponentConstraints(phoneLookupField, "cell 0 0, growx");
         layout.setComponentConstraints(lookupCustomerBtn, narrow
-            ? "cell 0 1, align right, gaptop 8" : "cell 1 0, aligny bottom");
+            ? "cell 0 1, align right, gaptop 8" : "cell 1 0, aligny bottom, gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
         searchRow.revalidate();
       }
     });
@@ -1137,7 +1138,7 @@ public class RetailInvoicePage implements Page {
     row.add(info, "growx");
 
     JLabel price = new JLabel(MoneyFormat.format(res.donGia()));
-    price.setFont(DtaqFonts.BUTTON);
+    price.setFont(DtaqFonts.MONEY_TABLE);
     row.add(price, "align right");
 
     DtaqButton addBtn = selected ? DtaqButton.primarySmall("Thêm") : DtaqButton.secondarySmall("Thêm");

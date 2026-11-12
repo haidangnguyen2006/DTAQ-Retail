@@ -175,14 +175,21 @@ public class BarChartPanel extends JPanel {
       int barH = (int) ((pt.valueMillions() / axisMax) * chartHeight * reveal);
       int barY = TOP_MARGIN + chartHeight - barH;
 
-      g2.setColor(DtaqColors.CHART_1);
-      g2.fill(new RoundRectangle2D.Float(barX, barY, barWidth, Math.max(barH, 2), 8, 8));
-      barBounds.add(new Rectangle2D.Double(barX, barY, barWidth, Math.max(barH, 2)));
+      int drawH = Math.max(barH, 2);
+      // Ngày giá trị 0 không vẽ vạch ở chân (tránh hàng vạch nhiễu); vẫn giữ vùng để tooltip đúng cột.
+      if (pt.valueMillions() > 0) {
+        g2.setColor(DtaqColors.CHART_1);
+        // Đầu cột bo 4px, chân cột vuông để cột "đứng" trên trục.
+        g2.fill(new RoundRectangle2D.Float(barX, barY, barWidth, drawH, 8, 8));
+        int flat = drawH / 2;
+        g2.fillRect(barX, barY + drawH - flat, barWidth, flat);
+      }
+      barBounds.add(new Rectangle2D.Double(barX, barY, barWidth, drawH));
 
       // Cột 0 không ghi nhãn giá trị để biểu đồ nhiều ngày không bị rối.
       if (pt.valueMillions() > 0) {
         String valStr = formatValue(pt.valueMillions()) + " " + valueSuffix;
-        g2.setFont(DtaqFonts.CAPTION);
+        g2.setFont(DtaqFonts.NUMERIC_12);
         g2.setColor(DtaqColors.alpha(DtaqColors.TEXT, reveal));
         g2.drawString(valStr, slotCenterX - g2.getFontMetrics().stringWidth(valStr) / 2, barY - 6);
       }

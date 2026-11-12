@@ -108,7 +108,8 @@ public class CategoriesPage implements Page {
     filterRow.add(searchField, "growx");
 
     searchButton.addActionListener(e -> applyFilter());
-    filterRow.add(searchButton);
+    // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
+    filterRow.add(searchButton, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
     filterRow.add(countPill, "align right, aligny center");
     return filterRow;
   }

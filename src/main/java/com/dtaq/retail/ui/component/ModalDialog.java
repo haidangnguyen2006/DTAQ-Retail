@@ -56,8 +56,24 @@ public class ModalDialog extends JDialog {
     JPanel overlayPanel = new JPanel(new MigLayout("fill, insets 0", "[center]", "[center]")) {
       @Override
       protected void paintComponent(Graphics g) {
-        g.setColor(translucent ? DtaqColors.OVERLAY : new Color(0xC9CED8));
+        g.setColor(translucent ? DtaqColors.OVERLAY : DtaqColors.OVERLAY_OPAQUE);
         g.fillRect(0, 0, getWidth(), getHeight());
+        // Bóng mềm lệch xuống dưới cho khung hộp thoại (lớp ngoài nhạt nhất) để tách khỏi nền phủ.
+        // contentPanel gán sau khi tạo panel này nên lấy qua getComponent(0).
+        Component content = getComponentCount() > 0 ? getComponent(0) : null;
+        if (content != null && content.getWidth() > 0) {
+          java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+          g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+          java.awt.Rectangle r = content.getBounds();
+          int arc = DtaqSpacing.RADIUS_DIALOG * 2;
+          int layers = 14;
+          for (int i = layers; i >= 1; i--) {
+            g2.setColor(DtaqColors.alpha(DtaqColors.TOAST_BG, 0.012f * (layers - i + 1)));
+            g2.fill(new java.awt.geom.RoundRectangle2D.Float(
+                r.x - i, r.y - i + 10, r.width + 2 * i, r.height + 2 * i, arc + 2 * i, arc + 2 * i));
+          }
+          g2.dispose();
+        }
         super.paintComponent(g);
       }
     };

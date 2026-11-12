@@ -353,7 +353,7 @@ public final class ReturnsPage implements Page {
     dongTraCuu.setOpaque(false);
     dongTraCuu.add(maHoaDonField, "growx");
     traCuuButton.addActionListener(e -> traCuuHoaDon());
-    dongTraCuu.add(traCuuButton, "aligny bottom");
+    dongTraCuu.add(traCuuButton, "aligny bottom, gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
     body.add(dongTraCuu, "span 2, growx, wrap");
 
     thongTinHoaDon.setOpaque(false);
@@ -936,9 +936,12 @@ public final class ReturnsPage implements Page {
     label.setFont(manh ? DtaqFonts.LABEL : DtaqFonts.BODY_13);
     label.setForeground(manh ? DtaqColors.TEXT : DtaqColors.TEXT_MUTED);
     row.add(label);
+    // Số tiền dùng chữ số đều cột (cùng cỡ chữ cũ) để các dòng tiền thẳng hàng đơn vị.
     if (manh) {
-      giaTri.setFont(DtaqFonts.SECTION_TITLE_STRONG);
+      giaTri.setFont(DtaqFonts.numeric(true, 16f, 0f));
       giaTri.setForeground(DtaqColors.PRIMARY_STRONG);
+    } else {
+      giaTri.setFont(DtaqFonts.NUMERIC_13);
     }
     row.add(giaTri, "align right");
     return row;

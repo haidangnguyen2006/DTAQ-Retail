@@ -5,7 +5,6 @@ import com.dtaq.retail.ui.theme.DtaqFonts;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.RadialGradientPaint;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import javax.swing.JLabel;
@@ -14,8 +13,6 @@ import net.miginfocom.swing.MigLayout;
 
 /** Panel thương hiệu tối màu dùng chung cho màn hình Đăng nhập và Quên mật khẩu. */
 final class AuthBrandPanel extends JPanel {
-
-  private static final int GRID = 24;
 
   /** Hoa văn đã vẽ sẵn theo kích thước hiện tại, để mỗi lần repaint chỉ tốn một lệnh drawImage. */
   private BufferedImage cache;
@@ -53,42 +50,24 @@ final class AuthBrandPanel extends JPanel {
     g.drawImage(cache, 0, 0, null);
   }
 
-  /** Lưới chấm mờ, vài đường "mạch điện" gấp khúc 90° và vầng sáng ở góc dưới trái. */
+  /**
+   * "Quỹ đạo DTAQ": hai cung elip mảnh nghiêng, lấy từ nét vòng cung trong logo, nằm sau logo.
+   * Chỉ xuất hiện ở panel thương hiệu này — không gradient, không lưới chấm, không đường mạch.
+   */
   private static BufferedImage render(int w, int h) {
     BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
     Graphics2D g2 = img.createGraphics();
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-
-    float radius = Math.max(w, h) * 0.75f;
-    g2.setPaint(new RadialGradientPaint(0, h, radius, new float[] {0f, 1f},
-        new java.awt.Color[] {DtaqColors.alpha(DtaqColors.PRIMARY, 0.28f), DtaqColors.alpha(DtaqColors.PRIMARY, 0f)}));
-    g2.fillRect(0, 0, w, h);
-
-    g2.setColor(DtaqColors.alpha(DtaqColors.SURFACE, 0.06f));
-    for (int x = GRID; x < w; x += GRID) {
-      for (int y = GRID; y < h; y += GRID) {
-        g2.fillOval(x - 1, y - 1, 3, 3);
-      }
-    }
-
-    g2.setColor(DtaqColors.alpha(DtaqColors.PRIMARY, 0.35f));
-    g2.setStroke(new java.awt.BasicStroke(1.5f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
-    int[][] traces = {
-        {GRID * 2, GRID * 3, GRID * 6, GRID * 3, GRID * 6, GRID * 6, GRID * 9, GRID * 6},
-        {w - GRID * 2, GRID * 5, w - GRID * 5, GRID * 5, w - GRID * 5, GRID * 9, w - GRID * 8, GRID * 9},
-        {GRID * 3, h - GRID * 4, GRID * 7, h - GRID * 4, GRID * 7, h - GRID * 7, GRID * 10, h - GRID * 7},
-    };
-    for (int[] t : traces) {
-      java.awt.geom.Path2D.Float path = new java.awt.geom.Path2D.Float();
-      path.moveTo(t[0], t[1]);
-      for (int i = 2; i < t.length; i += 2) {
-        path.lineTo(t[i], t[i + 1]);
-      }
-      g2.draw(path);
-      g2.fillOval(t[0] - 3, t[1] - 3, 7, 7);
-      g2.fillOval(t[t.length - 2] - 3, t[t.length - 1] - 3, 7, 7);
-    }
+    double cx = w / 2.0;
+    double cy = h * 0.52;
+    g2.rotate(Math.toRadians(-12), cx, cy);
+    g2.setColor(DtaqColors.alpha(DtaqColors.BRAND, 0.55f));
+    g2.setStroke(new java.awt.BasicStroke(2f));
+    g2.draw(new java.awt.geom.Ellipse2D.Double(cx - w * 0.78, cy - h * 0.20, w * 1.56, h * 0.40));
+    g2.setColor(DtaqColors.alpha(DtaqColors.BRAND_400, 0.22f));
+    g2.setStroke(new java.awt.BasicStroke(1.25f));
+    g2.draw(new java.awt.geom.Ellipse2D.Double(cx - w * 0.98, cy - h * 0.31, w * 1.96, h * 0.62));
     g2.dispose();
     return img;
   }

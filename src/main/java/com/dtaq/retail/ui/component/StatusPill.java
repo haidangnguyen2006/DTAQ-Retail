@@ -18,7 +18,7 @@ import javax.swing.SwingConstants;
 public class StatusPill extends JLabel {
 
   public enum Type {
-    NEUTRAL(DtaqColors.DISABLED_BG, new Color(0x465062)),
+    NEUTRAL(DtaqColors.DISABLED_BG, DtaqColors.PILL_NEUTRAL_TEXT),
     SUCCESS(DtaqColors.SUCCESS_SOFT, DtaqColors.SUCCESS),
     WARNING(DtaqColors.WARNING_SOFT, DtaqColors.WARNING),
     DANGER(DtaqColors.DANGER_SOFT, DtaqColors.DANGER_STRONG),
@@ -41,7 +41,16 @@ public class StatusPill extends JLabel {
     setFont(DtaqFonts.PILL);
     setForeground(type.foreground);
     setOpaque(false);
-    setBorder(javax.swing.BorderFactory.createEmptyBorder(0, DOT_SPACE, 0, 0));
+    applyDotSpace();
+  }
+
+  /** Pill trung tính (ngày tháng, số đếm) không mang trạng thái nên không vẽ chấm và không chừa chỗ. */
+  private boolean hasDot() {
+    return type != Type.NEUTRAL;
+  }
+
+  private void applyDotSpace() {
+    setBorder(javax.swing.BorderFactory.createEmptyBorder(0, hasDot() ? DOT_SPACE : 0, 0, 0));
   }
 
   /** Chỗ chừa cho chấm tròn đầu pill (lề trái + đường kính chấm + khoảng cách tới chữ). */
@@ -71,6 +80,8 @@ public class StatusPill extends JLabel {
   public void setType(Type type) {
     this.type = type;
     setForeground(type.foreground);
+    applyDotSpace();
+    revalidate();
     repaint();
   }
 
@@ -90,8 +101,10 @@ public class StatusPill extends JLabel {
 
     g2.setColor(type.background);
     g2.fill(new RoundRectangle2D.Float(0, 0, w, h, h, h));
-    g2.setColor(type.foreground);
-    g2.fill(new java.awt.geom.Ellipse2D.Float(10f, (h - DOT_SIZE) / 2f, DOT_SIZE, DOT_SIZE));
+    if (hasDot()) {
+      g2.setColor(type.foreground);
+      g2.fill(new java.awt.geom.Ellipse2D.Float(10f, (h - DOT_SIZE) / 2f, DOT_SIZE, DOT_SIZE));
+    }
 
     g2.dispose();
     super.paintComponent(g);
