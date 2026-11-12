@@ -5,16 +5,22 @@ import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.util.ExcelImporter;
+import com.dtaq.retail.util.ExcelTemplate;
 import com.dtaq.retail.util.MaGenerator;
+import java.io.File;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.Normalizer;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -251,6 +257,94 @@ public final class DongSanPhamController {
         trangThai ? "Kinh doanh lại dòng sản phẩm thành công" : "Ngừng kinh doanh dòng sản phẩm thành công");
   }
 
+  public static ExcelImporter.ImportSpec specNhapDongSanPham() {
+    return new ExcelImporter.ImportSpec(
+        ExcelTemplate.TEN_SHEET_DU_LIEU,
+        List.of(
+            new ExcelImporter.CotNhap("Tên dòng sản phẩm", ExcelImporter.KieuDuLieu.CHUOI, true, List.of()),
+            new ExcelImporter.CotNhap("Mã danh mục", ExcelImporter.KieuDuLieu.CHUOI, true, List.of()),
+            new ExcelImporter.CotNhap("Đơn vị tính", ExcelImporter.KieuDuLieu.ENUM, true, List.of("Chiếc", "Cái")),
+            new ExcelImporter.CotNhap("Giá bán trước thuế", ExcelImporter.KieuDuLieu.SO_THAP_PHAN, true, List.of()),
+            new ExcelImporter.CotNhap("Thuế suất (%)", ExcelImporter.KieuDuLieu.SO_THAP_PHAN, true, List.of()),
+            new ExcelImporter.CotNhap("Đang kinh doanh", ExcelImporter.KieuDuLieu.LOGIC, false, List.of())),
+        5000);
+  }
+
+  public KetQua<NhapKetQua> nhapDanhSach(File tep) {
+    if (tep == null || !tep.isFile()) {
+      return KetQua.loi("Tệp nhập không tồn tại");
+    }
+    ExcelImporter.ImportResult ketQuaDoc = ExcelImporter.doc(tep, specNhapDongSanPham());
+    if (!ketQuaDoc.hopLe()) {
+      String thongBao = ketQuaDoc.loi().stream()
+          .limit(3)
+          .map(loi -> loi.thongBao())
+          .reduce((a, b) -> a + "; " + b)
+          .orElse("Tệp Excel không hợp lệ");
+      return KetQua.loi(thongBao);
+    }
+
+    Set<String> tenDaXem = new HashSet<>();
+    try (Connection ketNoi = dataSource.getConnection()) {
+      boolean oldAutoCommit = ketNoi.getAutoCommit();
+      ketNoi.setAutoCommit(false);
+      try {
+        for (ExcelImporter.ImportRow dong : ketQuaDoc.dong()) {
+          String ten = String.valueOf(dong.giaTri().get("Tên dòng sản phẩm")).trim();
+          String tenChuanHoa = normalizeText(ten).toLowerCase(Locale.ROOT);
+          if (!tenDaXem.add(tenChuanHoa)) {
+            throw new DataAccessException("Tên dòng sản phẩm trùng trong tệp: " + ten);
+          }
+          String maDanhMuc = String.valueOf(dong.giaTri().get("Mã danh mục")).trim();
+          String donViTinh = String.valueOf(dong.giaTri().get("Đơn vị tính")).trim();
+          BigDecimal giaBan = (BigDecimal) dong.giaTri().get("Giá bán trước thuế");
+          BigDecimal thue = (BigDecimal) dong.giaTri().get("Thuế suất (%)");
+          boolean kinhDoanh = Boolean.TRUE.equals(dong.giaTri().getOrDefault("Đang kinh doanh", true));
+
+          Optional<DanhMucSanPham> danhMuc = danhMucSanPhamDao.findById(maDanhMuc);
+          if (danhMuc.isEmpty()) {
+            throw new DataAccessException("Mã danh mục không tồn tại: " + maDanhMuc);
+          }
+          String dv = normalizeDonViTinh(donViTinh);
+          if (dv == null) {
+            throw new DataAccessException("Đơn vị tính không hợp lệ. Chỉ chấp nhận Chiếc hoặc Cái");
+          }
+          if (giaBan == null || giaBan.compareTo(BigDecimal.ZERO) < 0) {
+            throw new DataAccessException("Giá bán trước thuế không hợp lệ");
+          }
+          if (thue == null || thue.compareTo(BigDecimal.ZERO) < 0 || thue.compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new DataAccessException("Thuế suất không hợp lệ, phải nằm trong khoảng 0% đến 100%");
+          }
+
+          String maDong = MaGenerator.next(ketNoi, "DongSanPham", "maDongSP", "DSP");
+          DongSanPham dongSanPham = new DongSanPham(
+              maDong,
+              ten,
+              danhMuc.get(),
+              dv,
+              0,
+              thue,
+              giaBan,
+              kinhDoanh,
+              LocalDate.now(),
+              LocalDate.now());
+          dongSanPhamDao.insert(ketNoi, dongSanPham);
+        }
+        ketNoi.commit();
+        return KetQua.thanhCong(new NhapKetQua(ketQuaDoc.dong().size()),
+            "Nhập " + ketQuaDoc.dong().size() + " dòng sản phẩm thành công");
+      } catch (Exception e) {
+        ketNoi.rollback();
+        throw e;
+      } finally {
+        ketNoi.setAutoCommit(oldAutoCommit);
+      }
+    } catch (Exception e) {
+      log.warn("Không thể nhập danh sách dòng sản phẩm từ Excel: {}", e.getMessage(), e);
+      return KetQua.loi(e.getMessage() == null ? "Không thể nhập danh sách dòng sản phẩm" : e.getMessage());
+    }
+  }
+
   private String sinhMaDongMoi() {
     if (dataSource != null) {
       try (Connection connection = dataSource.getConnection()) {
@@ -270,6 +364,8 @@ public final class DongSanPhamController {
       next++;
     }
   }
+
+  public record NhapKetQua(int soDong) {}
 
   public static String normalizeDonViTinh(String value) {
     if (value == null) {

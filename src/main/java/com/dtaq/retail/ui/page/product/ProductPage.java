@@ -19,6 +19,7 @@ import com.dtaq.retail.ui.component.table.RowAction;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
+import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -26,7 +27,11 @@ import java.util.List;
 import java.util.Objects;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.SwingWorker;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
 
@@ -49,6 +54,7 @@ public final class ProductPage implements Page {
   private final FormField priceField = FormField.money("Giá nhập", "0");
   private final DatePicker dateField = new DatePicker("Ngày nhập kho");
   private final JComboBox<TrangThaiSanPham> statusBox = new JComboBox<>(TrangThaiSanPham.values());
+  private final DtaqButton importButton = DtaqButton.secondary("Import Excel", "upload");
   private final DtaqButton saveButton = DtaqButton.primary("Lưu máy", "save");
   private SanPham sanPhamDangSua;
 
@@ -86,7 +92,8 @@ public final class ProductPage implements Page {
     PageHeader header = new PageHeader(
         "Quản lý sản phẩm",
         "Thêm máy mới vào kho và đồng bộ số lượng tồn theo từng dòng sản phẩm.");
-    header.setTrailing(saveButton);
+    importButton.addActionListener(e -> importExcel());
+    header.setTrailing(importButton, saveButton);
     view.add(header, "growx, wrap");
     taiDuLieuThamChieu();
 
@@ -232,6 +239,59 @@ public final class ProductPage implements Page {
     saveButton.setText("Lưu máy");
     serialField.setError(null);
     dataTable.repaint();
+  }
+
+  private void importExcel() {
+    JFileChooser chooser = new JFileChooser();
+    chooser.setDialogTitle("Chọn file Excel nhập sản phẩm");
+    chooser.setFileFilter(new FileNameExtensionFilter("Excel Workbook (*.xlsx)", "xlsx"));
+    chooser.setAcceptAllFileFilterUsed(false);
+    if (chooser.showOpenDialog(view) != JFileChooser.APPROVE_OPTION) {
+      return;
+    }
+    File file = chooser.getSelectedFile();
+    if (file == null || !file.exists()) {
+      JOptionPane.showMessageDialog(view, "Vui lòng chọn file Excel hợp lệ.", "Import sản phẩm", JOptionPane.ERROR_MESSAGE);
+      return;
+    }
+
+    importButton.setBusy(true);
+    new SwingWorker<SanPhamController.KetQua<SanPhamController.NhapKetQua>, Void>() {
+      @Override
+      protected SanPhamController.KetQua<SanPhamController.NhapKetQua> doInBackground() {
+        return controller.nhapDanhSach(file);
+      }
+
+      @Override
+      protected void done() {
+        importButton.setBusy(false);
+        try {
+          SanPhamController.KetQua<SanPhamController.NhapKetQua> ketQua = get();
+          if (ketQua.thanhCong()) {
+            JOptionPane.showMessageDialog(
+                view,
+                ketQua.thongBao(),
+                "Import sản phẩm",
+                JOptionPane.INFORMATION_MESSAGE);
+            resetForm();
+            daTimKiem = true;
+            taiDanhSach();
+          } else {
+            JOptionPane.showMessageDialog(
+                view,
+                ketQua.thongBao(),
+                "Import sản phẩm",
+                JOptionPane.ERROR_MESSAGE);
+          }
+        } catch (Exception ex) {
+          JOptionPane.showMessageDialog(
+              view,
+              "Không thể import file Excel. Vui lòng kiểm tra cấu trúc dữ liệu.",
+              "Import sản phẩm",
+              JOptionPane.ERROR_MESSAGE);
+        }
+      }
+    }.execute();
   }
 
   private void luuMay() {
