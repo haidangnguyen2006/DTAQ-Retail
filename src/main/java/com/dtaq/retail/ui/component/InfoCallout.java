@@ -4,7 +4,9 @@ import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqIcons;
 import com.formdev.flatlaf.FlatClientProperties;
+import com.formdev.flatlaf.ui.FlatLineBorder;
 import java.awt.Color;
+import java.awt.Insets;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import net.miginfocom.swing.MigLayout;
@@ -15,36 +17,41 @@ import net.miginfocom.swing.MigLayout;
 public class InfoCallout extends JPanel {
 
   public enum Kind {
-    INFO("info", DtaqColors.PRIMARY_SOFT, DtaqColors.PRIMARY, DtaqColors.PRIMARY_STRONG),
-    WARNING("alert-circle", DtaqColors.WARNING_SOFT, DtaqColors.WARNING, DtaqColors.ACCENT_TEXT),
-    DANGER("alert-circle", DtaqColors.DANGER_SOFT, DtaqColors.DANGER, DtaqColors.DANGER_STRONG);
+    INFO("info", DtaqColors.PRIMARY_SOFT, DtaqColors.PRIMARY, DtaqColors.PRIMARY_STRONG,
+        DtaqColors.PRIMARY_BORDER_SOFT),
+    WARNING("alert-circle", DtaqColors.WARNING_SOFT, DtaqColors.WARNING, DtaqColors.ACCENT_TEXT,
+        DtaqColors.WARNING_BORDER),
+    DANGER("alert-circle", DtaqColors.DANGER_SOFT, DtaqColors.DANGER, DtaqColors.DANGER_STRONG,
+        DtaqColors.DANGER_BORDER);
 
     private final String icon;
     private final Color background;
     private final Color iconColor;
     private final Color textColor;
+    private final Color borderColor;
 
-    Kind(String icon, Color background, Color iconColor, Color textColor) {
+    Kind(String icon, Color background, Color iconColor, Color textColor, Color borderColor) {
       this.icon = icon;
       this.background = background;
       this.iconColor = iconColor;
       this.textColor = textColor;
+      this.borderColor = borderColor;
     }
   }
 
   private final JLabel textLabel = new JLabel();
-  private final Color accent;
 
   public InfoCallout(String text) {
     this(Kind.INFO, text);
   }
 
   public InfoCallout(Kind kind, String text) {
-    super(new MigLayout("fillx, insets 12 14 12 17", "[]10[grow]", "[]"));
-    this.accent = kind.iconColor;
+    super(new MigLayout("fillx, insets 12 14 12 14", "[]10[grow]", "[]"));
     setOpaque(true);
     setBackground(kind.background);
-    putClientProperty(FlatClientProperties.STYLE, "arc: 16");
+    putClientProperty(FlatClientProperties.STYLE, "arc: 12");
+    // Viền mảnh cùng tông thay cho vạch màu dày bên trái.
+    setBorder(new FlatLineBorder(new Insets(1, 1, 1, 1), kind.borderColor, 1f, 12));
 
     add(new JLabel(DtaqIcons.icon(kind.icon, 17, kind.iconColor)), "top");
 
@@ -52,18 +59,6 @@ public class InfoCallout extends JPanel {
     textLabel.setForeground(kind.textColor);
     setText(text);
     add(textLabel, "growx");
-  }
-
-  /** Vẽ thêm vạch nhấn 3px bên trái, cắt theo góc bo của khối. */
-  @Override
-  protected void paintComponent(java.awt.Graphics g) {
-    super.paintComponent(g);
-    java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
-    g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-    g2.clip(new java.awt.geom.RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 16, 16));
-    g2.setColor(accent);
-    g2.fillRect(0, 0, 3, getHeight());
-    g2.dispose();
   }
 
   public void setText(String text) {

@@ -1,7 +1,7 @@
 package com.dtaq.retail.ui.page.employee;
 
-import com.dtaq.retail.controller.NhanVienController;
 import com.dtaq.retail.controller.NhanVienController.KetQuaLuuNhanVien;
+import com.dtaq.retail.controller.NhanVienController;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
@@ -12,8 +12,10 @@ import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.Pagination;
 import com.dtaq.retail.ui.component.SegmentedControl;
 import com.dtaq.retail.ui.component.StatefulView;
+import com.dtaq.retail.ui.component.StatusPill;
 import com.dtaq.retail.ui.component.Toast;
 import com.dtaq.retail.ui.component.table.RowAction;
+import com.dtaq.retail.ui.component.table.TableRenderers;
 import com.dtaq.retail.ui.format.DateFormats;
 import com.dtaq.retail.ui.format.PhoneFormat;
 import com.dtaq.retail.ui.shell.Page;
@@ -103,6 +105,8 @@ public final class EmployeePage implements Page {
     dataTable.setActionColumn(8,
         RowAction.secondary("Sửa", this::openEditDialog),
         RowAction.secondary("Khóa / Mở", this::confirmToggle));
+    // Model giữ chuỗi "● Hoạt động"/"○ Đã khóa"; khi vẽ bỏ ký tự chấm và hiển thị bằng StatusPill.
+    dataTable.setCustomRenderer(7, new TableRenderers.PillRenderer(EmployeePage::pillTrangThai));
     dataTable.setOnRowDoubleClick(this::openEditDialog);
     tableState = new StatefulView(dataTable, "users", "Chưa có nhân viên",
         "Bấm \"Thêm nhân viên\" để tạo tài khoản đầu tiên.");
@@ -348,5 +352,12 @@ public final class EmployeePage implements Page {
   @Override
   public JComponent view() {
     return view;
+  }
+
+  /** Ô trạng thái: bỏ ký tự chấm đầu chuỗi ("● "/"○ ") vì pill đã có chấm riêng. */
+  static TableRenderers.PillRenderer.Pill pillTrangThai(String raw) {
+    boolean hoatDong = raw.startsWith("●");
+    String chu = (raw.startsWith("●") || raw.startsWith("○")) ? raw.substring(1).strip() : raw;
+    return new TableRenderers.PillRenderer.Pill(chu, hoatDong ? StatusPill.Type.SUCCESS : StatusPill.Type.NEUTRAL);
   }
 }

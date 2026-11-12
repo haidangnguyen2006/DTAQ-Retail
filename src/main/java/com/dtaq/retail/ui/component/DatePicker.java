@@ -1,6 +1,7 @@
 package com.dtaq.retail.ui.component;
 
 import com.dtaq.retail.ui.theme.DtaqColors;
+import com.dtaq.retail.ui.theme.DtaqStyles;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqIcons;
 import com.formdev.flatlaf.FlatClientProperties;
@@ -289,7 +290,8 @@ public final class DatePicker {
       nut.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
       nut.setMargin(new java.awt.Insets(4, 6, 4, 6));
       if (d.equals(dangChon)) {
-        nut.putClientProperty(FlatClientProperties.STYLE, "arc:999; background:#2457F5; foreground:#FFFFFF; borderWidth:0");
+        nut.putClientProperty(FlatClientProperties.STYLE, "arc:999; background:" + DtaqStyles.hex(DtaqColors.PRIMARY)
+            + "; foreground:" + DtaqStyles.hex(DtaqColors.SURFACE) + "; borderWidth:0");
       } else {
         nut.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_TOOLBAR_BUTTON);
         nut.setForeground(d.equals(homNay) ? DtaqColors.PRIMARY : DtaqColors.TEXT);

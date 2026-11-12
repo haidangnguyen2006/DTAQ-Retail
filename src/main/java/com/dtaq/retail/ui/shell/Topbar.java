@@ -200,7 +200,7 @@ public class Topbar extends JPanel {
 
   private JPopupMenu buildUserMenu(NhanVien nhanVien, Runnable onLogout) {
     JPopupMenu popup = new JPopupMenu();
-    popup.putClientProperty(FlatClientProperties.STYLE, "arc: 12; borderColor: #E5E7EB; border: 1,1,1,1,#E5E7EB");
+    popup.putClientProperty(FlatClientProperties.STYLE, "borderColor: " + com.dtaq.retail.ui.theme.DtaqStyles.hex(DtaqColors.BORDER));
 
     JMenuItem changePasswordItem = new JMenuItem("Đổi mật khẩu", DtaqIcons.icon("lock-keyhole", 16, DtaqColors.TEXT));
     changePasswordItem.setFont(DtaqFonts.BODY_13);

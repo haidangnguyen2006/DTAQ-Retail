@@ -1,6 +1,7 @@
 package com.dtaq.retail.ui.component.table;
 
 import com.dtaq.retail.ui.component.DtaqButton;
+import com.dtaq.retail.ui.component.StatusPill;
 import com.dtaq.retail.ui.format.MoneyFormat;
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqStyles;
@@ -42,7 +43,7 @@ public final class TableRenderers {
   }
 
   /** Màu nền của một dòng theo trạng thái chọn / rê chuột. */
-  static Color rowBackground(JTable table, int row, boolean selected) {
+  public static Color rowBackground(JTable table, int row, boolean selected) {
     if (selected) {
       return DtaqColors.PRIMARY_SOFT;
     }
@@ -88,10 +89,58 @@ public final class TableRenderers {
     }
   }
 
+  /**
+   * Renderer hiển thị ô trạng thái bằng {@link StatusPill}. Chuỗi trong model giữ nguyên (sắp xếp,
+   * so sánh không đổi); {@code mapper} chỉ quyết định phần chữ và loại pill khi vẽ.
+   */
+  public static class PillRenderer implements TableCellRenderer {
+
+    /** Phần chữ hiển thị và loại pill tương ứng với một giá trị ô. */
+    public record Pill(String text, StatusPill.Type type) {
+    }
+
+    private final java.util.function.Function<String, Pill> mapper;
+    private final JPanel panel = new JPanel(new MigLayout("insets 0, fill", "[left]", "[center]"));
+    private final StatusPill pill = StatusPill.neutral("");
+
+    public PillRenderer(java.util.function.Function<String, Pill> mapper) {
+      this.mapper = java.util.Objects.requireNonNull(mapper, "mapper");
+      panel.setOpaque(true);
+      panel.add(pill);
+    }
+
+    @Override
+    public Component getTableCellRendererComponent(
+        JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+      String raw = value == null ? "" : value.toString();
+      Pill p = mapper.apply(raw);
+      boolean coPill = p != null && !p.text().isBlank();
+      pill.setVisible(coPill);
+      if (coPill) {
+        pill.setText(p.text());
+        pill.setType(p.type());
+      }
+      panel.setToolTipText(coPill ? p.text() : null);
+      panel.setBackground(rowBackground(table, row, isSelected));
+      int pad = cellPad(table);
+      panel.setBorder(BorderFactory.createEmptyBorder(0, pad, 0, pad));
+      return panel;
+    }
+  }
+
   /** Renderer cho số thường (số lượng, số ngày): căn phải. */
   public static class NumberRenderer extends TextRenderer {
     public NumberRenderer() {
       setHorizontalAlignment(SwingConstants.RIGHT);
+    }
+
+    @Override
+    public Component getTableCellRendererComponent(
+        JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+      super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+      // Chữ số đều cột để các số cùng hàng đơn vị thẳng nhau.
+      setFont(DtaqFonts.NUMERIC_13);
+      return this;
     }
   }
 
@@ -198,7 +247,7 @@ public final class TableRenderers {
                   + "; borderColor: " + DtaqStyles.hex(DtaqColors.BORDER)
                   + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.DISABLED_BG)
                   + "; borderWidth: 1";
-            } + DtaqStyles.SMALL_BUTTON_EXTRA + "; arc: 12");
+            } + DtaqStyles.SMALL_BUTTON_EXTRA);
         if (live) {
           button.addActionListener(e -> fire(action));
         }

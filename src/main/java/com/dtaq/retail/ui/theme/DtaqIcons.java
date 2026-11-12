@@ -30,17 +30,22 @@ public final class DtaqIcons {
   public static Icon icon(String name, int size, Color color) {
     Objects.requireNonNull(name, "name");
     String resourcePath = ICONS_PACKAGE + name + ".svg";
+    String baseKey = resourcePath + "@" + size;
     FlatSVGIcon base = CACHE.computeIfAbsent(
-        resourcePath + "@" + size,
+        baseKey,
         key -> new FlatSVGIcon(resourcePath, size, size));
 
     if (color == null) {
       return base;
     }
 
-    FlatSVGIcon tinted = base.derive(size, size);
-    tinted.setColorFilter(new FlatSVGIcon.ColorFilter(c -> color));
-    return tinted;
+    // Mỗi màu một bản riêng: derive(size, size) trả về chính bản trong cache khi cỡ không đổi,
+    // nên setColorFilter trên đó sẽ ghi đè màu của mọi nơi đang dùng cùng icon.
+    return CACHE.computeIfAbsent(baseKey + "#" + Integer.toHexString(color.getRGB()), key -> {
+      FlatSVGIcon tinted = new FlatSVGIcon(base);
+      tinted.setColorFilter(new FlatSVGIcon.ColorFilter(c -> color));
+      return tinted;
+    });
   }
 
   /**

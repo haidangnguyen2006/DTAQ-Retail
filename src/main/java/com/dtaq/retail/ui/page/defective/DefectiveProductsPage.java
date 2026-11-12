@@ -117,14 +117,15 @@ public class DefectiveProductsPage implements Page {
       };
       loadDefects();
     });
-    filterRow.add(statusFilter);
+    // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
+    filterRow.add(statusFilter, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
 
     searchField.setShortcut("F2");
     searchField.getTextField().addActionListener(e -> applySearchFilter());
     filterRow.add(searchField, "growx");
 
     searchButton.addActionListener(e -> applySearchFilter());
-    filterRow.add(searchButton);
+    filterRow.add(searchButton, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
     filterRow.add(countPill, "align right, aligny center");
     return filterRow;
   }

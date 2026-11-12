@@ -10,6 +10,7 @@ import com.dtaq.retail.ui.component.StatefulView;
 import com.dtaq.retail.ui.format.PhoneFormat;
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
+import com.dtaq.retail.ui.theme.DtaqSpacing;
 import java.awt.Component;
 import java.awt.Frame;
 import java.util.Objects;
@@ -79,7 +80,8 @@ public final class KhachHangPicker {
       JPanel timRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]8[]", "[bottom]"));
       timRow.setOpaque(false);
       timRow.add(sdtField, "growx");
-      timRow.add(timButton);
+      // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
+      timRow.add(timButton, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
       sdtField.getTextField().addActionListener(e -> tim());
       timButton.addActionListener(e -> tim());
 

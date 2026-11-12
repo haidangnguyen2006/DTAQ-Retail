@@ -125,8 +125,9 @@ public class LongStockReportPage implements Page {
     filterRow.add(searchField, "growx");
     filterRow.add(categoryField, "growx");
     filterRow.add(thresholdField, "growx");
-    filterRow.add(readyOnly);
-    filterRow.add(applyBtn);
+    // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
+    filterRow.add(readyOnly, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
+    filterRow.add(applyBtn, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
     filterRow.add(resultCountPill, "align right, aligny center");
     com.dtaq.retail.ui.component.Responsive.onSizeChange(filterRow, size -> {
       MigLayout layout = (MigLayout) filterRow.getLayout();
@@ -136,7 +137,13 @@ public class LongStockReportPage implements Page {
       for (int i = 0; i < filterRow.getComponentCount(); i++) {
         layout.setComponentConstraints(filterRow.getComponent(i), "cell "
             + (narrow ? i % 3 : i) + " " + (narrow ? i / 3 : 0)
-            + (i < 3 ? ", growx" : ", align right, aligny bottom"));
+            + (i < 3 ? ", growx" : ", align right, aligny bottom")
+            // Hàng rộng: ô kiểm và nút đứng cạnh FormField nên chừa phần dòng thông báo.
+            + (!narrow && (i == 3 || i == 4) ? ", gapbottom " + DtaqSpacing.FIELD_MESSAGE_H : "")
+            // Pill đếm kết quả: canh giữa theo chiều cao nút thay vì rơi xuống dòng thông báo.
+            + (!narrow && i == 5
+                ? ", gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + (DtaqSpacing.BUTTON_H - DtaqSpacing.PILL_H) / 2)
+                : ""));
       }
     });
     return filterRow;

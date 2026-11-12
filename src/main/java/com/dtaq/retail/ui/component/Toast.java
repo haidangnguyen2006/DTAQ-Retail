@@ -22,8 +22,8 @@ import net.miginfocom.swing.MigLayout;
 public final class Toast {
 
   public enum Kind {
-    SUCCESS("circle-check", new Color(0x5DD39E)),
-    ERROR("alert-circle", new Color(0xFF8A85)),
+    SUCCESS("circle-check", DtaqColors.TOAST_SUCCESS),
+    ERROR("alert-circle", DtaqColors.TOAST_ERROR),
     INFO("info", DtaqColors.SIDEBAR_ACCENT);
 
     private final String icon;
@@ -76,8 +76,8 @@ public final class Toast {
 
     JPanel toast = new JPanel(new MigLayout("insets 12 16 12 18, gapx 10", "[][]", "[center]"));
     toast.setOpaque(true);
-    toast.setBackground(new Color(0x1F2633));
-    toast.putClientProperty(FlatClientProperties.STYLE, "arc: 20");
+    toast.setBackground(DtaqColors.TOAST_BG);
+    toast.putClientProperty(FlatClientProperties.STYLE, "arc: 16");
     toast.add(new JLabel(DtaqIcons.icon(kind.icon, 18, kind.iconColor)));
     JLabel label = new JLabel(message);
     label.setFont(DtaqFonts.BODY_13_MEDIUM);

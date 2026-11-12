@@ -1,9 +1,12 @@
 package com.dtaq.retail.ui.theme;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
+import java.awt.Color;
 import java.util.List;
 import javax.swing.Icon;
 import org.junit.jupiter.api.DisplayName;
@@ -17,11 +20,15 @@ class DtaqIconsTest {
       "users", "receipt-text", "log-out", "download", "search", "chevron-down",
       "plus", "x", "info", "phone", "circle-check", "tv", "package",
       "shopping-cart", "calendar-days", "clock", "alert-circle", "user-round",
-      "lock-keyhole", "chevron-left", "chevron-right", "check", "save", "refresh-cw"
+      "lock-keyhole", "chevron-left", "chevron-right", "check", "save", "refresh-cw",
+      // Bổ sung cho DTAQ Azure (mỗi mục menu một icon riêng)
+      "chart-column", "id-card", "arrow-left-right", "tags", "layers", "package-x",
+      "banknote", "database-backup", "history", "clipboard-check", "user-round-search",
+      "hourglass", "trending-up", "trending-down"
   );
 
   @Test
-  @DisplayName("Tất cả 28 icon SVG phải nạp thành công từ classpath và tìm thấy tài nguyên")
+  @DisplayName("Tất cả 42 icon SVG phải nạp thành công từ classpath và tìm thấy tài nguyên")
   void testAllIconsFound() {
     for (String name : ALL_ICONS) {
       Icon icon = DtaqIcons.icon(name, 20, DtaqColors.PRIMARY);
@@ -30,5 +37,14 @@ class DtaqIconsTest {
       FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
       assertTrue(svgIcon.hasFound(), "Tài nguyên SVG của icon '" + name + "' phải tồn tại trong classpath");
     }
+  }
+
+  @Test
+  @DisplayName("Hai màu khác nhau của cùng một icon không dùng chung đối tượng")
+  void testTintKhongDungChung() {
+    Icon red = DtaqIcons.icon("clock", 18, Color.RED);
+    Icon blue = DtaqIcons.icon("clock", 18, Color.BLUE);
+    assertNotSame(red, blue);
+    assertSame(red, DtaqIcons.icon("clock", 18, Color.RED));
   }
 }

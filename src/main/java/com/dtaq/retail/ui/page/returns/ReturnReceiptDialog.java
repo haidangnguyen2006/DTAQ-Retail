@@ -154,7 +154,8 @@ public final class ReturnReceiptDialog extends ModalDialog {
     label.setForeground(manh ? DtaqColors.TEXT : DtaqColors.TEXT_MUTED);
     panel.add(label);
     JLabel value = new JLabel(giaTri);
-    value.setFont(manh ? DtaqFonts.SECTION_TITLE_STRONG : DtaqFonts.BODY_13);
+    // Số tiền dùng chữ số đều cột (cùng cỡ chữ cũ).
+    value.setFont(manh ? DtaqFonts.numeric(true, 16f, 0f) : DtaqFonts.NUMERIC_13);
     value.setForeground(manh ? DtaqColors.PRIMARY_STRONG : DtaqColors.TEXT);
     panel.add(value, "align right, wrap");
   }
