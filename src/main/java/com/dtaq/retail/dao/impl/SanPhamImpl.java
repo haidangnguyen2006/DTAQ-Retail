@@ -58,6 +58,21 @@ public final class SanPhamImpl implements SanPhamDao {
   private static final String SELECT_BY_TRANG_THAI =
       SELECT_CO_JOIN + " WHERE sp.\"trangThai\" = ? ORDER BY sp.\"soSerial\"";
 
+  private static final String SELECT_TIM_KIEM =
+      SELECT_CO_JOIN
+          + " WHERE sp.\"soSerial\" ILIKE ? OR sp.\"maDongSP\" ILIKE ? OR sp.\"maNCC\" ILIKE ?"
+          + " ORDER BY sp.\"soSerial\" LIMIT ?";
+
+  private static final String SELECT_BY_DONG_IN =
+      SELECT_CO_JOIN + " WHERE sp.\"maDongSP\" = ANY (?) ORDER BY sp.\"soSerial\"";
+
+  private static final String SELECT_CHON_MAY_DE_BAN =
+      SELECT_CO_JOIN
+          + " WHERE sp.\"maDongSP\" = ? AND sp.\"trangThai\" = 'SAN_SANG_BAN'"
+          + " AND dsp.\"trangThaiKinhDoanh\" = TRUE"
+          + " ORDER BY sp.\"ngayNhapKhoBanDau\", sp.\"soSerial\" LIMIT ?"
+          + " FOR UPDATE OF sp SKIP LOCKED";
+
   private static final String SELECT_ALL =
       SELECT_CO_JOIN + " ORDER BY sp.\"soSerial\"";
 
@@ -225,6 +240,70 @@ public final class SanPhamImpl implements SanPhamDao {
       return statement.executeUpdate() == 1;
     } catch (SQLException e) {
       throw new DataAccessException("Không thể đánh dấu máy đã bán " + soSerial, e);
+    }
+  }
+
+  @Override
+  public List<SanPham> timKiem(String tuKhoa, int gioiHan) {
+    String khoa = tuKhoa == null ? "" : tuKhoa.trim();
+    // Thoát ký tự đại diện của LIKE để từ khóa chỉ được so khớp theo nghĩa đen.
+    String mau = "%" + khoa.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(SELECT_TIM_KIEM)) {
+      statement.setString(1, mau);
+      statement.setString(2, mau);
+      statement.setString(3, mau);
+      statement.setInt(4, gioiHan);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<SanPham> ketQua = new ArrayList<>();
+        while (resultSet.next()) {
+          ketQua.add(mapSanPham(resultSet));
+        }
+        return ketQua;
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tìm kiếm sản phẩm", e);
+    }
+  }
+
+  @Override
+  public java.util.Map<String, List<SanPham>> findByDongIn(java.util.Collection<String> maDongSP) {
+    java.util.Map<String, List<SanPham>> ketQua = new java.util.LinkedHashMap<>();
+    if (maDongSP == null || maDongSP.isEmpty()) {
+      return ketQua;
+    }
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(SELECT_BY_DONG_IN)) {
+      statement.setArray(1, connection.createArrayOf("varchar", maDongSP.toArray()));
+      try (ResultSet resultSet = statement.executeQuery()) {
+        while (resultSet.next()) {
+          SanPham sanPham = mapSanPham(resultSet);
+          ketQua.computeIfAbsent(sanPham.dongSanPham().maDongSP(), ma -> new ArrayList<>())
+              .add(sanPham);
+        }
+        return ketQua;
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tra cứu sản phẩm theo danh sách dòng sản phẩm", e);
+    }
+  }
+
+  @Override
+  public List<SanPham> chonMayDeBan(Connection ketNoi, String maDongSP, int soLuong) {
+    Objects.requireNonNull(ketNoi, "ketNoi");
+    // Không đóng kết nối và không đổi auto-commit: giao dịch do bên gọi quản lý.
+    try (PreparedStatement statement = ketNoi.prepareStatement(SELECT_CHON_MAY_DE_BAN)) {
+      statement.setString(1, maDongSP);
+      statement.setInt(2, soLuong);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<SanPham> ketQua = new ArrayList<>();
+        while (resultSet.next()) {
+          ketQua.add(mapSanPham(resultSet));
+        }
+        return ketQua;
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể chọn máy để bán cho dòng " + maDongSP, e);
     }
   }
 

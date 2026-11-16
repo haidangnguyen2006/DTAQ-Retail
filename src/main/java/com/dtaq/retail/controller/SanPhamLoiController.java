@@ -9,9 +9,11 @@ import com.dtaq.retail.entity.SanPhamLoi;
 import com.dtaq.retail.entity.TrangThaiSanPham;
 import com.dtaq.retail.entity.TrangThaiXuLyLoi;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.util.MaGenerator;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Collections;
@@ -103,6 +105,7 @@ public final class SanPhamLoiController {
       String ghiChuXuLy,
       String maPhieuTra,
       String maPhieuDoi) {
+    CurrentSession.yeuCauDangHoatDong();
 
     if (soSerial == null || soSerial.isBlank()) {
       return KetQua.loi("Số serial không được để trống");
@@ -127,6 +130,12 @@ public final class SanPhamLoiController {
 
     if (sanPhamOpt.isEmpty()) {
       return KetQua.loi("Không tìm thấy sản phẩm có số serial " + serialChuanHoa + " trong hệ thống");
+    }
+
+    TrangThaiSanPham trangThaiMay = sanPhamOpt.get().trangThai();
+    if (trangThaiMay == TrangThaiSanPham.DA_THANH_LY
+        || trangThaiMay == TrangThaiSanPham.DA_TRA_NHA_CUNG_CAP) {
+      return KetQua.loi("Máy đã thanh lý hoặc đã trả nhà cung cấp, không thể ghi nhận lỗi mới");
     }
 
     try {
@@ -184,7 +193,7 @@ public final class SanPhamLoiController {
       if (laLoiTriggerChungTu(e)) {
         return KetQua.loi("Chứng từ liên kết không hợp lệ hoặc không chứa số serial của máy này");
       }
-      return KetQua.loi(e.getMessage());
+      return KetQua.loi(DataAccessException.thongBao(e, "Không thể lưu hồ sơ sản phẩm lỗi"));
     }
   }
 
@@ -200,6 +209,7 @@ public final class SanPhamLoiController {
       String maLoi,
       TrangThaiXuLyLoi trangThaiMoi,
       String ghiChuXuLy) {
+    CurrentSession.yeuCauDangHoatDong();
 
     if (maLoi == null || maLoi.isBlank()) {
       return KetQua.loi("Mã hồ sơ lỗi không được để trống");
@@ -222,6 +232,14 @@ public final class SanPhamLoiController {
     }
 
     SanPhamLoi spl = splOpt.get();
+    // Thanh lý và trả nhà cung cấp là trạng thái kết thúc: máy đã rời cửa hàng, không mở lại.
+    TrangThaiXuLyLoi hienTai = spl.tinhTrangXuLy();
+    if (hienTai == TrangThaiXuLyLoi.THANH_LY || hienTai == TrangThaiXuLyLoi.DA_TRA_NHA_CUNG_CAP) {
+      return KetQua.loi("Hồ sơ lỗi đã kết thúc xử lý, không thể chuyển trạng thái");
+    }
+    if (hienTai == trangThaiMoi) {
+      return KetQua.loi("Hồ sơ lỗi đang ở trạng thái này");
+    }
     String soSerial = spl.sanPham().soSerial();
 
     TrangThaiSanPham trangThaiSpMoi = switch (trangThaiMoi) {
@@ -235,6 +253,17 @@ public final class SanPhamLoiController {
       boolean oldAutoCommit = conn.getAutoCommit();
       conn.setAutoCommit(false);
       try {
+        // Khóa hồ sơ và kiểm lại trạng thái: hai người cùng xử lý không ghi đè quyết định của nhau.
+        try (PreparedStatement khoa = conn.prepareStatement(
+            "SELECT \"tinhTrangXuLy\" FROM \"SanPhamLoi\" WHERE \"maLoi\" = ? FOR UPDATE")) {
+          khoa.setString(1, maChuanHoa);
+          try (ResultSet dong = khoa.executeQuery()) {
+            if (dong.next() && !hienTai.name().equals(dong.getString(1))) {
+              throw new DataAccessException(
+                  "Hồ sơ lỗi vừa được người khác cập nhật. Vui lòng tải lại danh sách.");
+            }
+          }
+        }
         sanPhamLoiDao.updateTinhTrang(
             conn,
             maChuanHoa,
@@ -242,7 +271,11 @@ public final class SanPhamLoiController {
             ghiChuXuLy != null && !ghiChuXuLy.isBlank() ? ghiChuXuLy.trim() : null,
             LocalDate.now());
 
-        capNhatTrangThaiSanPham(conn, soSerial, trangThaiSpMoi);
+        // Máy DA_BAN là máy của khách: hồ sơ theo dõi việc xử lý, còn trạng thái máy giữ nguyên để
+        // quyền đổi/trả theo hóa đơn gốc không bị mất và máy không quay lại kho ngoài luồng đổi/trả.
+        if (spl.sanPham().trangThai() != TrangThaiSanPham.DA_BAN) {
+          capNhatTrangThaiSanPham(conn, soSerial, trangThaiSpMoi);
+        }
 
         conn.commit();
         return KetQua.thanhCong(null, "Chuyển trạng thái xử lý lỗi thành công");
@@ -254,7 +287,8 @@ public final class SanPhamLoiController {
       }
     } catch (SQLException | DataAccessException e) {
       log.error("Lỗi khi cập nhật trạng thái hồ sơ lỗi", e);
-      return KetQua.loi("Không thể cập nhật trạng thái hồ sơ lỗi: " + e.getMessage());
+      return KetQua.loi(DataAccessException.thongBao(
+          e, "Không thể cập nhật trạng thái hồ sơ lỗi. Vui lòng thử lại."));
     }
   }
 

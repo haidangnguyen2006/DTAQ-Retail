@@ -61,7 +61,7 @@ public class ManagerHomePage implements Page {
   private final NhanVien nhanVien;
   private final JPanel view;
 
-  private final JLabel approvalSubtitle = new JLabel("Các yêu cầu đổi trả lập hôm nay cần quản lý xác nhận");
+  private final JLabel approvalSubtitle = new JLabel("Các yêu cầu đổi trả đang chờ quản lý xác nhận");
   private final StatusPill totalRefundPill = StatusPill.neutral("Tổng hoàn dự kiến 0 VNĐ");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(
       new String[] {"Mã phiếu", "Mã HĐ gốc", "Khách hàng & SĐT", "Hoàn dự kiến", "Nhân viên lập", "Lý do đổi/trả", "Thao tác"}, 6);
@@ -186,7 +186,7 @@ public class ManagerHomePage implements Page {
     approvals.clear();
     tableModel.setRowCount(0);
     if (newApprovals == null || newApprovals.isEmpty()) {
-      approvalSubtitle.setText("Các yêu cầu đổi trả lập hôm nay cần quản lý xác nhận");
+      approvalSubtitle.setText("Các yêu cầu đổi trả đang chờ quản lý xác nhận");
       totalRefundPill.setText("Tổng hoàn dự kiến 0 VNĐ");
       approvalState.showEmpty("circle-check", "Không có yêu cầu chờ duyệt hôm nay",
           "Phiếu của các ngày trước xem tại mục Phê duyệt đổi trả.");
@@ -200,7 +200,7 @@ public class ManagerHomePage implements Page {
           r.maPhieu(), r.maHDGoc(), new String[] {r.tenKH(), r.sdtKH()},
           r.hoanDuKien(), r.nhanVienLap(), r.lyDo(), ""});
     }
-    approvalSubtitle.setText(newApprovals.size() + " phiếu lập hôm nay chưa được xử lý");
+    approvalSubtitle.setText(newApprovals.size() + " phiếu đang chờ duyệt");
     totalRefundPill.setText("Tổng hoàn dự kiến " + MoneyFormat.formatVnd(total));
     approvalState.showContent();
   }

@@ -265,7 +265,8 @@ public final class CustomerLookupPage implements Page {
   // ---------------------------------------------------------------- tra cứu
 
   /** Kết quả bước 5–8: khách hàng kèm lịch sử hóa đơn và phiếu đổi/trả. */
-  private record KetQuaTraCuu(KhachHang khachHang, List<HoaDonTomTat> hoaDons, List<PhieuTomTat> phieus) {}
+  private record KetQuaTraCuu(KhachHang khachHang, List<HoaDonTomTat> hoaDons,
+      List<PhieuTomTat> phieus, java.math.BigDecimal daHoanTra) {}
 
   private void search() {
     String tuKhoa = sdtField.getText().trim();
@@ -331,7 +332,8 @@ public final class CustomerLookupPage implements Page {
   private void loadKhach(KhachHang khach) {
     int request = ++searchRequest;
     resultState.showLoading();
-    run(() -> new KetQuaTraCuu(khach, controller.lichSuHoaDon(khach.maKH()), controller.phieuDoiTra(khach.maKH())),
+    run(() -> new KetQuaTraCuu(khach, controller.lichSuHoaDon(khach.maKH()),
+            controller.phieuDoiTra(khach.maKH()), controller.tongHoanTra(khach.maKH())),
         ketQua -> {
           if (request == searchRequest) {
             render(ketQua);
@@ -376,7 +378,8 @@ public final class CustomerLookupPage implements Page {
     tabs.setTitleAt(1, "Phiếu đổi/trả (" + phieus.size() + ")");
     resetChiTietPhieu();
 
-    renderTongQuan(TraCuuKhachHangController.tongQuan(hoaDons, phieus, LocalDate.now()));
+    renderTongQuan(TraCuuKhachHangController.tongQuan(
+        hoaDons, phieus, LocalDate.now(), ketQua.daHoanTra()), ketQua.daHoanTra());
     resultState.showContent();
     // Mở sẵn hóa đơn mới nhất để người dùng thấy ngay chi tiết, không phải bấm thêm.
     if (!hoaDons.isEmpty()) {
@@ -384,9 +387,11 @@ public final class CustomerLookupPage implements Page {
     }
   }
 
-  private void renderTongQuan(TongQuanKhach tq) {
+  private void renderTongQuan(TongQuanKhach tq, java.math.BigDecimal daHoanTra) {
     kpiChiTieu.setValue(TienUtil.dinhDang(tq.tongChiTieu()));
-    kpiChiTieu.setCaption(tq.soMay() + " sản phẩm đã mua");
+    kpiChiTieu.setCaption(tq.soMay() + " sản phẩm đã mua"
+        + (daHoanTra == null || daHoanTra.signum() == 0 ? ""
+            : " • đã trừ " + TienUtil.dinhDang(daHoanTra) + " hoàn trả"));
     kpiHoaDon.setValue(String.valueOf(tq.soHoaDon()));
     kpiHoaDon.setCaption(tq.soHoaDon() == 0 ? "Chưa có hóa đơn đã thanh toán"
         : "TB " + TienUtil.dinhDang(tq.trungBinhHoaDon()) + " / hóa đơn");

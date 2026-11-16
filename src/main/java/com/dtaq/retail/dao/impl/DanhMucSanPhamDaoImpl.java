@@ -110,6 +110,24 @@ public class DanhMucSanPhamDaoImpl implements DanhMucSanPhamDao {
   }
 
   @Override
+  public void insert(Connection ketNoi, DanhMucSanPham danhMuc) {
+    Objects.requireNonNull(ketNoi, "ketNoi");
+    Objects.requireNonNull(danhMuc, "danhMuc");
+    // Không đóng kết nối và không đổi auto-commit: giao dịch do bên gọi quản lý.
+    try (PreparedStatement statement = ketNoi.prepareStatement(INSERT)) {
+      statement.setString(1, danhMuc.maDanhMuc().trim());
+      statement.setString(2, danhMuc.tenDanhMuc().trim());
+      statement.setString(3, danhMuc.moTa());
+      statement.executeUpdate();
+    } catch (SQLException e) {
+      if ("23505".equals(e.getSQLState())) {
+        throw new DataAccessException("Mã hoặc tên danh mục đã tồn tại trong hệ thống", e);
+      }
+      throw new DataAccessException("Không thể thêm mới danh mục sản phẩm", e);
+    }
+  }
+
+  @Override
   public void insert(DanhMucSanPham danhMuc) {
     Objects.requireNonNull(danhMuc, "danhMuc");
     if (danhMuc.maDanhMuc() == null || danhMuc.maDanhMuc().isBlank()) {

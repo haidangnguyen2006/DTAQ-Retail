@@ -24,6 +24,19 @@ import org.junit.jupiter.api.Test;
 /** Kiểm thử khởi tạo màn hình quản lý sản phẩm. */
 class ProductPageTest {
 
+  @org.junit.jupiter.api.BeforeEach
+  void datPhienKiemThu() {
+    com.dtaq.retail.session.CurrentSession.set(new com.dtaq.retail.entity.NhanVien(
+        "NV-TEST-PHIEN", "Nguyễn Kiểm Thử", "0900000009", null,
+        java.time.LocalDate.of(2026, 1, 1), "kiemthu.phien", "matkhau-test",
+        com.dtaq.retail.entity.LoaiQuyen.NHAN_VIEN_BAN_HANG, true));
+  }
+
+  @org.junit.jupiter.api.AfterEach
+  void xoaPhienKiemThu() {
+    com.dtaq.retail.session.CurrentSession.clear();
+  }
+
   @Test
   @DisplayName("Trang ProductPage phải có id, tiêu đề và section đúng")
   void pageProperties_ok() {

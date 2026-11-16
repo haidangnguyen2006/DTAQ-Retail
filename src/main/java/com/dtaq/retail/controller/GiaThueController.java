@@ -35,6 +35,9 @@ public final class GiaThueController {
     if (giaMoi == null || giaMoi.compareTo(BigDecimal.ZERO) <= 0) {
       return KetQua.loi("Giá bán trước thuế không hợp lệ");
     }
+    if (DongSanPhamController.coPhanLe(giaMoi)) {
+      return KetQua.loi("Giá bán trước thuế phải là số nguyên (VND)");
+    }
     if (thueMoi == null || thueMoi.compareTo(BigDecimal.ZERO) < 0 || thueMoi.compareTo(BigDecimal.valueOf(100)) > 0) {
       return KetQua.loi("Thuế suất không hợp lệ, phải nằm trong khoảng 0% đến 100%");
     }

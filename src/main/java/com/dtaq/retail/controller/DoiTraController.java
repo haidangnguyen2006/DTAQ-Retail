@@ -3,6 +3,7 @@ package com.dtaq.retail.controller;
 import com.dtaq.retail.dao.ChiTietHoaDonDao;
 import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.dao.HoaDonDao;
+import com.dtaq.retail.dao.KhuyenMaiDao;
 import com.dtaq.retail.dao.PhieuDoiDao;
 import com.dtaq.retail.dao.PhieuDuyet;
 import com.dtaq.retail.dao.PhieuTraDao;
@@ -14,6 +15,7 @@ import com.dtaq.retail.entity.ChiTietPhieuTra;
 import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.HoaDon;
 import com.dtaq.retail.entity.KhachHang;
+import com.dtaq.retail.entity.KhuyenMai;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.entity.PhieuDoi;
@@ -90,6 +92,7 @@ public final class DoiTraController {
   private final ChiTietHoaDonDao chiTietHoaDonDao;
   private final SanPhamDao sanPhamDao;
   private final DongSanPhamDao dongSanPhamDao;
+  private final KhuyenMaiDao khuyenMaiDao;
   private final DataSource dataSource;
   private final int soNgayDoiTraToiDa;
   private final Clock clock;
@@ -119,6 +122,28 @@ public final class DoiTraController {
       DataSource dataSource,
       int soNgayDoiTraToiDa,
       Clock clock) {
+    this(phieuTraDao, phieuDoiDao, sanPhamLoiDao, hoaDonDao, chiTietHoaDonDao, sanPhamDao,
+        dongSanPhamDao, null, dataSource, soNgayDoiTraToiDa, clock);
+  }
+
+  /**
+   * Khởi tạo kèm lớp tra cứu khuyến mãi để định giá máy thay thế theo giá bán hiện hành.
+   *
+   * @param khuyenMaiDao lớp tra cứu khuyến mãi; {@code null} thì máy thay thế tính theo giá niêm yết
+   */
+  public DoiTraController(
+      PhieuTraDao phieuTraDao,
+      PhieuDoiDao phieuDoiDao,
+      SanPhamLoiDao sanPhamLoiDao,
+      HoaDonDao hoaDonDao,
+      ChiTietHoaDonDao chiTietHoaDonDao,
+      SanPhamDao sanPhamDao,
+      DongSanPhamDao dongSanPhamDao,
+      KhuyenMaiDao khuyenMaiDao,
+      DataSource dataSource,
+      int soNgayDoiTraToiDa,
+      Clock clock) {
+    this.khuyenMaiDao = khuyenMaiDao;
     this.phieuTraDao = Objects.requireNonNull(phieuTraDao, "phieuTraDao");
     this.phieuDoiDao = Objects.requireNonNull(phieuDoiDao, "phieuDoiDao");
     this.sanPhamLoiDao = Objects.requireNonNull(sanPhamLoiDao, "sanPhamLoiDao");
@@ -270,8 +295,19 @@ public final class DoiTraController {
           "Không tìm thấy dòng sản phẩm của máy thay thế " + soSerialMayThayThe);
     }
     DongSanPham dongMoi = dongMoiOpt.get();
+    if (!dongMoi.trangThaiKinhDoanh()) {
+      // RB35: chỉ giao thay thế máy thuộc dòng đang kinh doanh.
+      return tinhKhongHopLe(
+          "Máy thay thế " + soSerialMayThayThe + " thuộc dòng sản phẩm đã ngừng kinh doanh");
+    }
+    // XBR-03: giá trị máy thay thế là giá bán tại thời điểm giao dịch, gồm khuyến mãi đang hiệu lực,
+    // đúng bằng số tiền máy đó được bán ở quầy hôm nay.
+    BigDecimal tyLeGiam = khuyenMaiDao == null ? BigDecimal.ZERO
+        : khuyenMaiDao.findHieuLuc(dongMoi.maDongSP(), LocalDate.now(clock))
+            .map(KhuyenMai::tyLeGiam)
+            .orElse(BigDecimal.ZERO);
     BanHangController.DongTinh tinh =
-        BanHangController.tinhDong(dongMoi.donGiaBanTruocThue(), dongMoi.thue(), 1, BigDecimal.ZERO);
+        BanHangController.tinhDong(dongMoi.donGiaBanTruocThue(), dongMoi.thue(), 1, tyLeGiam);
     BigDecimal giaTriMayMoi = tinh.tienSauKhuyenMai().add(tinh.tienThue());
     if (giaTriMayMoi.compareTo(giaTriMayTra) > 0) {
       // D17 (2026-11-05): đổi hàng chỉ sang máy ngang bằng hoặc thấp hơn, không hoàn tiền.

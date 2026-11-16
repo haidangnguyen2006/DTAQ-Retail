@@ -30,6 +30,19 @@ import org.junit.jupiter.api.Test;
  */
 class SanPhamLoiControllerTest {
 
+  @org.junit.jupiter.api.BeforeEach
+  void datPhienKiemThu() {
+    com.dtaq.retail.session.CurrentSession.set(new com.dtaq.retail.entity.NhanVien(
+        "NV-TEST-PHIEN", "Nguyễn Kiểm Thử", "0900000009", null,
+        java.time.LocalDate.of(2026, 1, 1), "kiemthu.phien", "matkhau-test",
+        com.dtaq.retail.entity.LoaiQuyen.NHAN_VIEN_BAN_HANG, true));
+  }
+
+  @org.junit.jupiter.api.AfterEach
+  void xoaPhienKiemThu() {
+    com.dtaq.retail.session.CurrentSession.clear();
+  }
+
   private static final String SERIAL_TEST = "SAM-TV-0002"; // máy có sẵn từ seed V4
   private static final String PHIEU_DOI_SEED = "PD-2026-000001"; // phiếu đổi của máy khác PAN-AC-0013
 
@@ -254,5 +267,26 @@ class SanPhamLoiControllerTest {
         "Ghi chú");
     assertFalse(ketQua.thanhCong());
     assertTrue(ketQua.thongBao().contains("Không tìm thấy"));
+  }
+
+
+  @Test
+  @DisplayName("Hồ sơ đã thanh lý không mở lại được và máy đã thanh lý không ghi lỗi mới")
+  void chuyenTrangThai_trangThaiKetThucKhongMoLai() {
+    SanPhamLoiController.KetQua<SanPhamLoi> taoMoi = controller.ghiNhanLoi(
+        SERIAL_TEST, "Máy hỏng không sửa được", LocalDate.now(), null, null, null);
+    assertTrue(taoMoi.thanhCong(), taoMoi.thongBao());
+    String maLoi = taoMoi.duLieu().maLoi();
+    maLoiCanXoa.add(maLoi);
+
+    assertFalse(controller.chuyenTrangThai(maLoi, TrangThaiXuLyLoi.CHO_XU_LY, null).thanhCong(),
+        "Chuyển sang chính trạng thái hiện tại phải bị từ chối");
+    assertTrue(controller.chuyenTrangThai(maLoi, TrangThaiXuLyLoi.THANH_LY, "Thanh lý").thanhCong());
+
+    assertFalse(controller.chuyenTrangThai(maLoi, TrangThaiXuLyLoi.CHO_XU_LY, null).thanhCong());
+    assertEquals(
+        TrangThaiSanPham.DA_THANH_LY, sanPhamDao.findById(SERIAL_TEST).orElseThrow().trangThai());
+    assertFalse(controller.ghiNhanLoi(
+        SERIAL_TEST, "Lỗi mới", LocalDate.now(), null, null, null).thanhCong());
   }
 }

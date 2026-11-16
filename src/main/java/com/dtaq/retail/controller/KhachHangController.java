@@ -7,6 +7,7 @@ import com.dtaq.retail.exception.DataAccessException;
 import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.util.MaGenerator;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
@@ -112,7 +113,7 @@ public final class KhachHangController {
         return KetQuaLuuKhach.trung(trung.get());
       }
       try (Connection ketNoi = dataSource.getConnection()) {
-        return KetQuaLuuKhach.thanhCong(ghiKhachMoi(ketNoi, hoTen, sdt, diaChi));
+        return ghiKhachMoi(ketNoi, hoTen, sdt, diaChi);
       }
     } catch (SQLException | DataAccessException e) {
       log.warn("Không thể lưu khách hàng mới (exception={})", e.getClass().getName());
@@ -166,16 +167,33 @@ public final class KhachHangController {
     return KiemTraHoSo.kiemTraSdt(soDienThoai);
   }
 
-  private KhachHang ghiKhachMoi(Connection ketNoi, String hoTen, String sdt, String diaChi)
+  /** Bảng không có UNIQUE trên số điện thoại nên dùng khóa tư vấn theo số, nhả khi kết nối đóng. */
+  private static void khoaSdt(Connection ketNoi, String sdt) throws SQLException {
+    try (PreparedStatement khoa =
+        ketNoi.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+      khoa.setString(1, "KhachHang:" + sdt);
+      khoa.executeQuery().close();
+    }
+  }
+
+  private KetQuaLuuKhach ghiKhachMoi(Connection ketNoi, String hoTen, String sdt, String diaChi)
       throws SQLException {
     ketNoi.setAutoCommit(false);
     try {
+      // Bảng không có UNIQUE trên số điện thoại: khóa theo số rồi kiểm lại để hai quầy cùng thêm
+      // một khách không tạo ra hai hồ sơ.
+      khoaSdt(ketNoi, sdt);
+      Optional<KhachHang> trung = khachHangDao.findBySdt(sdt);
+      if (trung.isPresent()) {
+        ketNoi.rollback();
+        return KetQuaLuuKhach.trung(trung.get());
+      }
       String maKH = MaGenerator.next(ketNoi, "KhachHang", "maKH", TIEN_TO_MA);
       KhachHang khachHang =
           new KhachHang(maKH, KiemTraHoSo.chuanHoaHoTen(hoTen), sdt, chuanHoaDiaChi(diaChi));
       khachHangDao.insert(ketNoi, khachHang);
       ketNoi.commit();
-      return khachHang;
+      return KetQuaLuuKhach.thanhCong(khachHang);
     } catch (SQLException | RuntimeException e) {
       ketNoi.rollback();
       throw e;

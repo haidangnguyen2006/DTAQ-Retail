@@ -81,6 +81,16 @@ public final class MaGenerator {
         + cotDaTrich
         + " LIKE ?";
 
+    // Khóa theo bảng đến hết giao dịch của bên gọi: hai giao dịch đồng thời không đọc cùng MAX (RB03).
+    // Chỉ có tác dụng khi bên gọi đã tắt auto-commit; ở chế độ auto-commit khóa nhả ngay.
+    try (PreparedStatement khoa =
+        ketNoi.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+      khoa.setString(1, "MaGenerator:" + bang);
+      khoa.executeQuery().close();
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể sinh mã cho bảng " + bang, e);
+    }
+
     try (PreparedStatement statement = ketNoi.prepareStatement(sql)) {
       statement.setInt(1, goc.length() + 1);
       statement.setString(2, goc + "%");

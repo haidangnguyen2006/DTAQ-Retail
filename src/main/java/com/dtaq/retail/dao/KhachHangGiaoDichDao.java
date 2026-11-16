@@ -39,6 +39,16 @@ public interface KhachHangGiaoDichDao {
   List<PhieuTomTat> phieuCuaKhach(String maKH);
 
   /**
+   * Tổng tiền đã hoàn cho khách qua các phiếu trả đã hoàn tất (phiếu đổi không hoàn tiền, D17).
+   *
+   * @param maKH mã khách hàng
+   * @return tổng tiền đã hoàn; 0 nếu chưa có
+   */
+  default BigDecimal tongHoanTra(String maKH) {
+    return BigDecimal.ZERO;
+  }
+
+  /**
    * Liệt kê các dòng hàng của một phiếu đổi hoặc phiếu trả.
    *
    * @param loai loại phiếu

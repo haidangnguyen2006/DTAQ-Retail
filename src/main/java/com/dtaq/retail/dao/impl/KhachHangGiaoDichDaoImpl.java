@@ -132,6 +132,23 @@ public final class KhachHangGiaoDichDaoImpl implements KhachHangGiaoDichDao {
   }
 
   @Override
+  public java.math.BigDecimal tongHoanTra(String maKH) {
+    String sql = "SELECT COALESCE(SUM(pt.\"tienKhachDua\"), 0) FROM \"PhieuTra\" pt"
+        + " JOIN \"HoaDon\" hd ON hd.\"maHD\" = pt.\"hoaDon\""
+        + " WHERE hd.\"khachHang\" = ? AND pt.\"trangThaiXuLyPhieu\" = 'HOAN_TAT'";
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, maKH);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        return resultSet.getBigDecimal(1);
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tính tổng tiền đã hoàn cho khách hàng", e);
+    }
+  }
+
+  @Override
   public List<PhieuTomTat> phieuCuaKhach(String maKH) {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(SELECT_PHIEU_CUA_KHACH)) {

@@ -34,6 +34,20 @@ public final class CurrentSession {
   }
 
   /** Clears the current session. */
+  /**
+   * Yêu cầu có phiên đăng nhập của tài khoản đang hoạt động (XBR-13: kiểm tại nơi xử lý nghiệp vụ).
+   *
+   * @return nhân viên của phiên hiện tại
+   * @throws SecurityException nếu chưa đăng nhập hoặc tài khoản đã bị khóa
+   */
+  public static NhanVien yeuCauDangHoatDong() {
+    NhanVien nhanVien = hienTai;
+    if (nhanVien == null || !nhanVien.trangThaiHoatDong()) {
+      throw new SecurityException("Cần đăng nhập bằng tài khoản đang hoạt động để thực hiện thao tác");
+    }
+    return nhanVien;
+  }
+
   public static void clear() {
     hienTai = null;
   }

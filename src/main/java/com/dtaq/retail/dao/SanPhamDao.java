@@ -77,6 +77,37 @@ public interface SanPhamDao {
   }
 
   /**
+   * Tìm máy theo một phần số serial, mã dòng sản phẩm hoặc mã nhà cung cấp, sắp theo serial.
+   *
+   * @param tuKhoa từ khóa, không phân biệt hoa thường
+   * @param gioiHan số máy tối đa trả về
+   * @return các máy khớp; rỗng nếu không có
+   */
+  default List<SanPham> timKiem(String tuKhoa, int gioiHan) {
+    String khoa = tuKhoa == null ? "" : tuKhoa.trim().toLowerCase();
+    return findAll().stream()
+        .filter(sp -> sp.soSerial().toLowerCase().contains(khoa)
+            || sp.dongSanPham().maDongSP().toLowerCase().contains(khoa)
+            || sp.nhaCungCap().maNCC().toLowerCase().contains(khoa))
+        .limit(gioiHan)
+        .toList();
+  }
+
+  /**
+   * Đọc máy của nhiều dòng sản phẩm trong một lần, gom theo mã dòng.
+   *
+   * @param maDongSP các mã dòng cần đọc
+   * @return máy theo từng mã dòng; dòng không có máy thì không có khóa tương ứng
+   */
+  default java.util.Map<String, List<SanPham>> findByDongIn(java.util.Collection<String> maDongSP) {
+    java.util.Map<String, List<SanPham>> ketQua = new java.util.LinkedHashMap<>();
+    for (String ma : maDongSP) {
+      ketQua.put(ma, findByDongSanPham(ma));
+    }
+    return ketQua;
+  }
+
+  /**
    * Tìm máy theo danh mục sản phẩm.
    */
   default List<SanPham> findByDanhMuc(String maDanhMuc) {
@@ -124,5 +155,20 @@ public interface SanPhamDao {
    */
   default boolean danhDauDaBan(java.sql.Connection ketNoi, String soSerial) {
     throw new UnsupportedOperationException("Chưa hỗ trợ đánh dấu bán theo giao dịch");
+  }
+
+  /**
+   * Chọn và khóa máy sẵn sàng bán của một dòng theo FIFO (nhập kho lâu nhất trước, rồi theo serial).
+   *
+   * <p>Chạy trong giao dịch của bên gọi; máy đang bị giao dịch khác khóa được bỏ qua nên hai quầy
+   * bán cùng dòng không chọn trùng máy (RB40).
+   *
+   * @param ketNoi kết nối đang mở giao dịch của bên gọi
+   * @param maDongSP mã dòng sản phẩm đang kinh doanh
+   * @param soLuong số máy cần chọn
+   * @return tối đa {@code soLuong} máy; ít hơn nếu không đủ máy
+   */
+  default List<SanPham> chonMayDeBan(Connection ketNoi, String maDongSP, int soLuong) {
+    throw new UnsupportedOperationException("Chưa hỗ trợ chọn máy trong giao dịch");
   }
 }

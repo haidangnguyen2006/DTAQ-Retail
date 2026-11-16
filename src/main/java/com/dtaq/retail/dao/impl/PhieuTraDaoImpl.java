@@ -355,6 +355,7 @@ public class PhieuTraDaoImpl implements PhieuTraDao {
     try {
       for (ChiTietPhieuTra dong : chiTiet) {
         // Guard nằm trong cùng transaction với INSERT để thu hẹp khe TOCTOU giữa hai yêu cầu.
+        khoaChiTietHoaDon(ketNoi, maHDGoc, serialCua(dong));
         kiemTraChuaCoPhieuHieuLuc(ketNoi, maHDGoc, serialCua(dong));
       }
       String maPhieuTra = MaGenerator.next(ketNoi, "PhieuTra", "maPhieuTra", "PT");
@@ -471,6 +472,17 @@ public class PhieuTraDaoImpl implements PhieuTraDao {
         throw new DataAccessException(
             "Không thể ghi dòng chi tiết phiếu trả " + maPhieuTra);
       }
+    }
+  }
+
+  /** Khóa dòng chi tiết hóa đơn gốc đến hết giao dịch: hai phiếu không cùng lập cho một máy (RB53). */
+  private static void khoaChiTietHoaDon(Connection ketNoi, String maHD, String soSerial)
+      throws SQLException {
+    try (PreparedStatement statement = ketNoi.prepareStatement(
+        "SELECT 1 FROM \"ChiTietHoaDon\" WHERE \"maHD\" = ? AND \"soSerial\" = ? FOR UPDATE")) {
+      statement.setString(1, maHD);
+      statement.setString(2, soSerial);
+      statement.executeQuery().close();
     }
   }
 

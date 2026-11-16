@@ -4,6 +4,9 @@ import com.dtaq.retail.controller.DongSanPhamController;
 import com.dtaq.retail.dao.DanhMucSanPhamDao;
 import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
+import com.dtaq.retail.entity.LoaiQuyen;
+import com.dtaq.retail.session.CurrentSession;
+import com.dtaq.retail.util.TienUtil;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -279,7 +282,7 @@ public final class ProductLinesPage implements Page {
     chonDanhMuc(dong.danhMucSanPham() == null ? null : dong.danhMucSanPham().maDanhMuc());
     unitField.setText(dong.donViTinh());
     if (dong.donGiaBanTruocThue() != null) {
-      priceField.setText(dong.donGiaBanTruocThue().toPlainString());
+      priceField.setText(TienUtil.lamTron(dong.donGiaBanTruocThue()).toPlainString());
     } else {
       priceField.setText("0");
     }
@@ -290,7 +293,23 @@ public final class ProductLinesPage implements Page {
     }
     saveButton.setText("Cập nhật");
     clearErrors();
+    datQuyenSuaGiaThue(laQuanLy());
     table.repaint();
+  }
+
+  /** C-08: khi sửa dòng đã có, chỉ Quản lý được đổi giá bán và thuế suất. */
+  private void datQuyenSuaGiaThue(boolean duocSua) {
+    priceField.getInputComponent().setEnabled(duocSua);
+    taxField.getInputComponent().setEnabled(duocSua);
+    String goiY = duocSua ? null : "Chỉ Quản lý đổi được tại mục Cập nhật giá bán và thuế suất";
+    priceField.setHint(goiY);
+    taxField.setHint(goiY);
+  }
+
+  private static boolean laQuanLy() {
+    return CurrentSession.get()
+        .map(nhanVien -> nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY)
+        .orElse(false);
   }
 
   private void chonDanhMuc(String maDanhMuc) {
@@ -321,6 +340,7 @@ public final class ProductLinesPage implements Page {
     categoryBox.setSelectedIndex(-1);
     saveButton.setText("Lưu");
     clearErrors();
+    datQuyenSuaGiaThue(true);
     capNhatLuaChon();
     table.repaint();
   }

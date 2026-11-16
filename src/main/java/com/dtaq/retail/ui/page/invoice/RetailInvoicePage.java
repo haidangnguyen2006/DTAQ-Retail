@@ -14,6 +14,7 @@ import com.dtaq.retail.ui.component.FormField;
 import com.dtaq.retail.ui.component.InfoCallout;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.ShortcutBar;
+import com.dtaq.retail.util.TienUtil;
 import com.dtaq.retail.ui.component.StatefulView;
 import com.dtaq.retail.ui.component.StatusPill;
 import com.dtaq.retail.ui.component.Tile;
@@ -231,7 +232,8 @@ public class RetailInvoicePage implements Page {
           List<ProductResult> ketQua = get().stream()
               .map(dong -> new ProductResult(
                   dong.maDongSP(), dong.tenDongSP(), dong.tonKho(),
-                  dinhDangThue(dong.thueSuat()), dong.donGiaTruocThue().longValueExact()))
+                  dinhDangThue(dong.thueSuat()),
+                  TienUtil.lamTron(dong.donGiaTruocThue()).longValueExact()))
               .toList();
           renderSearchResults(ketQua);
         } catch (Exception e) {
@@ -256,7 +258,7 @@ public class RetailInvoicePage implements Page {
             dong.maDongSP(),
             dong.tenDongSP(),
             dong.soLuong(),
-            dong.donGiaTruocThue().longValueExact(),
+            TienUtil.lamTron(dong.donGiaTruocThue()).longValueExact(),
             dinhDangThue(dong.thueSuat()),
             dong.thanhTienSauThue().longValueExact(),
             dong.tonKho()))
@@ -322,8 +324,8 @@ public class RetailInvoicePage implements Page {
           : new CustomerInfo(banTam.maKH(), banTam.tenKhachHang(), banTam.sdtKhachHang(), null));
       apDungHoaDon(kq.hoaDon());
       if (!kq.dongDaDieuChinh().isEmpty()) {
-        Toast.error(view, "Đã điều chỉnh/bỏ dòng: "
-            + String.join(", ", kq.dongDaDieuChinh()));
+        Toast.show(view, "Tồn kho đã thay đổi, đã giảm số lượng hoặc bỏ dòng: "
+            + String.join(", ", kq.dongDaDieuChinh()), Toast.Kind.INFO);
       }
     } catch (RuntimeException e) {
       Toast.error(view, "Không thể mở hóa đơn tạm");
@@ -785,11 +787,12 @@ public class RetailInvoicePage implements Page {
       showPaymentError("Vui lòng chọn khách hàng trước khi thanh toán");
       return;
     }
+    long tongDangHienThi = totals.tongThanhToan();
     showProcessing();
     new SwingWorker<BanHangController.KetQuaThanhToan, Void>() {
       @Override
       protected BanHangController.KetQuaThanhToan doInBackground() {
-        return banHangController.thanhToan(nhanVien, khachHang, tienKhachDua);
+        return banHangController.thanhToan(nhanVien, khachHang, tienKhachDua, tongDangHienThi);
       }
 
       @Override
@@ -799,6 +802,13 @@ public class RetailInvoicePage implements Page {
           if (kq.thanhCong()) {
             showPaid(taoDuLieuHoaDon(kq));
           } else {
+            // Vẽ lại giỏ theo giá hiện hành: lỗi có thể do giá hoặc tồn kho vừa thay đổi.
+            try {
+              apDungHoaDon(banHangController.hoaDonHienTai());
+            } catch (RuntimeException khongTaiLaiDuoc) {
+              log.warn("Không vẽ lại được giỏ hàng sau khi thanh toán thất bại (exception={})",
+                  khongTaiLaiDuoc.getClass().getName());
+            }
             showPaymentError(kq.thongBao());
           }
         } catch (InterruptedException e) {

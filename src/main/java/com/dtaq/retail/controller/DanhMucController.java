@@ -3,6 +3,7 @@ package com.dtaq.retail.controller;
 import com.dtaq.retail.dao.DanhMucSanPhamDao;
 import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.util.MaGenerator;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -75,6 +76,7 @@ public final class DanhMucController {
    * @return kết quả thao tác kèm danh mục vừa thêm nếu thành công
    */
   public KetQua<DanhMucSanPham> themMoi(String tenDanhMuc, String moTa) {
+    CurrentSession.yeuCauDangHoatDong();
     if (tenDanhMuc == null || tenDanhMuc.isBlank()) {
       return KetQua.loi("Tên danh mục không được để trống");
     }
@@ -90,18 +92,25 @@ public final class DanhMucController {
       log.warn("Lỗi khi kiểm tra trùng tên danh mục: {}", e.getMessage());
     }
 
-    String maDanhMuc;
+    // Sinh mã và ghi trong cùng một giao dịch để khóa của MaGenerator có hiệu lực (RB03).
     try (Connection conn = dataSource.getConnection()) {
-      maDanhMuc = MaGenerator.next(conn, "DanhMucSanPham", "maDanhMuc", "DM");
-    } catch (SQLException | DataAccessException e) {
-      log.error("Lỗi khi sinh mã danh mục mới", e);
-      return KetQua.loi("Không thể khởi tạo mã danh mục mới: " + e.getMessage());
-    }
-
-    DanhMucSanPham danhMuc = new DanhMucSanPham(maDanhMuc, tenChuanHoa, moTaChuanHoa);
-    try {
-      danhMucDao.insert(danhMuc);
-      return KetQua.thanhCong(danhMuc, "Thêm danh mục sản phẩm thành công");
+      conn.setAutoCommit(false);
+      try {
+        DanhMucSanPham danhMuc = new DanhMucSanPham(
+            MaGenerator.next(conn, "DanhMucSanPham", "maDanhMuc", "DM"),
+            tenChuanHoa, moTaChuanHoa);
+        danhMucDao.insert(conn, danhMuc);
+        conn.commit();
+        return KetQua.thanhCong(danhMuc, "Thêm danh mục sản phẩm thành công");
+      } catch (RuntimeException | SQLException e) {
+        conn.rollback();
+        throw e;
+      } finally {
+        conn.setAutoCommit(true);
+      }
+    } catch (SQLException e) {
+      log.error("Lỗi khi lưu danh mục mới", e);
+      return KetQua.loi("Không thể thêm danh mục sản phẩm. Vui lòng thử lại.");
     } catch (DataAccessException e) {
       log.warn("Lỗi khi lưu danh mục mới: {}", e.getMessage());
       if (laLoiTrungLap(e)) {
@@ -120,6 +129,7 @@ public final class DanhMucController {
    * @return kết quả thao tác kèm danh mục sau cập nhật nếu thành công
    */
   public KetQua<DanhMucSanPham> capNhat(String maDanhMuc, String tenDanhMuc, String moTa) {
+    CurrentSession.yeuCauDangHoatDong();
     if (maDanhMuc == null || maDanhMuc.isBlank()) {
       return KetQua.loi("Mã danh mục không được để trống");
     }
@@ -159,6 +169,7 @@ public final class DanhMucController {
    * @return kết quả thao tác xóa
    */
   public KetQua<Void> xoa(String maDanhMuc) {
+    CurrentSession.yeuCauDangHoatDong();
     if (maDanhMuc == null || maDanhMuc.isBlank()) {
       return KetQua.loi("Mã danh mục không được để trống");
     }

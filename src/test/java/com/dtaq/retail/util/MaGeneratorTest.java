@@ -142,4 +142,45 @@ class MaGeneratorTest {
   private static int soThuTu(String ma) {
     return Integer.parseInt(ma.substring(ma.lastIndexOf('-') + 1));
   }
+
+
+  @Test
+  @DisplayName("Hai giao dịch đồng thời không nhận cùng một mã")
+  void haiGiaoDichDongThoiKhongTrungMa() throws Exception {
+    ketNoi.setAutoCommit(false);
+    java.util.concurrent.ExecutorService luong =
+        java.util.concurrent.Executors.newSingleThreadExecutor();
+    try (Connection ketNoiHai = ConnectDB.getDataSource().getConnection()) {
+      ketNoiHai.setAutoCommit(false);
+      String id1 = MaGenerator.next(ketNoi, "KhachHang", "maKH", "KH", NAM);
+      try (PreparedStatement statement = ketNoi.prepareStatement(
+          "INSERT INTO \"KhachHang\" (\"maKH\", \"hoTen\", \"soDienThoai\") VALUES (?, ?, ?)")) {
+        statement.setString(1, id1);
+        statement.setString(2, "Kiểm thử");
+        statement.setString(3, "0999999998");
+        statement.executeUpdate();
+      }
+      java.util.concurrent.Future<String> cho = luong.submit(
+          () -> MaGenerator.next(ketNoiHai, "KhachHang", "maKH", "KH", NAM));
+      assertThrows(java.util.concurrent.TimeoutException.class,
+          () -> cho.get(500, java.util.concurrent.TimeUnit.MILLISECONDS),
+          "Giao dịch thứ hai phải chờ giao dịch thứ nhất kết thúc");
+      ketNoi.commit();
+      try {
+        String id2 = cho.get(5, java.util.concurrent.TimeUnit.SECONDS);
+        assertEquals(maMongDoi("KH", NAM, soThuTu(id1) + 1), id2);
+      } finally {
+        ketNoiHai.rollback();
+        try (PreparedStatement xoa = ketNoi.prepareStatement(
+            "DELETE FROM \"KhachHang\" WHERE \"maKH\" = ?")) {
+          xoa.setString(1, id1);
+          xoa.executeUpdate();
+        }
+        ketNoi.commit();
+      }
+    } finally {
+      luong.shutdownNow();
+      ketNoi.setAutoCommit(true);
+    }
+  }
 }

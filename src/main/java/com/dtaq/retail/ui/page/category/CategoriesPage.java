@@ -198,7 +198,7 @@ public class CategoriesPage implements Page {
           }
           renderFilteredList();
         } catch (Exception e) {
-          tableState.showError("Không thể tải danh mục: " + e.getMessage());
+          tableState.showError("Không thể tải danh mục. Vui lòng thử lại.");
         }
       }
     }.execute();
@@ -358,7 +358,7 @@ public class CategoriesPage implements Page {
             Toast.show(view, result.thongBao(), Toast.Kind.ERROR);
           }
         } catch (Exception e) {
-          Toast.show(view, "Lỗi khi xóa: " + e.getMessage(), Toast.Kind.ERROR);
+          Toast.show(view, "Không thể xóa danh mục. Vui lòng thử lại.", Toast.Kind.ERROR);
         }
       }
     }.execute();

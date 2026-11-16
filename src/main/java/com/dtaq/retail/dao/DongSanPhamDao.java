@@ -95,6 +95,37 @@ public interface DongSanPhamDao {
   /**
    * Lấy toàn bộ dòng sản phẩm kèm danh mục liên quan.
    */
+  /**
+   * Tìm dòng đang kinh doanh và còn máy bán được theo một phần mã hoặc tên, sắp theo mã dòng.
+   *
+   * <p>Dùng cho màn bán hàng: tồn kho lấy từ {@code soLuongTon} (trigger V6 giữ đúng), không đọc
+   * bảng máy.
+   *
+   * @param tuKhoa một phần mã hoặc tên dòng, không phân biệt hoa thường
+   * @param gioiHan số dòng tối đa trả về
+   * @return các dòng khớp; rỗng nếu không có
+   */
+  default List<DongSanPham> timDangBan(String tuKhoa, int gioiHan) {
+    String khoa = tuKhoa == null ? "" : tuKhoa.trim().toLowerCase();
+    return findAll().stream()
+        .filter(dsp -> dsp.trangThaiKinhDoanh() && dsp.soLuongTon() > 0)
+        .filter(dsp -> dsp.maDongSP().toLowerCase().contains(khoa)
+            || dsp.tenDongSP().toLowerCase().contains(khoa))
+        .sorted(java.util.Comparator.comparing(DongSanPham::maDongSP))
+        .limit(gioiHan)
+        .toList();
+  }
+
+  /**
+   * Đọc nhiều dòng sản phẩm theo mã trong một lần.
+   *
+   * @param maDongSP các mã cần đọc
+   * @return các dòng tìm thấy; mã không tồn tại bị bỏ qua
+   */
+  default List<DongSanPham> findByMaIn(java.util.Collection<String> maDongSP) {
+    return maDongSP.stream().map(this::findById).flatMap(Optional::stream).toList();
+  }
+
   default List<DongSanPham> findAllWithDanhMuc() {
     return findAll();
   }

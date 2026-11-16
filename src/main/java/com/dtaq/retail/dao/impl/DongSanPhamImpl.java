@@ -41,6 +41,15 @@ public final class DongSanPhamImpl implements DongSanPhamDao {
 
   private static final String SELECT_ALL = SELECT_CO_JOIN + " ORDER BY dsp.\"maDongSP\"";
 
+  private static final String SELECT_DANG_BAN =
+      SELECT_CO_JOIN
+          + " WHERE dsp.\"trangThaiKinhDoanh\" = TRUE AND dsp.\"soLuongTon\" > 0"
+          + " AND (dsp.\"maDongSP\" ILIKE ? OR dsp.\"tenDongSP\" ILIKE ?)"
+          + " ORDER BY dsp.\"maDongSP\" LIMIT ?";
+
+  private static final String SELECT_BY_MA_IN =
+      SELECT_CO_JOIN + " WHERE dsp.\"maDongSP\" = ANY (?) ORDER BY dsp.\"maDongSP\"";
+
   private static final String SELECT_BY_DANH_MUC =
       SELECT_CO_JOIN + " WHERE dsp.\"maDanhMuc\" = ? ORDER BY dsp.\"tenDongSP\"";
 
@@ -229,6 +238,48 @@ public final class DongSanPhamImpl implements DongSanPhamDao {
       }
     } catch (SQLException e) {
       throw new DataAccessException("Không thể cập nhật giá và thuế của dòng sản phẩm " + maDongSP, e);
+    }
+  }
+
+  @Override
+  public List<DongSanPham> timDangBan(String tuKhoa, int gioiHan) {
+    String khoa = tuKhoa == null ? "" : tuKhoa.trim();
+    // Thoát ký tự đại diện của LIKE để từ khóa chỉ được so khớp theo nghĩa đen.
+    String mau = "%" + khoa.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(SELECT_DANG_BAN)) {
+      statement.setString(1, mau);
+      statement.setString(2, mau);
+      statement.setInt(3, gioiHan);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<DongSanPham> ketQua = new ArrayList<>();
+        while (resultSet.next()) {
+          ketQua.add(mapDongSanPham(resultSet));
+        }
+        return ketQua;
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tìm dòng sản phẩm đang bán", e);
+    }
+  }
+
+  @Override
+  public List<DongSanPham> findByMaIn(java.util.Collection<String> maDongSP) {
+    if (maDongSP == null || maDongSP.isEmpty()) {
+      return List.of();
+    }
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(SELECT_BY_MA_IN)) {
+      statement.setArray(1, connection.createArrayOf("varchar", maDongSP.toArray()));
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<DongSanPham> ketQua = new ArrayList<>();
+        while (resultSet.next()) {
+          ketQua.add(mapDongSanPham(resultSet));
+        }
+        return ketQua;
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tra cứu dòng sản phẩm theo danh sách mã", e);
     }
   }
 

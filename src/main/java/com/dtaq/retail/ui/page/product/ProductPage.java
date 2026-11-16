@@ -66,6 +66,7 @@ public final class ProductPage implements Page {
   private final FormField searchField =
       FormField.search("Tìm máy", "Nhập số serial, mã dòng SP hoặc mã NCC");
   private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private static final int SO_MAY_TOI_DA = 200;
   private boolean daTimKiem;
 
   public ProductPage(SanPhamController controller, SanPhamDao sanPhamDao) {
@@ -157,14 +158,11 @@ public final class ProductPage implements Page {
     if (!daTimKiem) {
       return;
     }
-    String tuKhoa = searchField.getText().trim().toLowerCase();
     cachedProducts.clear();
-    sanPhamDao.findAll().stream()
-        .filter(sp -> tuKhoa.isEmpty()
-            || sp.soSerial().toLowerCase().contains(tuKhoa)
-            || sp.dongSanPham().maDongSP().toLowerCase().contains(tuKhoa)
-            || sp.nhaCungCap().maNCC().toLowerCase().contains(tuKhoa))
-        .forEach(cachedProducts::add);
+    // Lọc và giới hạn tại CSDL: bảng máy tăng mãi theo thời gian, không nạp toàn bộ lên bảng.
+    cachedProducts.addAll(sanPhamDao.timKiem(searchField.getText(), SO_MAY_TOI_DA));
+    searchField.setHint(cachedProducts.size() < SO_MAY_TOI_DA ? null
+        : "Chỉ hiển thị " + SO_MAY_TOI_DA + " máy đầu tiên, hãy thu hẹp từ khóa");
     tableModel.setRowCount(0);
     for (SanPham sanPham : cachedProducts) {
       tableModel.addRow(new Object[] {
@@ -218,6 +216,8 @@ public final class ProductPage implements Page {
     priceField.setText(sp.giaNhap().toPlainString());
     dateField.setDate(sp.ngayNhapKhoBanDau() == null ? LocalDate.now() : sp.ngayNhapKhoBanDau());
     statusBox.setSelectedItem(sp.trangThai());
+    // Trạng thái máy đã có chỉ đổi qua bán hàng, đổi/trả, xử lý sản phẩm lỗi.
+    statusBox.setEnabled(false);
     serialField.getTextField().setEditable(false);
     saveButton.setText("Cập nhật");
     serialField.setError(null);
@@ -236,6 +236,7 @@ public final class ProductPage implements Page {
     priceField.setText("");
     dateField.setDate(LocalDate.now());
     statusBox.setSelectedItem(TrangThaiSanPham.SAN_SANG_BAN);
+    statusBox.setEnabled(true);
     serialField.getTextField().setEditable(true);
     saveButton.setText("Lưu máy");
     serialField.setError(null);

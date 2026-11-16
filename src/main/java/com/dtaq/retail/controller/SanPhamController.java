@@ -8,6 +8,7 @@ import com.dtaq.retail.entity.NhaCungCap;
 import com.dtaq.retail.entity.SanPham;
 import com.dtaq.retail.entity.TrangThaiSanPham;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.util.ExcelImporter;
 import com.dtaq.retail.util.ExcelTemplate;
 import java.io.File;
@@ -56,12 +57,16 @@ public final class SanPhamController {
       BigDecimal giaNhap,
       LocalDate ngayNhapKhoBanDau,
       TrangThaiSanPham trangThai) {
+    CurrentSession.yeuCauDangHoatDong();
 
     if (soSerial == null || soSerial.isBlank()) {
       return KetQua.loi("Số serial không được để trống");
     }
     if (giaNhap == null || giaNhap.compareTo(BigDecimal.ZERO) < 0) {
       return KetQua.loi("Giá nhập không hợp lệ");
+    }
+    if (giaNhap.stripTrailingZeros().scale() > 0) {
+      return KetQua.loi("Giá nhập phải là số nguyên (VND)");
     }
     if (ngayNhapKhoBanDau != null && ngayNhapKhoBanDau.isAfter(LocalDate.now())) {
       return KetQua.loi("Ngày nhập kho ban đầu không được ở tương lai");
@@ -117,7 +122,7 @@ public final class SanPhamController {
       }
     } catch (SQLException | DataAccessException e) {
       log.error("Lỗi khi lưu máy mới: {}", serialChuanHoa, e);
-      return KetQua.loi(e.getMessage() == null ? "Không thể lưu máy mới" : e.getMessage());
+      return KetQua.loi(DataAccessException.thongBao(e, "Không thể lưu máy mới"));
     }
   }
 
@@ -128,12 +133,16 @@ public final class SanPhamController {
       BigDecimal giaNhap,
       LocalDate ngayNhapKhoBanDau,
       TrangThaiSanPham trangThai) {
+    CurrentSession.yeuCauDangHoatDong();
 
     if (soSerial == null || soSerial.isBlank()) {
       return KetQua.loi("Số serial không được để trống");
     }
     if (giaNhap == null || giaNhap.compareTo(BigDecimal.ZERO) < 0) {
       return KetQua.loi("Giá nhập không hợp lệ");
+    }
+    if (giaNhap.stripTrailingZeros().scale() > 0) {
+      return KetQua.loi("Giá nhập phải là số nguyên (VND)");
     }
     if (ngayNhapKhoBanDau != null && ngayNhapKhoBanDau.isAfter(LocalDate.now())) {
       return KetQua.loi("Ngày nhập kho ban đầu không được ở tương lai");
@@ -165,6 +174,15 @@ public final class SanPhamController {
     }
 
     String maDongCu = sanPhamCu.get().dongSanPham().maDongSP();
+    // XBR-04/RB38-39: trạng thái máy chỉ đổi qua bán hàng, đổi/trả, xử lý sản phẩm lỗi.
+    if (trangThai != sanPhamCu.get().trangThai()) {
+      return KetQua.loi(
+          "Trạng thái máy chỉ thay đổi qua bán hàng, đổi/trả hoặc xử lý sản phẩm lỗi");
+    }
+    if (!maDongCu.equals(maDongChuanHoa)
+        && sanPhamCu.get().trangThai() != TrangThaiSanPham.SAN_SANG_BAN) {
+      return KetQua.loi("Chỉ đổi được dòng sản phẩm của máy đang sẵn sàng bán");
+    }
     SanPham sanPhamCapNhat = new SanPham(
         serialChuanHoa,
         nhaCungCap.get(),
@@ -194,7 +212,7 @@ public final class SanPhamController {
       }
     } catch (SQLException | DataAccessException e) {
       log.error("Lỗi khi cập nhật máy: {}", serialChuanHoa, e);
-      return KetQua.loi(e.getMessage() == null ? "Không thể cập nhật máy" : e.getMessage());
+      return KetQua.loi(DataAccessException.thongBao(e, "Không thể cập nhật máy"));
     }
   }
 
@@ -213,6 +231,7 @@ public final class SanPhamController {
   }
 
   public KetQua<NhapKetQua> nhapDanhSach(File tep) {
+    CurrentSession.yeuCauDangHoatDong();
     if (tep == null || !tep.isFile()) {
       return KetQua.loi("Tệp nhập không tồn tại");
     }
@@ -241,6 +260,9 @@ public final class SanPhamController {
           String maNcc = String.valueOf(dong.giaTri().get("Mã nhà cung cấp")).trim();
           String maDong = String.valueOf(dong.giaTri().get("Mã dòng sản phẩm")).trim();
           BigDecimal giaNhap = (BigDecimal) dong.giaTri().get("Giá nhập");
+          if (giaNhap != null && giaNhap.stripTrailingZeros().scale() > 0) {
+            throw new DataAccessException("Giá nhập phải là số nguyên (VND): " + serial);
+          }
           LocalDate ngayNhap = (LocalDate) dong.giaTri().get("Ngày nhập kho ban đầu");
           String trangThaiText = String.valueOf(dong.giaTri().getOrDefault("Trạng thái", TrangThaiSanPham.SAN_SANG_BAN.name()));
           TrangThaiSanPham trangThai = trangThaiText == null || trangThaiText.isBlank()
@@ -289,7 +311,7 @@ public final class SanPhamController {
       }
     } catch (Exception e) {
       log.error("Lỗi khi nhập danh sách sản phẩm từ Excel", e);
-      return KetQua.loi(e.getMessage() == null ? "Không thể nhập danh sách sản phẩm" : e.getMessage());
+      return KetQua.loi(DataAccessException.thongBao(e, "Không thể nhập danh sách sản phẩm"));
     }
   }
 
