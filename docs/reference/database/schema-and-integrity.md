@@ -241,6 +241,8 @@ Tất cả khóa ngoại dùng `ON DELETE RESTRICT`; không có `ON DELETE CASCA
 
 > **`"SuCoSucKhoe"` từ 2026-11-05:** bảng nay **được `HealthMonitor`/`RecoveryCoordinator` ghi và đọc** khi phát hiện sự cố sức khỏe dữ liệu (không còn là bảng dự phòng). Từ vựng sau `V12`: `severity` ∈ `CRITICAL`/`SUSPICIOUS`; `trangThai` ∈ `PENDING`/`RESOLVED_RESTORED`/`AUTO_RESTORED`/`DISMISSED`/`FAILED`. Trạng thái `UNAVAILABLE` (máy chủ tắt, mất mạng, sai quyền) **chỉ nằm trong `health_state.json`** và cảnh báo giao diện — **không** tạo dòng trong `"SuCoSucKhoe"`.
 
+> **Bổ sung V17 (2026-11-16):** `V17__bo_sung_chi_muc.sql` chỉ thêm chỉ mục (`CREATE INDEX IF NOT EXISTS`) cho khóa ngoại và cột lọc của `SanPham`, `HoaDon`, `ChiTietHoaDon`, `PhieuTra`, `PhieuDoi`, `ChiTietPhieuTra`, `ChiTietPhieuDoi`, `KhachHang`, `SanPhamLoi`, `DongSanPham`. **Không** thêm/sửa bảng, cột, kiểu dữ liệu hay ràng buộc; không ảnh hưởng `RB01`–`RB66`.
+
 ### 6.2. `ChiTietHoaDon` — cấu trúc và snapshot
 
 | Cột | Kiểu | Ràng buộc V1 |
