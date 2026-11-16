@@ -33,6 +33,19 @@ import org.junit.jupiter.api.Test;
 /** Kiểm thử UC008: thêm máy mới và đồng bộ tồn kho. */
 class SanPhamControllerTest {
 
+  @org.junit.jupiter.api.BeforeEach
+  void datPhienKiemThu() {
+    com.dtaq.retail.session.CurrentSession.set(new com.dtaq.retail.entity.NhanVien(
+        "NV-TEST-PHIEN", "Nguyễn Kiểm Thử", "0900000009", null,
+        java.time.LocalDate.of(2026, 1, 1), "kiemthu.phien", "matkhau-test",
+        com.dtaq.retail.entity.LoaiQuyen.NHAN_VIEN_BAN_HANG, true));
+  }
+
+  @org.junit.jupiter.api.AfterEach
+  void xoaPhienKiemThu() {
+    com.dtaq.retail.session.CurrentSession.clear();
+  }
+
   private final List<String> serialsCanXoa = new ArrayList<>();
   private final List<String> dongCanReset = new ArrayList<>();
   private final List<Integer> tonCu = new ArrayList<>();
@@ -67,6 +80,21 @@ class SanPhamControllerTest {
     serialsCanXoa.clear();
     dongCanReset.clear();
     tonCu.clear();
+  }
+
+
+  @Test
+  @DisplayName("Giá nhập có phần thập phân bị từ chối (C-11)")
+  void themMay_giaNhapLeBiTuChoi() {
+    SanPhamController controller = new SanPhamController(
+        new SanPhamImpl(ConnectDB.getDataSource()), new DongSanPhamImpl(ConnectDB.getDataSource()),
+        new NhaCungCapImpl(ConnectDB.getDataSource()), ConnectDB.getDataSource());
+
+    SanPhamController.KetQua<SanPham> ketQua = controller.themMay(
+        "UC008-GIALE", "NCC", "DSP", new BigDecimal("1000.5"), LocalDate.now(),
+        TrangThaiSanPham.SAN_SANG_BAN);
+
+    assertTrue(!ketQua.thanhCong() && ketQua.thongBao().contains("số nguyên"), ketQua.thongBao());
   }
 
   @Test
@@ -326,5 +354,41 @@ class SanPhamControllerTest {
     serialsCanXoa.add(serial);
     dongCanReset.add(dong.maDongSP());
     tonCu.add(dongSanPhamDao.findById(dong.maDongSP()).orElseThrow().soLuongTon() - 1);
+  }
+
+
+  @Test
+  @DisplayName("Không đổi được trạng thái máy bằng màn cập nhật (XBR-04)")
+  void capNhatMay_khongDoiDuocTrangThai() {
+    Assumptions.assumeTrue(ConnectDB.isAvailable(), "Cơ sở dữ liệu không khả dụng");
+
+    SanPhamDao sanPhamDao = new SanPhamImpl(ConnectDB.getDataSource());
+    DongSanPhamDao dongSanPhamDao = new DongSanPhamImpl(ConnectDB.getDataSource());
+    NhaCungCapDao nhaCungCapDao = new NhaCungCapImpl(ConnectDB.getDataSource());
+    SanPhamController controller = new SanPhamController(
+        sanPhamDao, dongSanPhamDao, nhaCungCapDao, ConnectDB.getDataSource());
+    DongSanPham dong = dongSanPhamDao.findAll().stream()
+        .filter(DongSanPham::trangThaiKinhDoanh)
+        .findFirst()
+        .orElseThrow();
+    NhaCungCap nhaCungCap = nhaCungCapDao.findAll().stream().findFirst().orElseThrow();
+    int tonBanDau = dongSanPhamDao.findById(dong.maDongSP()).orElseThrow().soLuongTon();
+
+    String serial = "UC008-KHOATT-" + System.nanoTime();
+    SanPhamController.KetQua<SanPham> taoMoi = controller.themMay(
+        serial, nhaCungCap.maNCC(), dong.maDongSP(), new BigDecimal("1000000"),
+        LocalDate.now(), TrangThaiSanPham.SAN_SANG_BAN);
+    assertTrue(taoMoi.thanhCong(), taoMoi.thongBao());
+    serialsCanXoa.add(serial);
+    dongCanReset.add(dong.maDongSP());
+    tonCu.add(tonBanDau);
+
+    SanPhamController.KetQua<SanPham> ketQua = controller.capNhat(
+        serial, nhaCungCap.maNCC(), dong.maDongSP(), new BigDecimal("1000000"),
+        LocalDate.now(), TrangThaiSanPham.DA_BAN);
+
+    assertTrue(!ketQua.thanhCong(), "Đổi trạng thái qua cập nhật phải bị từ chối");
+    assertEquals(
+        TrangThaiSanPham.SAN_SANG_BAN, sanPhamDao.findById(serial).orElseThrow().trangThai());
   }
 }

@@ -38,6 +38,16 @@ public interface DanhMucSanPhamDao {
   void insert(DanhMucSanPham danhMuc);
 
   /**
+   * Thêm danh mục trên kết nối của bên gọi, để việc sinh mã và ghi nằm trong cùng một giao dịch.
+   *
+   * @param ketNoi kết nối đang mở giao dịch của bên gọi
+   * @param danhMuc danh mục sản phẩm cần thêm
+   */
+  default void insert(java.sql.Connection ketNoi, DanhMucSanPham danhMuc) {
+    insert(danhMuc);
+  }
+
+  /**
    * Cập nhật thông tin tên và mô tả của danh mục sản phẩm.
    *
    * @param danhMuc danh mục sản phẩm chứa thông tin cập nhật

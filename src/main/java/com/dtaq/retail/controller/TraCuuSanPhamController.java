@@ -6,6 +6,7 @@ import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.SanPham;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -71,12 +72,7 @@ public final class TraCuuSanPhamController {
 
   private List<KetQuaDong> timTheoDongSanPham(String keyword) {
     List<DongSanPham> danhSachDong = dongSanPhamDao.search(keyword);
-    List<KetQuaDong> ketQua = new ArrayList<>();
-    for (DongSanPham dong : danhSachDong) {
-      List<SanPham> may = sanPhamDao.findByDong(dong.maDongSP());
-      ketQua.add(toKetQuaDong(dong, may));
-    }
-    return ketQua;
+    return ghepMay(danhSachDong);
   }
 
   private List<KetQuaDong> timTheoDanhMuc(String keyword) {
@@ -102,9 +98,16 @@ public final class TraCuuSanPhamController {
           return tenDanhMuc != null && tenDanhMuc.toLowerCase().contains(lower);
         })
         .toList();
+    return ghepMay(danhSachDong);
+  }
+
+  /** Một truy vấn cho máy của mọi dòng khớp, thay vì một truy vấn cho từng dòng. */
+  private List<KetQuaDong> ghepMay(List<DongSanPham> danhSachDong) {
+    Map<String, List<SanPham>> mayTheoDong = sanPhamDao.findByDongIn(
+        danhSachDong.stream().map(DongSanPham::maDongSP).toList());
     List<KetQuaDong> ketQua = new ArrayList<>();
     for (DongSanPham dong : danhSachDong) {
-      ketQua.add(toKetQuaDong(dong, sanPhamDao.findByDong(dong.maDongSP())));
+      ketQua.add(toKetQuaDong(dong, mayTheoDong.getOrDefault(dong.maDongSP(), List.of())));
     }
     return ketQua;
   }

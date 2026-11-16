@@ -9,6 +9,7 @@ import com.dtaq.retail.dao.KhachHangGiaoDichDao.LoaiPhieu;
 import com.dtaq.retail.dao.KhachHangGiaoDichDao.PhieuTomTat;
 import com.dtaq.retail.entity.KhachHang;
 import com.dtaq.retail.entity.LoaiQuyen;
+import com.dtaq.retail.entity.TrangThaiDuyet;
 import com.dtaq.retail.entity.TrangThaiXuLyPhieu;
 import com.dtaq.retail.exception.DataAccessException;
 import com.dtaq.retail.session.CurrentSession;
@@ -91,6 +92,18 @@ public final class TraCuuKhachHangController {
    */
   public static TongQuanKhach tongQuan(
       List<HoaDonTomTat> hoaDons, List<PhieuTomTat> phieus, LocalDate homNay) {
+    return tongQuan(hoaDons, phieus, homNay, BigDecimal.ZERO);
+  }
+
+  /**
+   * Tóm tắt hành vi mua của khách, tổng chi tiêu đã trừ số tiền cửa hàng hoàn cho khách.
+   *
+   * @param daHoanTra tổng tiền đã hoàn qua các phiếu trả hoàn tất; {@code null} coi như 0
+   * @see #tongQuan(List, List, LocalDate)
+   */
+  public static TongQuanKhach tongQuan(
+      List<HoaDonTomTat> hoaDons, List<PhieuTomTat> phieus, LocalDate homNay,
+      BigDecimal daHoanTra) {
     List<HoaDonTomTat> daTra = hoaDons.stream().filter(HoaDonTomTat::daThanhToan).toList();
     BigDecimal tong = daTra.stream().map(HoaDonTomTat::tongThanhToan)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -100,9 +113,14 @@ public final class TraCuuKhachHangController {
     LocalDate ganNhat = daTra.stream().map(HoaDonTomTat::ngayLap).max(LocalDate::compareTo).orElse(null);
     LocalDate dauTien = daTra.stream().map(HoaDonTomTat::ngayLap).min(LocalDate::compareTo).orElse(null);
     Long soNgay = ganNhat == null ? null : ChronoUnit.DAYS.between(ganNhat, homNay);
-    long phieuMo = phieus.stream().filter(p -> p.trangThaiXuLy() == TrangThaiXuLyPhieu.NHAP
-        || p.trangThaiXuLy() == TrangThaiXuLyPhieu.CHO_XU_LY).count();
-    return new TongQuanKhach(daTra.size(), tong, trungBinh, soMay, ganNhat, dauTien, soNgay,
+    // Phiếu bị từ chối không bao giờ hoàn tất được (RB56) nên không còn là phiếu đang mở.
+    long phieuMo = phieus.stream()
+        .filter(p -> p.trangThaiDuyet() != TrangThaiDuyet.TU_CHOI)
+        .filter(p -> p.trangThaiXuLy() == TrangThaiXuLyPhieu.NHAP
+            || p.trangThaiXuLy() == TrangThaiXuLyPhieu.CHO_XU_LY).count();
+    BigDecimal chiTieuRong =
+        tong.subtract(daHoanTra == null ? BigDecimal.ZERO : daHoanTra).max(BigDecimal.ZERO);
+    return new TongQuanKhach(daTra.size(), chiTieuRong, trungBinh, soMay, ganNhat, dauTien, soNgay,
         phieus.size(), (int) phieuMo);
   }
 
@@ -152,6 +170,17 @@ public final class TraCuuKhachHangController {
    * @param maKH mã khách hàng
    * @return danh sách phiếu, có thể rỗng
    */
+  /**
+   * Tổng tiền cửa hàng đã hoàn cho khách qua các phiếu trả đã hoàn tất.
+   *
+   * @param maKH mã khách hàng
+   * @return tổng tiền đã hoàn; 0 nếu chưa có
+   */
+  public BigDecimal tongHoanTra(String maKH) {
+    yeuCauNhanVienBanHang();
+    return giaoDichDao.tongHoanTra(maKH);
+  }
+
   public List<PhieuTomTat> phieuDoiTra(String maKH) {
     yeuCauNhanVienBanHang();
     return giaoDichDao.phieuCuaKhach(maKH);

@@ -1,6 +1,7 @@
 package com.dtaq.retail.controller;
 
 import com.dtaq.retail.dao.ChiTietHoaDonDao;
+import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.dao.HoaDonDao;
 import com.dtaq.retail.dao.HoaDonTamDao;
 import com.dtaq.retail.dao.KhuyenMaiDao;
@@ -10,6 +11,7 @@ import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.HoaDon;
 import com.dtaq.retail.entity.KhachHang;
 import com.dtaq.retail.entity.KhuyenMai;
+import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.entity.NhanVien;
 import com.dtaq.retail.entity.SanPham;
 import com.dtaq.retail.entity.TrangThaiSanPham;
@@ -22,14 +24,17 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import javax.sql.DataSource;
 
 /**
@@ -55,6 +60,7 @@ public final class BanHangController {
   private static final BigDecimal KHONG = BigDecimal.ZERO.setScale(0);
   private static final BigDecimal TRAM = BigDecimal.valueOf(100);
   private static final int SO_KET_QUA_TOI_DA = 20;
+  private static final long KHONG_DOI_CHIEU = -1L;
 
   private final SanPhamDao sanPhamDao;
   private final HoaDonTamDao hoaDonTamDao;
@@ -63,6 +69,8 @@ public final class BanHangController {
   private final ChiTietHoaDonDao chiTietHoaDonDao;
   private final DataSource dataSource;
   private final Clock clock;
+  /** Có giá trị thì màn bán hàng đọc theo dòng sản phẩm thay vì nạp toàn bộ bảng máy. */
+  private final DongSanPhamDao dongSanPhamDao;
   private final LinkedHashMap<String, Integer> soLuongTheoDong = new LinkedHashMap<>();
   private String maTamHienTai;
 
@@ -104,6 +112,28 @@ public final class BanHangController {
       HoaDonTamDao hoaDonTamDao,
       DataSource dataSource,
       Clock clock) {
+    this(sanPhamDao, null, khuyenMaiDao, hoaDonDao, chiTietHoaDonDao, hoaDonTamDao, dataSource,
+        clock);
+  }
+
+  /**
+   * Khởi tạo bộ điều khiển đọc dòng sản phẩm trực tiếp từ {@link DongSanPhamDao}.
+   *
+   * <p>Tồn kho lấy từ {@code DongSanPham.soLuongTon} và máy cụ thể được chọn, khóa ngay trong giao
+   * dịch thanh toán, nên không còn nạp toàn bộ bảng máy cho mỗi thao tác trên giỏ hàng.
+   *
+   * @param dongSanPhamDao lớp truy cập dòng sản phẩm; {@code null} thì dùng cách đọc qua bảng máy
+   */
+  public BanHangController(
+      SanPhamDao sanPhamDao,
+      DongSanPhamDao dongSanPhamDao,
+      KhuyenMaiDao khuyenMaiDao,
+      HoaDonDao hoaDonDao,
+      ChiTietHoaDonDao chiTietHoaDonDao,
+      HoaDonTamDao hoaDonTamDao,
+      DataSource dataSource,
+      Clock clock) {
+    this.dongSanPhamDao = dongSanPhamDao;
     this.sanPhamDao = Objects.requireNonNull(sanPhamDao, "sanPhamDao");
     this.hoaDonTamDao = Objects.requireNonNull(hoaDonTamDao, "hoaDonTamDao");
     this.khuyenMaiDao = khuyenMaiDao;
@@ -179,6 +209,11 @@ public final class BanHangController {
     if (tuKhoa == null || tuKhoa.isBlank()) {
       return List.of();
     }
+    if (dongSanPhamDao != null) {
+      return dongSanPhamDao.timDangBan(tuKhoa, SO_KET_QUA_TOI_DA).stream()
+          .map(BanHangController::dongBan)
+          .toList();
+    }
     String khoa = tuKhoa.trim().toLowerCase(Locale.ROOT);
     return docDongSanPham(docMay()).values().stream()
         .filter(dong -> dong.tonKho() > 0)
@@ -202,7 +237,8 @@ public final class BanHangController {
     if (soLuong <= 0) {
       throw new IllegalArgumentException("Số lượng phải lớn hơn 0");
     }
-    Map<String, DongBan> dongSanPham = docDongSanPham(docMay());
+    Map<String, DongBan> dongSanPham =
+        docDong(maDongSP == null ? List.of() : List.of(maDongSP));
     DongBan dong = maDongSP == null ? null : dongSanPham.get(maDongSP);
     if (dong == null) {
       return new KetQuaDoiDong(
@@ -237,7 +273,7 @@ public final class BanHangController {
     if (soLuong < 1) {
       return new KetQuaDoiDong(false, "Số lượng tối thiểu là 1", hoaDonHienTai());
     }
-    Map<String, DongBan> dongSanPham = docDongSanPham(docMay());
+    Map<String, DongBan> dongSanPham = docDong(List.of());
     DongBan dong = dongSanPham.get(maDongSP);
     if (dong == null) {
       return new KetQuaDoiDong(
@@ -278,14 +314,16 @@ public final class BanHangController {
    * @throws DataAccessException nếu truy vấn khuyến mãi thất bại
    */
   public HoaDonTinh hoaDonHienTai() {
-    return tinhHoaDon(docMay());
-  }
-
-  private HoaDonTinh tinhHoaDon(List<SanPham> may) {
     if (soLuongTheoDong.isEmpty()) {
       return HoaDonTinh.rong();
     }
-    Map<String, DongBan> dongSanPham = docDongSanPham(may);
+    return tinhHoaDon(docDong(List.of()));
+  }
+
+  private HoaDonTinh tinhHoaDon(Map<String, DongBan> dongSanPham) {
+    if (soLuongTheoDong.isEmpty()) {
+      return HoaDonTinh.rong();
+    }
     List<DongGio> dongHang = new ArrayList<>(soLuongTheoDong.size());
     BigDecimal tongTruocThue = KHONG;
     BigDecimal tongKhuyenMai = KHONG;
@@ -408,6 +446,21 @@ public final class BanHangController {
    * @throws DataAccessException nếu ghi cơ sở dữ liệu thất bại
    */
   public KetQuaThanhToan thanhToan(NhanVien nhanVien, KhachHang khachHang, long tienKhachDua) {
+    return thanhToan(nhanVien, khachHang, tienKhachDua, KHONG_DOI_CHIEU);
+  }
+
+  /**
+   * Thanh toán và đối chiếu tổng tiền với số đang hiển thị cho thu ngân.
+   *
+   * <p>Giá, thuế và khuyến mãi được tính lại tại thời điểm thanh toán. Nếu tổng tính lại khác {@code
+   * tongDangHienThi} (Quản lý vừa đổi giá, khuyến mãi vừa hết hạn) thì không ghi gì và trả về thất
+   * bại kèm tổng mới, để thu ngân không thu một số tiền khác số trên màn hình.
+   *
+   * @param tongDangHienThi tổng thanh toán đang hiển thị, đơn vị VND
+   * @see #thanhToan(NhanVien, KhachHang, long)
+   */
+  public KetQuaThanhToan thanhToan(
+      NhanVien nhanVien, KhachHang khachHang, long tienKhachDua, long tongDangHienThi) {
     if (khuyenMaiDao == null || hoaDonDao == null || chiTietHoaDonDao == null
         || dataSource == null) {
       throw new IllegalStateException("Chưa cấu hình thanh toán");
@@ -418,17 +471,29 @@ public final class BanHangController {
     if (khachHang == null) {
       return thatBai("Vui lòng chọn khách hàng");
     }
-    List<SanPham> may = docMay();
-    HoaDonTinh hoaDon = tinhHoaDon(may);
+    // XBR-13: kiểm người lập tại nơi xử lý nghiệp vụ, không chỉ dựa vào menu.
+    if (nhanVien == null || !nhanVien.trangThaiHoatDong()
+        || nhanVien.loaiQuyen() != LoaiQuyen.NHAN_VIEN_BAN_HANG) {
+      return thatBai("Chỉ Nhân viên bán hàng đang hoạt động được lập hóa đơn");
+    }
+    boolean chonTrongGiaoDich = dongSanPhamDao != null;
+    List<SanPham> may = chonTrongGiaoDich ? List.of() : docMay();
+    HoaDonTinh hoaDon =
+        tinhHoaDon(chonTrongGiaoDich ? docDong(List.of()) : docDongSanPham(may));
     if (hoaDon.dongHang().isEmpty()) {
       return thatBai("Hóa đơn chưa có sản phẩm");
     }
     long tongThanhToan = hoaDon.tongThanhToan().longValue();
+    if (tongDangHienThi != KHONG_DOI_CHIEU && tongDangHienThi != tongThanhToan) {
+      return thatBai("Giá hoặc khuyến mãi vừa thay đổi. Tổng mới: "
+          + TienUtil.dinhDang(tongThanhToan) + ". Vui lòng kiểm tra lại rồi thanh toán");
+    }
     if (tienKhachDua < tongThanhToan) {
       return thatBai("Số tiền khách đưa chưa đủ");
     }
-    KetQuaPhanBo phanBo = phanBoMay(may);
-    if (!phanBo.dongThieu().isEmpty()) {
+    // Có DongSanPhamDao: máy được chọn và khóa trong giao dịch ghi hóa đơn (xem ghiHoaDon).
+    KetQuaPhanBo phanBo = chonTrongGiaoDich ? null : phanBoMay(may);
+    if (phanBo != null && !phanBo.dongThieu().isEmpty()) {
       return thatBai(
           "Dòng sản phẩm " + phanBo.dongThieu().getFirst() + " không đủ máy để bán");
     }
@@ -491,12 +556,32 @@ public final class BanHangController {
         HoaDon hoaDon = new HoaDon(
             maHD, LocalDate.now(dongHo()), nhanVien, khachHang, true);
         hoaDonDao.insert(ketNoi, hoaDon);
-        for (MayDuocChon chon : phanBo.mayDuocChon()) {
-          SanPham sanPham = mayTheoSerial.get(chon.soSerial());
-          DongGio dong = dongTheoMa.get(chon.maDongSP());
-          if (sanPham == null || dong == null) {
+        List<SanPham> mayBan = new ArrayList<>();
+        if (phanBo == null) {
+          for (Map.Entry<String, Integer> entry : soLuongTheoDong.entrySet()) {
+            List<SanPham> chon =
+                sanPhamDao.chonMayDeBan(ketNoi, entry.getKey(), entry.getValue());
+            if (chon.size() < entry.getValue()) {
+              throw new MayVuaBanException(
+                  "Dòng sản phẩm " + entry.getKey() + " không đủ máy để bán");
+            }
+            mayBan.addAll(chon);
+          }
+        } else {
+          for (MayDuocChon chon : phanBo.mayDuocChon()) {
+            SanPham sanPham = mayTheoSerial.get(chon.soSerial());
+            if (sanPham == null) {
+              throw new IllegalStateException(
+                  "Máy " + chon.soSerial() + " không còn trong kho");
+            }
+            mayBan.add(sanPham);
+          }
+        }
+        for (SanPham sanPham : mayBan) {
+          DongGio dong = dongTheoMa.get(sanPham.dongSanPham().maDongSP());
+          if (dong == null) {
             throw new IllegalStateException(
-                "Máy " + chon.soSerial() + " không còn trong kho");
+                "Máy " + sanPham.soSerial() + " không còn trong kho");
           }
           DongTinh tien =
               tinhDong(dong.donGiaTruocThue(), dong.thueSuat(), 1, dong.tyLeGiam());
@@ -513,9 +598,10 @@ public final class BanHangController {
               tien.tienSauKhuyenMai(),
               tien.tienThue());
           chiTietHoaDonDao.insert(ketNoi, chiTiet);
-          if (!sanPhamDao.danhDauDaBan(ketNoi, chon.soSerial())) {
+          if (!sanPhamDao.danhDauDaBan(ketNoi, sanPham.soSerial())) {
             throw new MayVuaBanException(
-                "Máy " + chon.soSerial() + " vừa được bán, vui lòng chọn lại");
+                "Máy " + sanPham.soSerial()
+                    + " vừa được bán ở quầy khác, vui lòng bấm Thanh toán lại");
           }
           daGhi.add(chiTiet);
         }
@@ -577,7 +663,7 @@ public final class BanHangController {
    */
   public HoaDonTamDao.HoaDonTam luuBanTam(
       String maNV, String tenNhanVien, KhachHang khachHang) {
-    Map<String, DongBan> dongSanPham = docDongSanPham(docMay());
+    Map<String, DongBan> dongSanPham = docDong(List.of());
     List<HoaDonTamDao.DongTam> dongHang = new ArrayList<>(soLuongTheoDong.size());
     for (Map.Entry<String, Integer> entry : soLuongTheoDong.entrySet()) {
       DongBan dong = dongSanPham.get(entry.getKey());
@@ -640,10 +726,13 @@ public final class BanHangController {
     }
     HoaDonTamDao.HoaDonTam banTam = timThay.get();
     soLuongTheoDong.clear();
-    Map<String, DongBan> dongSanPham = docDongSanPham(docMay());
     List<String> dongDaDieuChinh = new ArrayList<>();
     List<HoaDonTamDao.DongTam> dongHang =
         banTam.dongHang() == null ? List.of() : banTam.dongHang();
+    Map<String, DongBan> dongSanPham = docDong(dongHang.stream()
+        .map(HoaDonTamDao.DongTam::maDongSP)
+        .filter(Objects::nonNull)
+        .toList());
     for (HoaDonTamDao.DongTam dong : dongHang) {
       DongBan thongTin = dong.maDongSP() == null ? null : dongSanPham.get(dong.maDongSP());
       if (thongTin == null || thongTin.tonKho() == 0) {
@@ -668,6 +757,36 @@ public final class BanHangController {
    */
   public void xoaBanTam(String maTam) {
     hoaDonTamDao.xoa(maTam);
+  }
+
+  /**
+   * Đọc các dòng còn kinh doanh của giỏ hàng cùng các mã bổ sung.
+   *
+   * <p>Có {@link DongSanPhamDao} thì đọc đúng các dòng cần dùng trong một truy vấn, tồn kho là
+   * {@code soLuongTon}; không có thì gom từ toàn bộ bảng máy như trước.
+   */
+  private Map<String, DongBan> docDong(Collection<String> maBoSung) {
+    if (dongSanPhamDao == null) {
+      return docDongSanPham(docMay());
+    }
+    Set<String> ma = new LinkedHashSet<>(soLuongTheoDong.keySet());
+    ma.addAll(maBoSung);
+    Map<String, DongBan> ketQua = new LinkedHashMap<>();
+    if (ma.isEmpty()) {
+      return ketQua;
+    }
+    for (DongSanPham dong : dongSanPhamDao.findByMaIn(ma)) {
+      if (dong.trangThaiKinhDoanh()) {
+        ketQua.put(dong.maDongSP(), dongBan(dong));
+      }
+    }
+    return ketQua;
+  }
+
+  private static DongBan dongBan(DongSanPham dong) {
+    return new DongBan(
+        dong.maDongSP(), dong.tenDongSP(), dong.soLuongTon(),
+        dong.donGiaBanTruocThue(), dong.thue());
   }
 
   private List<SanPham> docMay() {

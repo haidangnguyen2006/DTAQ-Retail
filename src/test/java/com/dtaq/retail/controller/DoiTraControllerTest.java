@@ -289,6 +289,30 @@ class DoiTraControllerTest {
   }
 
   @Test
+  @DisplayName("Giá trị máy thay thế tính theo khuyến mãi đang hiệu lực (XBR-03)")
+  void doiMayApKhuyenMaiHienHanhChoMayThayThe() {
+    com.dtaq.retail.entity.KhuyenMai giam99 = new com.dtaq.retail.entity.KhuyenMai(
+        "KM-2026-000099", "Giảm thử", HOM_NAY, HOM_NAY, new BigDecimal("99"), null,
+        java.util.List.of(), true);
+    com.dtaq.retail.dao.KhuyenMaiDao khuyenMaiDao =
+        (com.dtaq.retail.dao.KhuyenMaiDao) java.lang.reflect.Proxy.newProxyInstance(
+            getClass().getClassLoader(),
+            new Class<?>[] {com.dtaq.retail.dao.KhuyenMaiDao.class},
+            (proxy, method, args) -> method.getName().equals("findHieuLuc")
+                ? Optional.of(giam99) : null);
+    DoiTraController coKhuyenMai = new DoiTraController(
+        phieuTraDao, phieuDoiDao, sanPhamLoiDao, hoaDonDao, chiTietHoaDonDao, sanPhamDao,
+        dongSanPhamDao, khuyenMaiDao, dataSource, 0, DONG_HO);
+
+    assertFalse(controller.tinhPhieu(yeuCauDoi(SERIAL_THAY_THE)).hopLe(),
+        "Theo giá niêm yết máy thay thế đắt hơn máy trả");
+    KetQuaTinh tinh = coKhuyenMai.tinhPhieu(yeuCauDoi(SERIAL_THAY_THE));
+
+    assertTrue(tinh.hopLe(), tinh.thongBao());
+    assertTrue(tinh.chenhLech().signum() <= 0);
+  }
+
+  @Test
   @DisplayName("Đổi sang máy đắt hơn bị từ chối, không hoàn tiền (D17)")
   void doiMayGiaTriCaoHonBiTuChoi() {
     KetQuaTinh tinh = controller.tinhPhieu(yeuCauDoi(SERIAL_THAY_THE));

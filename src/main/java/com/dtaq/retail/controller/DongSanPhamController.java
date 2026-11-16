@@ -4,7 +4,9 @@ import com.dtaq.retail.dao.DanhMucSanPhamDao;
 import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.entity.DanhMucSanPham;
 import com.dtaq.retail.entity.DongSanPham;
+import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.exception.DataAccessException;
+import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.util.ExcelImporter;
 import com.dtaq.retail.util.ExcelTemplate;
 import com.dtaq.retail.util.MaGenerator;
@@ -63,6 +65,7 @@ public final class DongSanPhamController {
       BigDecimal donGiaBanTruocThue,
       BigDecimal thue,
       boolean trangThaiKinhDoanh) {
+    CurrentSession.yeuCauDangHoatDong();
     String ten = normalizeText(tenDongSP);
     String dv = normalizeDonViTinh(donViTinh);
     if (ten.isEmpty()) {
@@ -81,28 +84,23 @@ public final class DongSanPhamController {
     if (donGiaBanTruocThue == null || donGiaBanTruocThue.compareTo(BigDecimal.ZERO) < 0) {
       return KetQua.loi("Giá bán trước thuế không hợp lệ");
     }
+    if (coPhanLe(donGiaBanTruocThue)) {
+      return KetQua.loi(LOI_GIA_LE);
+    }
     if (thue == null || thue.compareTo(BigDecimal.ZERO) < 0 || thue.compareTo(BigDecimal.valueOf(100)) > 0) {
       return KetQua.loi("Thuế suất không hợp lệ, phải nằm trong khoảng 0% đến 100%");
     }
 
     try {
-      String maDong = sinhMaDongMoi();
-      DongSanPham dongSanPham = new DongSanPham(
-          maDong,
-          ten,
-          danhMuc.get(),
-          dv,
-          0,
-          thue,
-          donGiaBanTruocThue,
-          trangThaiKinhDoanh,
-          LocalDate.now(),
-          LocalDate.now());
-
+      DongSanPham dongSanPham;
       if (dataSource != null) {
         try (Connection connection = dataSource.getConnection()) {
           connection.setAutoCommit(false);
           try {
+            // Sinh mã trong cùng giao dịch với INSERT để khóa của MaGenerator có hiệu lực.
+            dongSanPham = taoDongMoi(
+                MaGenerator.next(connection, "DongSanPham", "maDongSP", "DSP"),
+                ten, danhMuc.get(), dv, thue, donGiaBanTruocThue, trangThaiKinhDoanh);
             dongSanPhamDao.insert(connection, dongSanPham);
             connection.commit();
           } catch (Exception ex) {
@@ -113,12 +111,14 @@ public final class DongSanPhamController {
           }
         }
       } else {
+        dongSanPham = taoDongMoi(
+            sinhMaDongMoi(), ten, danhMuc.get(), dv, thue, donGiaBanTruocThue, trangThaiKinhDoanh);
         dongSanPhamDao.insert(null, dongSanPham);
       }
       return KetQua.thanhCong(dongSanPham, "Thêm dòng sản phẩm thành công");
     } catch (Exception e) {
       log.warn("Không thể thêm dòng sản phẩm mới: {}", e.getMessage(), e);
-      return KetQua.loi(e.getMessage() == null ? "Không thể thêm dòng sản phẩm" : e.getMessage());
+      return KetQua.loi(DataAccessException.thongBao(e, "Không thể thêm dòng sản phẩm"));
     }
   }
 
@@ -149,6 +149,7 @@ public final class DongSanPhamController {
       BigDecimal donGiaBanTruocThue,
       BigDecimal thue,
       boolean trangThaiKinhDoanh) {
+    CurrentSession.yeuCauDangHoatDong();
     if (maDongSP == null || maDongSP.isBlank()) {
       return KetQua.loi("Mã dòng sản phẩm không được để trống");
     }
@@ -168,6 +169,9 @@ public final class DongSanPhamController {
     if (donGiaBanTruocThue == null || donGiaBanTruocThue.compareTo(BigDecimal.ZERO) < 0) {
       return KetQua.loi("Giá bán trước thuế không hợp lệ");
     }
+    if (coPhanLe(donGiaBanTruocThue)) {
+      return KetQua.loi(LOI_GIA_LE);
+    }
     if (thue == null || thue.compareTo(BigDecimal.ZERO) < 0 || thue.compareTo(BigDecimal.valueOf(100)) > 0) {
       return KetQua.loi("Thuế suất không hợp lệ, phải nằm trong khoảng 0% đến 100%");
     }
@@ -176,6 +180,13 @@ public final class DongSanPhamController {
       return KetQua.loi("Danh mục sản phẩm không tồn tại");
     }
 
+    // C-08: chỉ Quản lý được đổi giá bán và thuế suất; vai trò khác chỉ sửa các trường còn lại.
+    boolean doiGiaThue = dongCu.donGiaBanTruocThue() == null || dongCu.thue() == null
+        || dongCu.donGiaBanTruocThue().compareTo(donGiaBanTruocThue) != 0
+        || dongCu.thue().compareTo(thue) != 0;
+    if (doiGiaThue && !laQuanLy()) {
+      return KetQua.loi("Giá bán và thuế suất chỉ Quản lý được thay đổi");
+    }
     DongSanPham capNhat = new DongSanPham(
         maDongSP.trim(),
         ten,
@@ -192,7 +203,7 @@ public final class DongSanPhamController {
       return KetQua.thanhCong(capNhat, "Cập nhật dòng sản phẩm thành công");
     } catch (Exception e) {
       log.warn("Không thể cập nhật dòng sản phẩm {}: {}", maDongSP, e.getMessage(), e);
-      return KetQua.loi(e.getMessage() == null ? "Không thể cập nhật dòng sản phẩm" : e.getMessage());
+      return KetQua.loi(DataAccessException.thongBao(e, "Không thể cập nhật dòng sản phẩm"));
     }
   }
 
@@ -221,6 +232,7 @@ public final class DongSanPhamController {
   }
 
   private KetQua<DongSanPham> datTrangThaiKinhDoanh(String maDongSP, boolean trangThai) {
+    CurrentSession.yeuCauDangHoatDong();
     if (maDongSP == null || maDongSP.isBlank()) {
       return KetQua.loi("Mã dòng sản phẩm không được để trống");
     }
@@ -271,6 +283,7 @@ public final class DongSanPhamController {
   }
 
   public KetQua<NhapKetQua> nhapDanhSach(File tep) {
+    CurrentSession.yeuCauDangHoatDong();
     if (tep == null || !tep.isFile()) {
       return KetQua.loi("Tệp nhập không tồn tại");
     }
@@ -312,6 +325,9 @@ public final class DongSanPhamController {
           if (giaBan == null || giaBan.compareTo(BigDecimal.ZERO) < 0) {
             throw new DataAccessException("Giá bán trước thuế không hợp lệ");
           }
+          if (coPhanLe(giaBan)) {
+            throw new DataAccessException(LOI_GIA_LE + ": " + ten);
+          }
           if (thue == null || thue.compareTo(BigDecimal.ZERO) < 0 || thue.compareTo(BigDecimal.valueOf(100)) > 0) {
             throw new DataAccessException("Thuế suất không hợp lệ, phải nằm trong khoảng 0% đến 100%");
           }
@@ -341,8 +357,29 @@ public final class DongSanPhamController {
       }
     } catch (Exception e) {
       log.warn("Không thể nhập danh sách dòng sản phẩm từ Excel: {}", e.getMessage(), e);
-      return KetQua.loi(e.getMessage() == null ? "Không thể nhập danh sách dòng sản phẩm" : e.getMessage());
+      return KetQua.loi(DataAccessException.thongBao(e, "Không thể nhập danh sách dòng sản phẩm"));
     }
+  }
+
+  private static final String LOI_GIA_LE = "Giá bán trước thuế phải là số nguyên (VND)";
+
+  /** C-11: tiền VND không có phần thập phân; giá lẻ làm hỏng màn bán hàng và ô nhập tiền. */
+  static boolean coPhanLe(BigDecimal soTien) {
+    return soTien.stripTrailingZeros().scale() > 0;
+  }
+
+  private static boolean laQuanLy() {
+    return CurrentSession.get()
+        .map(nhanVien -> nhanVien.loaiQuyen() == LoaiQuyen.NHAN_VIEN_QUAN_LY)
+        .orElse(false);
+  }
+
+  private static DongSanPham taoDongMoi(
+      String maDong, String ten, DanhMucSanPham danhMuc, String donViTinh, BigDecimal thue,
+      BigDecimal donGia, boolean trangThaiKinhDoanh) {
+    return new DongSanPham(
+        maDong, ten, danhMuc, donViTinh, 0, thue, donGia, trangThaiKinhDoanh,
+        LocalDate.now(), LocalDate.now());
   }
 
   private String sinhMaDongMoi() {

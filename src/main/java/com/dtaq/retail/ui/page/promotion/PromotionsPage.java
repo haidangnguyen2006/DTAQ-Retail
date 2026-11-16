@@ -203,7 +203,7 @@ public final class PromotionsPage implements Page {
           addButton.setEnabled(laQuanLy && !productLines.isEmpty());
           renderFilteredList();
         } catch (Exception e) {
-          tableState.showError("Không thể tải danh sách khuyến mãi: " + e.getMessage());
+          tableState.showError("Không thể tải danh sách khuyến mãi. Vui lòng thử lại.");
         }
       }
     }.execute();
@@ -421,7 +421,7 @@ public final class PromotionsPage implements Page {
           Toast.show(view, result.thongBao(), result.thanhCong() ? Toast.Kind.SUCCESS : Toast.Kind.ERROR);
           if (result.thanhCong()) loadData();
         } catch (Exception e) {
-          Toast.show(view, "Không thể cập nhật trạng thái: " + e.getMessage(), Toast.Kind.ERROR);
+          Toast.show(view, "Không thể cập nhật trạng thái. Vui lòng thử lại.", Toast.Kind.ERROR);
         }
       }
     }.execute();

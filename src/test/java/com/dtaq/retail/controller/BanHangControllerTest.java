@@ -50,6 +50,27 @@ class BanHangControllerTest {
   private static final String DSP_2 = "DSP-2026-000002";
   private static final String DSP_3 = "DSP-2026-000003";
 
+
+  @Test
+  @DisplayName("thanhToan: tổng đang hiển thị khác tổng tính lại thì không ghi hóa đơn")
+  void thanhToanTongHienThiLechBiTuChoi() {
+    FakeSanPhamDao sanPhamDao = new FakeSanPhamDao();
+    DongSanPham mayGiat = dong(DSP_1, "Máy giặt", 1000000, "10", true);
+    sanPhamDao.them(may("SP-2026-000001", mayGiat, TrangThaiSanPham.SAN_SANG_BAN));
+    FakeHoaDonDao hoaDonDao = new FakeHoaDonDao();
+    BanHangController controller = controllerDayDu(sanPhamDao, new FakeKhuyenMaiDao(),
+        hoaDonDao, new FakeChiTietHoaDonDao());
+    controller.themDong(DSP_1, 1);
+
+    BanHangController.KetQuaThanhToan lech =
+        controller.thanhToan(nhanVien(), khachHang(), 5000000, 990000);
+
+    assertFalse(lech.thanhCong());
+    assertTrue(lech.thongBao().contains("1.100.000"), lech.thongBao());
+    assertEquals(0, hoaDonDao.soLanGoi());
+    assertTrue(controller.thanhToan(nhanVien(), khachHang(), 5000000, 1100000).thanhCong());
+  }
+
   @Test
   @DisplayName("timDongSanPham: tìm theo mã và tên, không phân biệt hoa thường, chỉ trả dòng còn kinh doanh")
   void timDongSanPhamTheoMaVaTen() {

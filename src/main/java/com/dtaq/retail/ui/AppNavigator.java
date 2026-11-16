@@ -350,7 +350,7 @@ public final class AppNavigator {
       long mayTonLau) {}
 
   /**
-   * Tải số liệu hôm nay của trang chủ Quản lý (phiếu chờ duyệt lập hôm nay, nhật ký hoạt động, cảnh
+   * Tải số liệu hôm nay của trang chủ Quản lý (mọi phiếu đang chờ duyệt, nhật ký hoạt động, cảnh
    * báo) ở luồng nền. Không để ngoại lệ thoát khỏi luồng nền.
    */
   private static void taiTrangChuQuanLy(
@@ -361,9 +361,8 @@ public final class AppNavigator {
     new SwingWorker<TrangChuQuanLy, Void>() {
       @Override
       protected TrangChuQuanLy doInBackground() {
-        List<PhieuDuyet> choDuyet = pheDuyet.danhSachChoDuyet().stream()
-            .filter(p -> homNay.equals(p.ngayTao()))
-            .toList();
+        // Mọi phiếu đang chờ, kể cả lập từ hôm trước: khách vẫn đang chờ hoàn tiền.
+        List<PhieuDuyet> choDuyet = pheDuyet.danhSachChoDuyet();
         return new TrangChuQuanLy(
             choDuyet,
             trangChuDao.tongQuanBanHang(homNay, null),
@@ -427,7 +426,7 @@ public final class AppNavigator {
     List<ManagerHomePage.AlertRow> rows = new ArrayList<>();
     if (!d.choDuyet().isEmpty()) {
       rows.add(new ManagerHomePage.AlertRow(
-          d.choDuyet().size() + " phiếu đổi/trả lập hôm nay đang chờ duyệt",
+          d.choDuyet().size() + " phiếu đổi/trả đang chờ duyệt",
           String.join(", ", d.choDuyet().stream().map(PhieuDuyet::maPhieu).toList())));
     }
     long saoLuuLoi = d.saoLuu().stream().filter(s -> !s.thanhCong()).count();
@@ -511,6 +510,7 @@ public final class AppNavigator {
     CustomerListPage customers = new CustomerListPage(khachHangController);
     BanHangController banHang = new BanHangController(
         sanPhamDao,
+        dongSanPhamDao,
         new KhuyenMaiDaoImpl(dataSource),
         new HoaDonDaoImpl(dataSource),
         new ChiTietHoaDonDaoImpl(dataSource),
@@ -546,6 +546,7 @@ public final class AppNavigator {
         new ChiTietHoaDonDaoImpl(dataSource),
         sanPhamDao,
         dongSanPhamDao,
+        new KhuyenMaiDaoImpl(dataSource),
         dataSource,
         ReturnConfig.soNgayDoiTra(),
         Clock.systemDefaultZone());

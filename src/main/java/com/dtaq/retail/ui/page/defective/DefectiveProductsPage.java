@@ -214,7 +214,7 @@ public class DefectiveProductsPage implements Page {
           }
           renderFilteredList();
         } catch (Exception e) {
-          tableState.showError("Không thể tải danh sách sản phẩm lỗi: " + e.getMessage());
+          tableState.showError("Không thể tải danh sách sản phẩm lỗi. Vui lòng thử lại.");
         }
       }
     }.execute();
@@ -370,7 +370,7 @@ public class DefectiveProductsPage implements Page {
               Toast.show(view, result.thongBao(), Toast.Kind.ERROR);
             }
           } catch (Exception e) {
-            Toast.show(view, "Lỗi khi cập nhật trạng thái: " + e.getMessage(), Toast.Kind.ERROR);
+            Toast.show(view, "Không thể cập nhật trạng thái. Vui lòng thử lại.", Toast.Kind.ERROR);
           }
         }
       }.execute();

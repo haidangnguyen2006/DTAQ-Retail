@@ -102,6 +102,53 @@ class BanHangThanhToanDbTest {
   }
 
   @Test
+  @DisplayName("Hai quầy thanh toán đồng thời cùng một dòng nhận hai máy khác nhau (RB40)")
+  void haiQuayThanhToanDongThoiKhongTrungMay() throws Exception {
+    Clock dongHo = Clock.systemDefaultZone();
+    DongMay dong = chonDongVaHaiMay();
+    KhachHang khachHang = docKhachHangDauTien();
+    NhanVien nhanVien = docNhanVienDauTien();
+    java.util.List<java.util.concurrent.Callable<BanHangController.KetQuaThanhToan>> viec =
+        new java.util.ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      BanHangController controller = taoController(dongHo, new ChiTietHoaDonDaoImpl(dataSource));
+      controller.themDong(dong.maDongSP(), 1);
+      viec.add(() -> controller.thanhToan(nhanVien, khachHang, Long.MAX_VALUE / 2));
+    }
+    java.util.concurrent.ExecutorService luong = java.util.concurrent.Executors.newFixedThreadPool(2);
+    java.util.List<BanHangController.KetQuaThanhToan> ketQua = new java.util.ArrayList<>();
+    try {
+      for (var tuongLai : luong.invokeAll(viec)) {
+        ketQua.add(tuongLai.get());
+      }
+    } finally {
+      luong.shutdownNow();
+      // donDep() chỉ xóa một hóa đơn; xóa hóa đơn còn lại tại đây.
+      maHDDaTao = ketQua.isEmpty() ? null : ketQua.get(0).maHD();
+      if (ketQua.size() > 1 && ketQua.get(1).maHD() != null) {
+        try (Connection ketNoi = dataSource.getConnection()) {
+          for (String bang : List.of("ChiTietHoaDon", "HoaDon")) {
+            try (PreparedStatement xoa = ketNoi.prepareStatement(
+                "DELETE FROM \"" + bang + "\" WHERE \"maHD\" = ?")) {
+              xoa.setString(1, ketQua.get(1).maHD());
+              xoa.executeUpdate();
+            }
+          }
+        }
+      }
+    }
+
+    assertTrue(ketQua.get(0).thanhCong(), ketQua.get(0).thongBao());
+    assertTrue(ketQua.get(1).thanhCong(), ketQua.get(1).thongBao());
+    assertTrue(!ketQua.get(0).maHD().equals(ketQua.get(1).maHD()), "hai hóa đơn phải khác mã");
+    assertEquals(
+        dong.serials().stream().sorted().toList(),
+        java.util.stream.Stream.of(ketQua.get(0), ketQua.get(1))
+            .map(kq -> kq.chiTiet().getFirst().sanPham().soSerial()).sorted().toList(),
+        "hai quầy phải nhận đúng hai máy cũ nhất, không trùng nhau");
+  }
+
+  @Test
   @DisplayName("Thanh toán: ghi hóa đơn, chi tiết snapshot và chuyển máy sang DA_BAN")
   void thanhToanGhiHoaDonVaChiTietSnapshot() throws SQLException {
     Clock dongHo = Clock.systemDefaultZone();
@@ -203,8 +250,10 @@ class BanHangThanhToanDbTest {
     } catch (java.io.IOException e) {
       throw new IllegalStateException("Không tạo được thư mục hóa đơn tạm", e);
     }
+    // Đường chạy thật của ứng dụng: đọc theo dòng sản phẩm, chọn máy trong giao dịch.
     return new BanHangController(
         new SanPhamImpl(dataSource),
+        new com.dtaq.retail.dao.impl.DongSanPhamImpl(dataSource),
         new KhuyenMaiDaoImpl(dataSource),
         new HoaDonDaoImpl(dataSource),
         chiTietHoaDonDao,

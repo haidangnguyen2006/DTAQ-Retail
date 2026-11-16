@@ -47,7 +47,8 @@ public class SanPhamLoiDaoImpl implements SanPhamLoiDao {
       SELECT_BASE + " WHERE spl.\"maLoi\" = ?";
 
   private static final String SELECT_DANG_XU_LY =
-      SELECT_BASE + " WHERE spl.\"soSerial\" = ? AND spl.\"tinhTrangXuLy\" = 'CHO_XU_LY' LIMIT 1";
+      SELECT_BASE + " WHERE spl.\"soSerial\" = ? AND spl.\"tinhTrangXuLy\" IN ('CHO_XU_LY', 'DA_GUI_BAO_HANH')"
+          + " ORDER BY spl.\"ngayGhiNhan\" DESC LIMIT 1";
 
   private static final String SELECT_BY_TINH_TRANG =
       SELECT_BASE + " WHERE spl.\"tinhTrangXuLy\" = ? ORDER BY spl.\"ngayGhiNhan\" DESC, spl.\"maLoi\" DESC";

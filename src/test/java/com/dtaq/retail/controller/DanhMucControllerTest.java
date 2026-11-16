@@ -25,6 +25,19 @@ import org.junit.jupiter.api.Test;
  */
 class DanhMucControllerTest {
 
+  @org.junit.jupiter.api.BeforeEach
+  void datPhienKiemThu() {
+    com.dtaq.retail.session.CurrentSession.set(new com.dtaq.retail.entity.NhanVien(
+        "NV-TEST-PHIEN", "Nguyễn Kiểm Thử", "0900000009", null,
+        java.time.LocalDate.of(2026, 1, 1), "kiemthu.phien", "matkhau-test",
+        com.dtaq.retail.entity.LoaiQuyen.NHAN_VIEN_BAN_HANG, true));
+  }
+
+  @org.junit.jupiter.api.AfterEach
+  void xoaPhienKiemThu() {
+    com.dtaq.retail.session.CurrentSession.clear();
+  }
+
   private static final String TEN_TEST = "Danh Mục Test Controller JUnit";
   private static final String MO_TA_TEST = "Mô tả thử nghiệm controller";
 

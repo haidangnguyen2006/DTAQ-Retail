@@ -110,6 +110,29 @@ class TraCuuKhachHangControllerTest {
         LocalDate.of(2026, 1, 1), "nv", "hash", loaiQuyen, true));
   }
 
+  @org.junit.jupiter.api.Test
+  @org.junit.jupiter.api.DisplayName("Tổng quan: chi tiêu đã trừ tiền hoàn, phiếu bị từ chối không còn là phiếu mở")
+  void tongQuanTruHoanTraVaBoPhieuTuChoi() {
+    java.time.LocalDate ngay = java.time.LocalDate.of(2026, 11, 1);
+    var hoaDon = new KhachHangGiaoDichDao.HoaDonTomTat("HD-1", ngay, "NV", 1,
+        new java.math.BigDecimal("1000000"), new java.math.BigDecimal("100000"),
+        new java.math.BigDecimal("1100000"), true);
+    var tuChoi = new KhachHangGiaoDichDao.PhieuTomTat(KhachHangGiaoDichDao.LoaiPhieu.TRA, "PT-1",
+        "HD-1", ngay, null, com.dtaq.retail.entity.TrangThaiDuyet.TU_CHOI,
+        com.dtaq.retail.entity.TrangThaiXuLyPhieu.CHO_XU_LY, "không đủ điều kiện");
+    var choDuyet = new KhachHangGiaoDichDao.PhieuTomTat(KhachHangGiaoDichDao.LoaiPhieu.TRA, "PT-2",
+        "HD-1", ngay, null, com.dtaq.retail.entity.TrangThaiDuyet.CHO_DUYET,
+        com.dtaq.retail.entity.TrangThaiXuLyPhieu.CHO_XU_LY, null);
+
+    var tongQuan = TraCuuKhachHangController.tongQuan(
+        java.util.List.of(hoaDon), java.util.List.of(tuChoi, choDuyet), ngay,
+        new java.math.BigDecimal("300000"));
+
+    assertEquals(new java.math.BigDecimal("800000"), tongQuan.tongChiTieu());
+    assertEquals(1, tongQuan.soPhieuDangMo());
+    assertEquals(2, tongQuan.soPhieu());
+  }
+
   private static final class FakeKhachHangDao implements KhachHangDao {
 
     @Override
