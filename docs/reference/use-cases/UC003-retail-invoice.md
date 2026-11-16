@@ -102,6 +102,16 @@ Hai tiểu mục sau nằm ngay sau bảng đặc tả trong DOCX. Bản sao hì
 
 - Bản sao: [`docs/reference/assets/diagrams/image21.png`](../assets/diagrams/image21.png)
 
+## Quyết định implementation (2026-11-16)
+
+> Chốt ngày **2026-11-16** khi khép lại đợt rà soát `bug-smell`; nhóm ủy quyền quyết định. Mục này **bổ sung** quyết định implementation, bảng đặc tả phía trên giữ nguyên văn nguồn DOCX. Chi tiết: [`docs/plans/RA-SOAT-HE-THONG-PLAN.md`](../../plans/RA-SOAT-HE-THONG-PLAN.md) §7.
+
+| Mã | Nội dung |
+|---|---|
+| D33 | **Mở hóa đơn tạm là chuyển nó thành hóa đơn đang lập** và xóa khỏi danh sách hóa đơn tạm (giữ hành vi hiện có); lưu tạm lại sẽ dùng đúng mã cũ. |
+| D37 | **Không in hóa đơn trong phạm vi hiện tại** (UC003 không có bước in). Phiếu hóa đơn hiển thị sau thanh toán; tra lại hóa đơn và số serial qua UC005. |
+| — | Thanh toán đối chiếu tổng tiền đang hiển thị với tổng tính lại; lệch thì không ghi và báo tổng mới. Máy được chọn và khóa theo FIFO ngay trong giao dịch thanh toán (RB40). |
+
 ## Ghi chú biên tập
 
 - Bản trích giữ nguyên nội dung bảng đặc tả của DOCX, kể cả cách đánh số bước trong bản gốc: bước 1 rồi đến bước 3; dòng “Hiển thị màn hình lập hóa đơn.” không được đánh số 2.

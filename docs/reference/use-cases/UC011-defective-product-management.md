@@ -87,4 +87,14 @@ page: "Chưa xác minh"
 - UC011 được [UC008 – Thêm sản phẩm](UC008-product-management.md) tham chiếu tại bước 10.a.3; tài liệu này không thêm ánh xạ yêu cầu chức năng nào.
 - Không có sơ đồ riêng cho UC011 trong DOCX.
 
+## Quyết định implementation (2026-11-16)
+
+> Chốt ngày **2026-11-16** khi khép lại đợt rà soát `bug-smell`; nhóm ủy quyền quyết định. Mục này **bổ sung** quyết định implementation, bảng đặc tả phía trên giữ nguyên văn nguồn DOCX. Chi tiết: [`docs/plans/RA-SOAT-HE-THONG-PLAN.md`](../../plans/RA-SOAT-HE-THONG-PLAN.md) §7.
+
+| Mã | Nội dung |
+|---|---|
+| D34 | **Hồ sơ lỗi của máy `DA_BAN` (máy của khách) không làm đổi trạng thái máy.** Hồ sơ vẫn theo dõi việc xử lý; máy giữ `DA_BAN` để quyền đổi/trả theo hóa đơn gốc không mất. Máy thuộc cửa hàng vẫn đồng bộ trạng thái theo hồ sơ như trước. |
+| D35 | **Vòng đời hồ sơ lỗi:** `THANH_LY` và `DA_TRA_NHA_CUNG_CAP` là trạng thái kết thúc, không mở lại; máy đã thanh lý/trả nhà cung cấp không ghi lỗi mới; "hồ sơ đang xử lý" (bước 9) gồm `CHO_XU_LY` và `DA_GUI_BAO_HANH`. **Chưa có** đường "sửa xong → nhập lại kho" và `soLanSua` chưa được tăng (RB41): cần thêm giá trị trạng thái vào CHECK của CSDL, để lại cho một đợt tính năng riêng. |
+
+
 Trước: [UC010 – Thêm danh mục sản phẩm](UC010-product-category-management.md) — Sau: [UC012 – Thêm khuyến mãi](UC012-promotion-management.md) — Nguồn: [DOCX](../../source/v12_Nhom04_9_REPORT_ApplicationDevelopment.docx)

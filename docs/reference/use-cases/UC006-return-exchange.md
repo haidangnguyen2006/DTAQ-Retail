@@ -129,6 +129,16 @@ Hai tiểu mục sau nằm ngay sau bảng đặc tả trong DOCX. Bản sao hì
 |---|---|---|
 | D17 | **Đổi hàng không hoàn tiền.** (1) Chỉ được đổi sang máy có giá trị sau thuế **ngang bằng hoặc thấp hơn** giá trị thanh toán thực tế của máy trả. (2) Phiếu đổi **không hoàn tiền** và **không thu thêm tiền**; phần chênh lệch khi máy mới rẻ hơn khách **không được hoàn**. (3) Chênh lệch `= giá trị máy mới − giá trị máy trả` (`<= 0`), lưu ở cấp phiếu `PhieuDoi.tienChenhLech` (implementation một máy/phiếu, khác mô hình nguồn là thuộc tính dẫn xuất theo chi tiết). (4) Phiếu đổi **không cần phê duyệt**, hoàn tất ngay; ngưỡng **3.000.000 VND chỉ áp cho số tiền hoàn của phiếu trả**. (5) Nguồn DOCX **không bị sửa**: bước 8.a.4–8.a.5, bước 12.a.1 và `RB48`/`RB49` (`max(0, …)`) trở thành nội dung nguồn bị thu hẹp bởi quyết định dự án, chỉ còn giá trị tham chiếu. | Quyết định chủ dự án 2026-11-05; thu hẹp bước 8.a.4–8.a.5 và 12.a.1 của bảng đặc tả; `RB48`/`RB49` chỉ còn giá trị tham chiếu nguồn; DOCX không sửa |
 
+## Quyết định implementation (2026-11-16)
+
+> Chốt ngày **2026-11-16** khi khép lại đợt rà soát `bug-smell`; nhóm ủy quyền quyết định. Mục này **bổ sung** quyết định implementation, bảng đặc tả phía trên giữ nguyên văn nguồn DOCX. Chi tiết: [`docs/plans/RA-SOAT-HE-THONG-PLAN.md`](../../plans/RA-SOAT-HE-THONG-PLAN.md) §7.
+
+| Mã | Nội dung |
+|---|---|
+| D30 | **Máy thay thế được truy vết qua phiếu đổi.** Máy thay thế chuyển `DA_BAN` nhưng không có dòng `ChiTietHoaDon`; chứng từ của nó là `ChiTietPhieuDoi.chiTietSanPhamDoi` → `PhieuDoi` → hóa đơn gốc. Máy thay thế không đổi/trả tiếp được. Không đổi thiết kế CSDL. |
+| D31 | **Giá trị máy thay thế tính theo giá bán hiện hành, gồm khuyến mãi đang hiệu lực** (XBR-03: giá, thuế, khuyến mãi tại thời điểm giao dịch). Điều kiện "ngang bằng hoặc thấp hơn" của D17 so trên giá trị này. |
+| D32 | **Phiếu bị từ chối giữ nguyên `trangThaiXuLyPhieu`** (UC018 chỉ yêu cầu lưu trạng thái từ chối). Phiếu `TU_CHOI` không hoàn tất được, không chặn lập phiếu mới, và **không được đếm là phiếu đang mở**. |
+
 ## Ghi chú biên tập
 
 - Bảng đặc tả phía trên vẫn giữ **nguyên văn nguồn**; riêng phần **đổi hàng** (bước 8.a.4–8.a.5 và 12.a.1) được **thu hẹp** bởi quyết định `D17` ngày 2026-11-05 — xem [Quyết định implementation (2026-11-05)](#quyết-định-implementation-2026-11-05).

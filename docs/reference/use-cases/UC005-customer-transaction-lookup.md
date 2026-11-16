@@ -86,6 +86,15 @@ Hai tiểu mục sau nằm ngay sau bảng đặc tả trong DOCX. Bản sao hì
 
 - Bản sao: [`docs/reference/assets/diagrams/image36.png`](../assets/diagrams/image36.png)
 
+## Quyết định implementation (2026-11-16)
+
+> Chốt ngày **2026-11-16** khi khép lại đợt rà soát `bug-smell`; nhóm ủy quyền quyết định. Mục này **bổ sung** quyết định implementation, bảng đặc tả phía trên giữ nguyên văn nguồn DOCX. Chi tiết: [`docs/plans/RA-SOAT-HE-THONG-PLAN.md`](../../plans/RA-SOAT-HE-THONG-PLAN.md) §7.
+
+| Mã | Nội dung |
+|---|---|
+| D32 | Phiếu đổi/trả bị từ chối **không được đếm là phiếu đang mở** trong tổng quan khách hàng. |
+| D36 | **"Tổng chi tiêu" là số ròng:** tổng hóa đơn đã thanh toán trừ tổng tiền đã hoàn qua các phiếu trả `HOAN_TAT` (`PhieuTra.tienKhachDua`). Phiếu đổi không trừ vì không hoàn tiền (D17). "Trung bình / hóa đơn" vẫn tính trên giá trị hóa đơn lúc mua. |
+
 ## Ghi chú biên tập
 
 - Bản trích giữ nguyên nội dung bảng đặc tả của DOCX.
