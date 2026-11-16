@@ -3,6 +3,9 @@ package com.dtaq.retail.ui.page.product;
 import com.dtaq.retail.controller.GiaThueController;
 import com.dtaq.retail.dao.DongSanPhamDao;
 import com.dtaq.retail.entity.DongSanPham;
+import com.dtaq.retail.ui.format.NhanHienThi;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -14,6 +17,7 @@ import com.dtaq.retail.ui.component.Toast;
 import com.dtaq.retail.ui.shell.Page;
 import com.dtaq.retail.ui.shell.PageId;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
+import java.util.List;
 import java.math.BigDecimal;
 import java.util.Objects;
 import javax.swing.JComboBox;
@@ -35,7 +39,7 @@ public final class PriceTaxPage implements Page {
       new String[] {"Mã dòng", "Tên dòng", "Giá hiện tại", "Thuế hiện tại", "Trạng thái"}, 0);
   private final DataTable table = new DataTable(tableModel, 36);
   private final StatefulView statefulView;
-  private final JComboBox<String> productBox = new JComboBox<>();
+  private final JComboBox<DongSanPham> productBox = new JComboBox<>();
   private final FormField productField = new FormField("Dòng sản phẩm", productBox);
   private final FormField priceField = FormField.money("Giá bán mới", "0");
   private final FormField taxField = FormField.money("Thuế suất mới %", "0");
@@ -43,6 +47,10 @@ public final class PriceTaxPage implements Page {
   private final FormField searchField =
       FormField.search("Tìm dòng sản phẩm", "Nhập mã hoặc tên dòng sản phẩm");
   private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private static final int KICH_THUOC_TRANG = 20;
+  private final Pagination pagination = new Pagination();
+  private final PagedLoader<DongSanPham> trang =
+      new PagedLoader<>(pagination, KICH_THUOC_TRANG, "dòng sản phẩm", this::veBang);
   private boolean daTimKiem;
 
   public PriceTaxPage(GiaThueController controller, DongSanPhamDao dongSanPhamDao) {
@@ -87,60 +95,68 @@ public final class PriceTaxPage implements Page {
     Card listCard = Card.standard();
     listCard.add(filterRow, "growx, wrap");
     listCard.setBody(statefulView);
+    listCard.add(pagination, "growx");
     view.add(listCard, "grow, push");
 
     taiDanhSach();
   }
 
+  /** Tìm theo từ khóa đang nhập (rỗng thì duyệt toàn bộ) và nạp trang đầu. */
   private void timKiem() {
-    if (searchField.getText().isBlank()) {
-      return;
-    }
     daTimKiem = true;
-    hienThiBang();
+    String tuKhoa = searchField.getText();
+    trang.datNguon((boQua, gioiHan) -> dongSanPhamDao.timTrang(tuKhoa, boQua, gioiHan));
   }
 
-  /** Nạp lựa chọn dòng sản phẩm cho form; bảng chỉ nạp khi người dùng đã tìm kiếm. */
+  /** Nạp lựa chọn dòng sản phẩm cho form và nạp lại trang đang xem của bảng. */
   private void taiDanhSach() {
+    NhanHienThi.datNhan(productBox, DongSanPham::tenDongSP, "Chọn dòng sản phẩm");
     productBox.removeAllItems();
     for (DongSanPham dong : dongSanPhamDao.findAll()) {
-      productBox.addItem(dong.maDongSP());
+      productBox.addItem(dong);
     }
-    hienThiBang();
+    productBox.setSelectedIndex(-1);
+    if (daTimKiem) {
+      trang.lamMoiDongBo();
+    } else {
+      tableModel.setRowCount(0);
+      statefulView.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
+    }
   }
 
-  private void hienThiBang() {
+  private void veBang(List<DongSanPham> dong) {
     tableModel.setRowCount(0);
-    if (!daTimKiem) {
-      statefulView.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
-      return;
-    }
-    String tuKhoa = searchField.getText().trim().toLowerCase();
-    for (DongSanPham dong : dongSanPhamDao.findAll()) {
-      if (!tuKhoa.isEmpty()
-          && !dong.maDongSP().toLowerCase().contains(tuKhoa)
-          && !dong.tenDongSP().toLowerCase().contains(tuKhoa)) {
-        continue;
-      }
+    for (DongSanPham dongSanPham : dong) {
       tableModel.addRow(new Object[] {
-          dong.maDongSP(),
-          dong.tenDongSP(),
-          dong.donGiaBanTruocThue(),
-          dong.thue(),
-          dong.trangThaiKinhDoanh() ? "Đang kinh doanh" : "Ngừng kinh doanh"
+          dongSanPham.maDongSP(),
+          dongSanPham.tenDongSP(),
+          dongSanPham.donGiaBanTruocThue(),
+          dongSanPham.thue(),
+          dongSanPham.trangThaiKinhDoanh() ? "Đang kinh doanh" : "Ngừng kinh doanh"
       });
     }
-    if (tableModel.getRowCount() == 0) {
+    if (dong.isEmpty()) {
       statefulView.showEmpty("search", "Không tìm thấy dòng sản phẩm", "Thử từ khóa khác.");
     } else {
       statefulView.showContent();
     }
   }
 
+  /** Lần đầu mở trang: nạp sẵn trang đầu ở luồng nền; các lần sau giữ nguyên dữ liệu đã nạp. */
+  @Override
+  public void onShow() {
+    trang.chayNen(statefulView::showLoading,
+        loi -> statefulView.showError("Không thể tải danh sách dòng sản phẩm. Vui lòng thử lại."));
+    if (!daTimKiem) {
+      timKiem();
+    }
+  }
+
   private void luu() {
     clearErrors();
 
-    String maDongSP = (String) productBox.getSelectedItem();
+    DongSanPham dongChon = (DongSanPham) productBox.getSelectedItem();
+    String maDongSP = dongChon == null ? null : dongChon.maDongSP();
     if (maDongSP == null || maDongSP.isBlank()) {
       productField.setError("Vui lòng chọn dòng sản phẩm");
       return;

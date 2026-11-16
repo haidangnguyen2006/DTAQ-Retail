@@ -5,6 +5,8 @@ import com.dtaq.retail.controller.BackupController;
 import com.dtaq.retail.entity.BackupRecord;
 import com.dtaq.retail.exception.BackupException;
 import com.dtaq.retail.notify.NotificationService;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -69,6 +71,9 @@ public final class BackupPage implements Page {
   private final StatusPill countPill = StatusPill.neutral("0 bản sao lưu");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {
       "Tệp", "Thời điểm", "Kích thước", "Loại", "Trạng thái"});
+  private final Pagination trangPagination = new Pagination();
+  private final PagedLoader<BackupRecord> trang =
+      new PagedLoader<>(trangPagination, 20, "bản sao lưu", this::veTrang);
   private final DataTable dataTable = new DataTable(tableModel, 48);
   private final StatefulView tableState;
 
@@ -113,6 +118,7 @@ public final class BackupPage implements Page {
     Card historyCard = Card.section(
         "Lịch sử sao lưu", "Các tệp sao lưu trên đĩa, mới nhất trước.", countPill);
     historyCard.setBody(tableState);
+    historyCard.add(trangPagination, "growx");
     view.add(historyCard, "grow, push");
   }
 
@@ -275,9 +281,14 @@ public final class BackupPage implements Page {
   }
 
   private void renderDanhSach(List<BackupRecord> danhSach) {
+    countPill.setText((danhSach == null ? 0 : danhSach.size()) + " bản sao lưu");
+    trang.datDanhSach(danhSach == null ? List.of() : danhSach);
+  }
+
+  /** Vẽ một trang của lịch sử sao lưu. */
+  private void veTrang(List<BackupRecord> danhSach) {
     tableModel.setRowCount(0);
-    int soLuong = danhSach == null ? 0 : danhSach.size();
-    countPill.setText(soLuong + " bản sao lưu");
+    int soLuong = danhSach.size();
 
     if (soLuong == 0) {
       tableState.showEmpty();

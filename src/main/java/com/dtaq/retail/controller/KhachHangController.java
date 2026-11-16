@@ -64,6 +64,19 @@ public final class KhachHangController {
     if (kichThuoc <= 0) {
       throw new IllegalArgumentException("Kích thước trang phải lớn hơn 0");
     }
+    if (tuKhoa == null || tuKhoa.isBlank()) {
+      // Duyệt không từ khóa: chỉ đọc đúng một trang tại CSDL.
+      com.dtaq.retail.dao.Trang<KhachHang> motTrang =
+          khachHangDao.findTrang((Math.max(1, trang) - 1) * kichThuoc, kichThuoc);
+      if (!motTrang.dong().isEmpty() || trang <= 1) {
+        return new TrangKhachHang(motTrang.dong(), motTrang.tongSo(), Math.max(1, trang));
+      }
+      // Trang yêu cầu vượt trang cuối: đọc tổng số rồi trả về trang cuối như trước.
+      int tongSo = khachHangDao.findTrang(0, 1).tongSo();
+      int soTrang = Math.max(1, (tongSo + kichThuoc - 1) / kichThuoc);
+      return new TrangKhachHang(
+          khachHangDao.findTrang((soTrang - 1) * kichThuoc, kichThuoc).dong(), tongSo, soTrang);
+    }
     List<KhachHang> khop = khachHangDao.findAll().stream()
         .filter(kh -> KiemTraHoSo.khop(tuKhoa, kh.soDienThoai(), kh.hoTen(), kh.maKH()))
         .toList();

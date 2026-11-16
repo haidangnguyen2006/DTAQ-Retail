@@ -9,6 +9,8 @@ import com.dtaq.retail.entity.KhuyenMai;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.service.KhuyenMaiExcel;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -81,6 +83,10 @@ public final class PromotionsPage implements Page {
   /** Chỉ Quản lý được tạo và bật/dừng chương trình khuyến mãi (UC012). */
   private final boolean laQuanLy;
   /** Bảng chỉ nạp khuyến mãi sau lần tìm kiếm đầu tiên của người dùng. */
+  private static final int KICH_THUOC_TRANG = 20;
+  private final Pagination pagination = new Pagination();
+  private final PagedLoader<KhuyenMai> trang =
+      new PagedLoader<>(pagination, KICH_THUOC_TRANG, "chương trình", this::veBang);
   private boolean daTimKiem;
 
   public PromotionsPage(KhuyenMaiController controller) {
@@ -119,6 +125,7 @@ public final class PromotionsPage implements Page {
     tableCard.add(buildFilterRow(), "growx, wrap");
     tableCard.add(toggleButton, "right, wrap, gapbottom 8");
     tableCard.setBody(tableState);
+    tableCard.add(pagination, "growx");
     view.add(tableCard, "grow, push");
     configureLineFilter();
     lineFilter.addActionListener(e -> renderFilteredList());
@@ -158,7 +165,13 @@ public final class PromotionsPage implements Page {
   @Override public String section() { return "Quản lý"; }
   @Override public JComponent view() { return view; }
   @Override public boolean scrollable() { return false; }
-  @Override public void onShow() { loadData(); }
+  @Override public void onShow() {
+    // Lần đầu mở trang nạp sẵn danh sách; các lần sau giữ nguyên dữ liệu đã nạp trong phiên.
+    if (!daTimKiem) {
+      daTimKiem = true;
+      loadData();
+    }
+  }
 
   @Override
   public void installShortcuts(InputMap inputMap, ActionMap actionMap) {
@@ -228,13 +241,19 @@ public final class PromotionsPage implements Page {
           default -> true;
         })
         .toList();
-    if (filtered.isEmpty()) {
-      countPill.setText("0 chương trình");
+    countPill.setText(filtered.size() + " chương trình");
+    trang.datDanhSach(filtered);
+  }
+
+  /** Vẽ một trang của danh sách đã lọc. */
+  private void veBang(List<KhuyenMai> dong) {
+    tableModel.setRowCount(0);
+    if (dong.isEmpty()) {
       tableState.showEmpty();
       return;
     }
-    countPill.setText(filtered.size() + " chương trình");
-    for (KhuyenMai km : filtered) {
+    LocalDate today = LocalDate.now();
+    for (KhuyenMai km : dong) {
       tableModel.addRow(new Object[] {
           km.maKM(), km.tenKM(), km.chiTiet().size(),
           km.tyLeGiam().stripTrailingZeros().toPlainString(), km.ngayBatDau(), km.ngayKetThuc(),

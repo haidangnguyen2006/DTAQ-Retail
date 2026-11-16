@@ -1,6 +1,10 @@
 package com.dtaq.retail.ui.page.product;
 
 import com.dtaq.retail.controller.TraCuuSanPhamController;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
+import com.dtaq.retail.ui.format.DateFormats;
+import com.dtaq.retail.ui.format.NhanHienThi;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.FormField;
@@ -38,6 +42,12 @@ public final class ProductLookupPage implements Page {
       new String[] {"Mã dòng SP", "Số serial", "Tình trạng", "Giá nhập", "Ngày nhập"}, 0);
   private final DataTable detailTable = new DataTable(detailModel, 36);
   private final StatefulView tableState;
+  private final Pagination ketQuaTrangPagination = new Pagination();
+  private final PagedLoader<TraCuuSanPhamController.KetQuaDong> ketQuaTrang =
+      new PagedLoader<>(ketQuaTrangPagination, 20, "dòng sản phẩm", this::veKetQua);
+  private final Pagination chiTietTrangPagination = new Pagination();
+  private final PagedLoader<Object[]> chiTietTrang =
+      new PagedLoader<>(chiTietTrangPagination, 20, "máy", this::veChiTiet);
   private final StatefulView detailState;
 
   private final List<TraCuuSanPhamController.KetQuaDong> cachedResults = new ArrayList<>();
@@ -73,9 +83,11 @@ public final class ProductLookupPage implements Page {
     Card card = Card.standard();
     card.add(buildFilterRow(), "growx, wrap");
     card.setBody(tableState);
+    card.add(ketQuaTrangPagination, "growx");
 
     view.add(card, "grow, push, wrap");
-    view.add(detailState, "grow, push");
+    view.add(detailState, "grow, push, wrap");
+    view.add(chiTietTrangPagination, "growx");
 
     criteria.setOnSelectionChange(index -> {
       updateKeywordPlaceholder();
@@ -120,7 +132,7 @@ public final class ProductLookupPage implements Page {
 
     cachedResults.clear();
     cachedResults.addAll(controller.timKiem(chi, keyword));
-    resultModel.setRowCount(0);
+    ketQuaTrang.datDanhSach(cachedResults);
     if (cachedResults.isEmpty()) {
       countPill.setText("0 kết quả");
       tableState.showEmpty("search", "Không tìm thấy kết quả", "Thử từ khóa hoặc tiêu chí khác.");
@@ -129,7 +141,13 @@ public final class ProductLookupPage implements Page {
     }
 
     countPill.setText(cachedResults.size() + " kết quả");
-    for (var ketQua : cachedResults) {
+    tableState.showContent();
+    renderAllDetailRows();
+  }
+
+  private void veKetQua(List<TraCuuSanPhamController.KetQuaDong> dong) {
+    resultModel.setRowCount(0);
+    for (var ketQua : dong) {
       resultModel.addRow(new Object[] {
           ketQua.maDongSP(),
           ketQua.tenDongSP(),
@@ -138,21 +156,25 @@ public final class ProductLookupPage implements Page {
           ketQua.danhSachSanPham().stream().filter(sp -> sp.trangThai() == com.dtaq.retail.entity.TrangThaiSanPham.SAN_SANG_BAN).count()
       });
     }
-    tableState.showContent();
-    renderAllDetailRows();
+  }
+
+  private void veChiTiet(List<Object[]> dong) {
+    detailModel.setRowCount(0);
+    for (Object[] row : dong) {
+      detailModel.addRow(row);
+    }
   }
 
   private void renderAllDetailRows() {
-    detailModel.setRowCount(0);
     List<Object[]> rows = new ArrayList<>();
     for (var ketQua : cachedResults) {
       for (var sp : ketQua.danhSachSanPham()) {
         rows.add(new Object[] {
             ketQua.maDongSP(),
             sp.soSerial(),
-            sp.trangThai().name(),
+            NhanHienThi.trangThaiSanPham(sp.trangThai()),
             sp.giaNhap(),
-            sp.ngayNhapKhoBanDau()
+            DateFormats.formatDate(sp.ngayNhapKhoBanDau())
         });
       }
     }
@@ -163,9 +185,7 @@ public final class ProductLookupPage implements Page {
       }
       return String.valueOf(a[1]).compareToIgnoreCase(String.valueOf(b[1]));
     });
-    for (Object[] row : rows) {
-      detailModel.addRow(row);
-    }
+    chiTietTrang.datDanhSach(rows);
     if (rows.isEmpty()) {
       detailState.showEmpty("package", "Không có máy nào", "Không có sản phẩm vật lý nào trong các dòng đã tìm thấy.");
     } else {
@@ -174,21 +194,22 @@ public final class ProductLookupPage implements Page {
   }
 
   private void renderDetailForRow(int rowIndex) {
-    if (rowIndex < 0 || rowIndex >= cachedResults.size()) {
+    var selected = ketQuaTrang.dong(rowIndex);
+    if (selected == null) {
       renderAllDetailRows();
       return;
     }
-    var selected = cachedResults.get(rowIndex);
-    detailModel.setRowCount(0);
+    List<Object[]> rows = new ArrayList<>();
     for (var sp : selected.danhSachSanPham()) {
-      detailModel.addRow(new Object[] {
+      rows.add(new Object[] {
           selected.maDongSP(),
           sp.soSerial(),
-          sp.trangThai().name(),
+          NhanHienThi.trangThaiSanPham(sp.trangThai()),
           sp.giaNhap(),
-          sp.ngayNhapKhoBanDau()
+          DateFormats.formatDate(sp.ngayNhapKhoBanDau())
       });
     }
+    chiTietTrang.datDanhSach(rows);
     if (selected.danhSachSanPham().isEmpty()) {
       detailState.showEmpty("package", "Không có máy nào", "Dòng sản phẩm này chưa có máy trong kho.");
     } else {

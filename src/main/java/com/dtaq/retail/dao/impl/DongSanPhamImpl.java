@@ -47,6 +47,11 @@ public final class DongSanPhamImpl implements DongSanPhamDao {
           + " AND (dsp.\"maDongSP\" ILIKE ? OR dsp.\"tenDongSP\" ILIKE ?)"
           + " ORDER BY dsp.\"maDongSP\" LIMIT ?";
 
+  private static final String SELECT_TRANG =
+      SELECT_CO_JOIN.replaceFirst("SELECT", "SELECT COUNT(*) OVER() AS tong_so,")
+          + " WHERE dsp.\"maDongSP\" ILIKE ? OR dsp.\"tenDongSP\" ILIKE ? OR dm.\"tenDanhMuc\" ILIKE ?"
+          + " ORDER BY dsp.\"maDongSP\" LIMIT ? OFFSET ?";
+
   private static final String SELECT_BY_MA_IN =
       SELECT_CO_JOIN + " WHERE dsp.\"maDongSP\" = ANY (?) ORDER BY dsp.\"maDongSP\"";
 
@@ -243,9 +248,7 @@ public final class DongSanPhamImpl implements DongSanPhamDao {
 
   @Override
   public List<DongSanPham> timDangBan(String tuKhoa, int gioiHan) {
-    String khoa = tuKhoa == null ? "" : tuKhoa.trim();
-    // Thoát ký tự đại diện của LIKE để từ khóa chỉ được so khớp theo nghĩa đen.
-    String mau = "%" + khoa.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    String mau = MauLike.chua(tuKhoa);
     try (Connection connection = dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(SELECT_DANG_BAN)) {
       statement.setString(1, mau);
@@ -260,6 +263,30 @@ public final class DongSanPhamImpl implements DongSanPhamDao {
       }
     } catch (SQLException e) {
       throw new DataAccessException("Không thể tìm dòng sản phẩm đang bán", e);
+    }
+  }
+
+  @Override
+  public com.dtaq.retail.dao.Trang<DongSanPham> timTrang(String tuKhoa, int boQua, int gioiHan) {
+    String mau = MauLike.chua(tuKhoa);
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(SELECT_TRANG)) {
+      statement.setString(1, mau);
+      statement.setString(2, mau);
+      statement.setString(3, mau);
+      statement.setInt(4, gioiHan);
+      statement.setInt(5, boQua);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<DongSanPham> ketQua = new ArrayList<>();
+        int tongSo = 0;
+        while (resultSet.next()) {
+          tongSo = resultSet.getInt("tong_so");
+          ketQua.add(mapDongSanPham(resultSet));
+        }
+        return new com.dtaq.retail.dao.Trang<>(ketQua, tongSo);
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tìm kiếm dòng sản phẩm", e);
     }
   }
 

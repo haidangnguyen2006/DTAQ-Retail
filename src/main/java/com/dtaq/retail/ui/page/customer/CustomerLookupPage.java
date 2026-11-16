@@ -11,6 +11,7 @@ import com.dtaq.retail.entity.KhachHang;
 import com.dtaq.retail.entity.TinhTrangHangTra;
 import com.dtaq.retail.entity.TrangThaiDuyet;
 import com.dtaq.retail.entity.TrangThaiXuLyPhieu;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
@@ -96,6 +97,9 @@ public final class CustomerLookupPage implements Page {
       "Mã hóa đơn", "Ngày lập", "Nhân viên lập", "Số sản phẩm",
       "Tiền hàng (VND)", "Thuế (VND)", "Tổng thanh toán (VND)", "Thanh toán"});
   private final DataTable hoaDonTable = new DataTable(hoaDonModel);
+  private final Pagination hoaDonTrangPagination = new Pagination();
+  private final PagedLoader<HoaDonTomTat> hoaDonTrang =
+      new PagedLoader<>(hoaDonTrangPagination, 10, "hóa đơn", this::veHoaDon);
   private final StatefulView hoaDonState;
   private final DefaultTableModel chiTietHoaDonModel = DataTable.readOnlyModel(new String[] {
       "Số serial", "Mã dòng", "Tên sản phẩm", "Đơn giá (VND)", "Thuế suất",
@@ -108,6 +112,9 @@ public final class CustomerLookupPage implements Page {
       "Loại phiếu", "Mã phiếu", "Hóa đơn gốc", "Ngày tạo", "Trạng thái duyệt",
       "Trạng thái xử lý", "Ngày hoàn tất"});
   private final DataTable phieuTable = new DataTable(phieuModel);
+  private final Pagination phieuTrangPagination = new Pagination();
+  private final PagedLoader<PhieuTomTat> phieuTrang =
+      new PagedLoader<>(phieuTrangPagination, 10, "phiếu", this::vePhieu);
   private final StatefulView phieuState;
   private final DefaultTableModel chiTietPhieuModel = DataTable.readOnlyModel(new String[] {
       "Số serial", "Tên sản phẩm", "Lý do", "Tình trạng hàng trả", "Máy thay thế"});
@@ -200,17 +207,19 @@ public final class CustomerLookupPage implements Page {
     kpiRow.add(kpiPhieu);
     panel.add(kpiRow, "growx, wrap");
 
-    JPanel hoaDonTab = new JPanel(new MigLayout("fillx, insets 12 0 0 0", "[grow]", "[]16[]8[]"));
+    JPanel hoaDonTab = new JPanel(new MigLayout("fillx, insets 12 0 0 0", "[grow]", "[]8[]16[]8[]"));
     hoaDonTab.setOpaque(false);
     hoaDonTab.add(hoaDonState, "growx, wrap");
+    hoaDonTab.add(hoaDonTrangPagination, "growx, wrap");
     hoaDonTab.add(chiTietHoaDonTitle, "growx, wrap");
     hoaDonTab.add(chiTietHoaDonState, "growx");
 
-    JPanel phieuTab = new JPanel(new MigLayout("fillx, insets 12 0 0 0", "[grow]", "[]16[]8[]8[]"));
+    JPanel phieuTab = new JPanel(new MigLayout("fillx, insets 12 0 0 0", "[grow]", "[]8[]16[]8[]8[]"));
     phieuTab.setOpaque(false);
     yKienDuyetLabel.setFont(DtaqFonts.BODY_13);
     yKienDuyetLabel.setForeground(DtaqColors.TEXT_MUTED);
     phieuTab.add(phieuState, "growx, wrap");
+    phieuTab.add(phieuTrangPagination, "growx, wrap");
     phieuTab.add(chiTietPhieuTitle, "growx, wrap");
     phieuTab.add(yKienDuyetLabel, "growx, wrap");
     phieuTab.add(chiTietPhieuState, "growx");
@@ -234,7 +243,11 @@ public final class CustomerLookupPage implements Page {
       if (!e.getValueIsAdjusting()) {
         int viewRow = hoaDonTable.getTable().getSelectedRow();
         if (viewRow >= 0) {
-          loadChiTietHoaDon(hoaDons.get(hoaDonTable.getTable().convertRowIndexToModel(viewRow)));
+          HoaDonTomTat chon =
+              hoaDonTrang.dong(hoaDonTable.getTable().convertRowIndexToModel(viewRow));
+          if (chon != null) {
+            loadChiTietHoaDon(chon);
+          }
         }
       }
     });
@@ -253,7 +266,11 @@ public final class CustomerLookupPage implements Page {
       if (!e.getValueIsAdjusting()) {
         int viewRow = phieuTable.getTable().getSelectedRow();
         if (viewRow >= 0) {
-          loadChiTietPhieu(phieus.get(phieuTable.getTable().convertRowIndexToModel(viewRow)));
+          PhieuTomTat chon =
+              phieuTrang.dong(phieuTable.getTable().convertRowIndexToModel(viewRow));
+          if (chon != null) {
+            loadChiTietPhieu(chon);
+          }
         }
       }
     });
@@ -353,27 +370,14 @@ public final class CustomerLookupPage implements Page {
 
     hoaDons.clear();
     hoaDons.addAll(ketQua.hoaDons());
-    hoaDonModel.setRowCount(0);
-    for (HoaDonTomTat hd : hoaDons) {
-      hoaDonModel.addRow(new Object[] {
-          hd.maHD(), DateFormats.formatDate(hd.ngayLap()), hd.tenNhanVienLap(), hd.soSanPham(),
-          hd.tienHang(), hd.tienThue(), hd.tongThanhToan(), hd.daThanhToan() ? "Đã thanh toán" : "Chưa thanh toán"
-      });
-    }
+    hoaDonTrang.datDanhSach(hoaDons);
     showOrEmpty(hoaDonState, hoaDons.isEmpty());
     tabs.setTitleAt(0, "Hóa đơn (" + hoaDons.size() + ")");
     resetChiTietHoaDon();
 
     phieus.clear();
     phieus.addAll(ketQua.phieus());
-    phieuModel.setRowCount(0);
-    for (PhieuTomTat p : phieus) {
-      phieuModel.addRow(new Object[] {
-          p.loai() == LoaiPhieu.TRA ? "Phiếu trả" : "Phiếu đổi", p.maPhieu(), p.maHD(),
-          DateFormats.formatDate(p.ngayTao()), nhanTrangThaiDuyet(p.trangThaiDuyet()),
-          nhanTrangThaiXuLy(p.trangThaiXuLy()), p.ngayHoanTat() == null ? "—" : DateFormats.formatDate(p.ngayHoanTat())
-      });
-    }
+    phieuTrang.datDanhSach(phieus);
     showOrEmpty(phieuState, phieus.isEmpty());
     tabs.setTitleAt(1, "Phiếu đổi/trả (" + phieus.size() + ")");
     resetChiTietPhieu();
@@ -384,6 +388,27 @@ public final class CustomerLookupPage implements Page {
     // Mở sẵn hóa đơn mới nhất để người dùng thấy ngay chi tiết, không phải bấm thêm.
     if (!hoaDons.isEmpty()) {
       hoaDonTable.getTable().setRowSelectionInterval(0, 0);
+    }
+  }
+
+  private void veHoaDon(List<HoaDonTomTat> dong) {
+    hoaDonModel.setRowCount(0);
+    for (HoaDonTomTat hd : dong) {
+      hoaDonModel.addRow(new Object[] {
+          hd.maHD(), DateFormats.formatDate(hd.ngayLap()), hd.tenNhanVienLap(), hd.soSanPham(),
+          hd.tienHang(), hd.tienThue(), hd.tongThanhToan(), hd.daThanhToan() ? "Đã thanh toán" : "Chưa thanh toán"
+      });
+    }
+  }
+
+  private void vePhieu(List<PhieuTomTat> dong) {
+    phieuModel.setRowCount(0);
+    for (PhieuTomTat p : dong) {
+      phieuModel.addRow(new Object[] {
+          p.loai() == LoaiPhieu.TRA ? "Phiếu trả" : "Phiếu đổi", p.maPhieu(), p.maHD(),
+          DateFormats.formatDate(p.ngayTao()), nhanTrangThaiDuyet(p.trangThaiDuyet()),
+          nhanTrangThaiXuLy(p.trangThaiXuLy()), p.ngayHoanTat() == null ? "—" : DateFormats.formatDate(p.ngayHoanTat())
+      });
     }
   }
 

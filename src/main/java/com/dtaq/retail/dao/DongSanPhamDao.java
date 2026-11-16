@@ -126,6 +126,17 @@ public interface DongSanPhamDao {
     return maDongSP.stream().map(this::findById).flatMap(Optional::stream).toList();
   }
 
+  /**
+   * Một trang dòng sản phẩm khớp từ khóa (mã, tên dòng hoặc tên danh mục), sắp theo mã dòng.
+   *
+   * @param tuKhoa từ khóa; rỗng thì lấy tất cả
+   * @param boQua số dòng bỏ qua
+   * @param gioiHan số dòng của trang
+   */
+  default Trang<DongSanPham> timTrang(String tuKhoa, int boQua, int gioiHan) {
+    return Trang.cat(search(tuKhoa), boQua, gioiHan);
+  }
+
   default List<DongSanPham> findAllWithDanhMuc() {
     return findAll();
   }

@@ -70,6 +70,17 @@ public final class SanPhamLoiController {
   }
 
   /**
+   * Một trang hồ sơ lỗi theo trạng thái và từ khóa (mã lỗi, số serial, tên dòng sản phẩm).
+   *
+   * @param trangThaiLoc trạng thái cần lọc; {@code null} thì lấy mọi trạng thái
+   * @param tuKhoa từ khóa; rỗng thì không lọc
+   */
+  public com.dtaq.retail.dao.Trang<SanPhamLoi> timTrang(
+      TrangThaiXuLyLoi trangThaiLoc, String tuKhoa, int boQua, int gioiHan) {
+    return sanPhamLoiDao.timTrang(trangThaiLoc, tuKhoa, boQua, gioiHan);
+  }
+
+  /**
    * Tìm hồ sơ lỗi theo mã định danh.
    *
    * @param maLoi mã hồ sơ lỗi

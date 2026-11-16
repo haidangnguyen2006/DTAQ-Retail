@@ -85,6 +85,9 @@ public class CustomerListPage implements Page {
   private Consumer<AddCustomerDialog.NewCustomerForm> onSaveCustomerListener;
   private String lastKeyword = "";
   /** Bảng chỉ nạp dữ liệu sau lần tìm kiếm đầu tiên của người dùng. */
+  /** Các trang đã nạp của từ khóa hiện tại; bỏ khi tìm kiếm lại hoặc dữ liệu thay đổi. */
+  private final java.util.Map<Integer, KhachHangController.TrangKhachHang> trangDaTai =
+      new java.util.HashMap<>();
   private boolean daTimKiem;
   private KhachHangController controller;
   private int currentPage = 1;
@@ -134,21 +137,36 @@ public class CustomerListPage implements Page {
   public CustomerListPage(KhachHangController controller) {
     this();
     this.controller = Objects.requireNonNull(controller, "controller");
-    tableState.setOnRetry(() -> loadPage(currentPage));
-    setOnSearch(keyword -> loadPage(1));
+    tableState.setOnRetry(() -> taiLai(currentPage));
+    setOnSearch(keyword -> taiLai(1));
     setOnPageChange(this::loadPage);
     setOnOpenDetail(this::openEditDialog);
     setOnSaveCustomer(form -> addCustomerDialog.save(
         () -> controller.themKhach(form.hoTen(), form.soDienThoai(), form.diaChi()),
         saved -> {
           Toast.success(view, "Đã lưu khách hàng");
-          loadPage(currentPage);
+          taiLai(currentPage);
         },
         this::showExistingCustomer));
   }
 
+  /** Bỏ các trang đã nạp (vừa tìm kiếm hoặc dữ liệu vừa thay đổi) rồi nạp lại. */
+  private void taiLai(int page) {
+    trangDaTai.clear();
+    loadPage(page);
+  }
+
   private void loadPage(int page) {
     if (!daTimKiem) {
+      return;
+    }
+    KhachHangController.TrangKhachHang coSan = trangDaTai.get(page);
+    if (coSan != null) {
+      // Trang đã nạp trong phiên: không truy vấn lại.
+      ++loadRequest;
+      currentPage = coSan.trang();
+      renderCustomers(coSan.danhSach().stream().map(CustomerListPage::toRow).toList(),
+          coSan.tongSo(), coSan.trang());
       return;
     }
     int request = ++loadRequest;
@@ -167,6 +185,7 @@ public class CustomerListPage implements Page {
         }
         try {
           KhachHangController.TrangKhachHang trang = get();
+          trangDaTai.put(trang.trang(), trang);
           currentPage = trang.trang();
           renderCustomers(
               trang.danhSach().stream().map(CustomerListPage::toRow).toList(), trang.tongSo(), trang.trang());
@@ -196,7 +215,7 @@ public class CustomerListPage implements Page {
         () -> controller.capNhatKhach(row.maKH(), form.hoTen(), form.soDienThoai(), form.diaChi()),
         saved -> {
           Toast.success(view, "Đã cập nhật khách hàng");
-          loadPage(currentPage);
+          taiLai(currentPage);
         },
         this::showExistingCustomer));
     dialog.setVisible(true);
@@ -208,7 +227,7 @@ public class CustomerListPage implements Page {
     lastKeyword = khachHang.soDienThoai();
     daTimKiem = true;
     Toast.show(view, "Đang dùng hồ sơ " + khachHang.maKH(), Toast.Kind.INFO);
-    loadPage(1);
+    taiLai(1);
   }
 
   private JPanel buildFilterRow() {
@@ -342,9 +361,6 @@ public class CustomerListPage implements Page {
   private void triggerSearch() {
     if (onSearchListener != null) {
       lastKeyword = searchField.getText().trim();
-      if (lastKeyword.isEmpty()) {
-        return;
-      }
       daTimKiem = true;
       onSearchListener.accept(lastKeyword);
     }
@@ -381,8 +397,10 @@ public class CustomerListPage implements Page {
 
   @Override
   public void onShow() {
-    if (controller != null) {
-      loadPage(currentPage);
+    // Lần đầu mở trang nạp sẵn trang đầu; các lần sau giữ nguyên các trang đã nạp trong phiên.
+    if (controller != null && !daTimKiem) {
+      daTimKiem = true;
+      loadPage(1);
     }
   }
 

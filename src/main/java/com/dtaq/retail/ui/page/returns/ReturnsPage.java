@@ -4,6 +4,8 @@ import com.dtaq.retail.controller.DoiTraController;
 import com.dtaq.retail.dao.PhieuDuyet;
 import com.dtaq.retail.entity.TinhTrangHangTra;
 import com.dtaq.retail.entity.TrangThaiSanPham;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -113,6 +115,9 @@ public final class ReturnsPage implements Page {
       6);
   private final DataTable phieuTable = new DataTable(phieuModel, 50);
   private final StatefulView phieuState;
+  private final Pagination phieuTrangPagination = new Pagination();
+  private final PagedLoader<PhieuDuyet> phieuTrang =
+      new PagedLoader<>(phieuTrangPagination, 20, "phiếu", this::vePhieu);
   private final List<PhieuDuyet> phieuCache = new ArrayList<>();
 
   private final Timer henXemTruoc = new Timer(350, e -> capNhatXemTruoc());
@@ -450,7 +455,8 @@ public final class ReturnsPage implements Page {
     phieuTable.setMoneyColumn(4);
     phieuTable.setColumnWidths(130, 140, 190, 130, 140, 110, 130);
     phieuTable.setActionColumn(6, RowAction.primary("Hoàn tất", this::hoanTatTuDanhSach));
-    card.add(phieuState, "growx");
+    card.add(phieuState, "growx, wrap");
+    card.add(phieuTrangPagination, "growx");
     return card;
   }
 
@@ -792,6 +798,11 @@ public final class ReturnsPage implements Page {
   }
 
   private void hienThiDanhSachChoHoanTat(List<PhieuDuyet> danhSach) {
+    phieuTrang.datDanhSach(danhSach == null ? List.of() : danhSach);
+  }
+
+  /** Vẽ một trang; {@link #phieuCache} giữ đúng các dòng đang hiển thị. */
+  private void vePhieu(List<PhieuDuyet> danhSach) {
     phieuCache.clear();
     phieuModel.setRowCount(0);
     if (danhSach == null || danhSach.isEmpty()) {

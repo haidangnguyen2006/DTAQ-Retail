@@ -2,6 +2,8 @@ package com.dtaq.retail.ui.page.approval;
 
 import com.dtaq.retail.controller.PheDuyetDoiTraController;
 import com.dtaq.retail.dao.PhieuDuyet;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -48,6 +50,9 @@ public class ReturnApprovalsPage implements Page {
       new String[] {"Mã phiếu", "Loại", "Mã HĐ gốc", "Khách hàng", "SĐT", "Hoàn dự kiến",
           "Nhân viên lập", "Lý do", "Ngày tạo", ""},
       9);
+  private final Pagination trangPagination = new Pagination();
+  private final PagedLoader<PhieuDuyet> trang =
+      new PagedLoader<>(trangPagination, 20, "phiếu", this::veTrang);
   private final DataTable dataTable = new DataTable(tableModel, 50);
   private final StatefulView tableState;
   private final List<PhieuDuyet> cachedList = new ArrayList<>();
@@ -87,6 +92,7 @@ public class ReturnApprovalsPage implements Page {
 
     Card tableCard = Card.standard();
     tableCard.setBody(tableState);
+    tableCard.add(trangPagination, "growx");
     view.add(tableCard, "grow, push");
   }
 
@@ -155,6 +161,11 @@ public class ReturnApprovalsPage implements Page {
   }
 
   private void renderDanhSach(List<PhieuDuyet> danhSach) {
+    trang.datDanhSach(danhSach == null ? List.of() : danhSach);
+  }
+
+  /** Vẽ một trang; {@link #cachedList} giữ đúng các dòng đang hiển thị. */
+  private void veTrang(List<PhieuDuyet> danhSach) {
     cachedList.clear();
     tableModel.setRowCount(0);
 

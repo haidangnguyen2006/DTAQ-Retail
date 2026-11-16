@@ -94,6 +94,22 @@ public interface SanPhamDao {
   }
 
   /**
+   * Một trang máy khớp từ khóa (số serial, mã/tên dòng sản phẩm, mã/tên nhà cung cấp), sắp theo serial.
+   *
+   * @param tuKhoa từ khóa; rỗng thì lấy tất cả
+   * @param boQua số dòng bỏ qua
+   * @param gioiHan số dòng của trang
+   */
+  default Trang<SanPham> timTrang(String tuKhoa, int boQua, int gioiHan) {
+    String khoa = tuKhoa == null ? "" : tuKhoa.trim().toLowerCase();
+    return Trang.cat(findAll().stream()
+        .filter(sp -> sp.soSerial().toLowerCase().contains(khoa)
+            || sp.dongSanPham().maDongSP().toLowerCase().contains(khoa)
+            || sp.nhaCungCap().maNCC().toLowerCase().contains(khoa))
+        .toList(), boQua, gioiHan);
+  }
+
+  /**
    * Đọc máy của nhiều dòng sản phẩm trong một lần, gom theo mã dòng.
    *
    * @param maDongSP các mã dòng cần đọc
