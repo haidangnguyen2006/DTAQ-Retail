@@ -164,12 +164,36 @@ class SanPhamControllerTest {
     SanPhamController controller = new SanPhamController(
         sanPhamDao, dongSanPhamDao, nhaCungCapDao, ConnectDB.getDataSource());
 
-    SanPham sanPham = sanPhamDao.findAll().stream().findFirst().orElseThrow();
+    // Tự tạo máy riêng cho test: không sửa máy có sẵn trong seed vì máy đầu tiên theo serial
+    // (ELE-DR-0033) đã bán — ChiTietHoaDon tham chiếu (soSerial, maDongSP) nên đổi dòng sẽ vi phạm
+    // khóa ngoại fk_chitiethoadon_sanpham — và để không ghi đè dữ liệu thật.
+    List<DongSanPham> dongDangKinhDoanh = dongSanPhamDao.findAll().stream()
+        .filter(DongSanPham::trangThaiKinhDoanh)
+        .toList();
+    Assumptions.assumeTrue(dongDangKinhDoanh.size() >= 2, "Cần ít nhất 2 dòng sản phẩm đang kinh doanh");
+    DongSanPham dongGoc = dongDangKinhDoanh.get(0);
+    DongSanPham dongMoi = dongDangKinhDoanh.get(1);
     NhaCungCap nhaCungCap = nhaCungCapDao.findAll().stream().findFirst().orElseThrow();
-    DongSanPham dongMoi = dongSanPhamDao.findAll().stream()
-        .filter(d -> !d.maDongSP().equals(sanPham.dongSanPham().maDongSP()))
-        .findFirst()
-        .orElseThrow();
+    int tonGocBanDau = dongSanPhamDao.findById(dongGoc.maDongSP()).orElseThrow().soLuongTon();
+    int tonMoiBanDau = dongSanPhamDao.findById(dongMoi.maDongSP()).orElseThrow().soLuongTon();
+
+    String serial = "UC008-SUA-" + System.nanoTime();
+    SanPhamController.KetQua<SanPham> taoMoi = controller.themMay(
+        serial,
+        nhaCungCap.maNCC(),
+        dongGoc.maDongSP(),
+        new BigDecimal("15000000"),
+        LocalDate.now(),
+        TrangThaiSanPham.SAN_SANG_BAN);
+    assertTrue(taoMoi.thanhCong(), taoMoi.thongBao());
+    // Dọn sau test: xóa máy và trả tồn của cả hai dòng về như ban đầu.
+    serialsCanXoa.add(serial);
+    dongCanReset.add(dongMoi.maDongSP());
+    tonCu.add(tonMoiBanDau);
+    serialsCanXoa.add(serial);
+    dongCanReset.add(dongGoc.maDongSP());
+    tonCu.add(tonGocBanDau);
+    SanPham sanPham = taoMoi.duLieu();
 
     BigDecimal giaMoi = new BigDecimal("18000000");
     LocalDate ngayMoi = LocalDate.now().minusDays(2);
@@ -186,6 +210,9 @@ class SanPhamControllerTest {
     assertEquals(dongMoi.maDongSP(), ketQua.duLieu().dongSanPham().maDongSP());
     assertEquals(giaMoi, ketQua.duLieu().giaNhap());
     assertEquals(ngayMoi, ketQua.duLieu().ngayNhapKhoBanDau());
+    // Chuyển dòng thì tồn kho dịch theo: dòng cũ trở về như trước, dòng mới tăng 1.
+    assertEquals(tonGocBanDau, dongSanPhamDao.findById(dongGoc.maDongSP()).orElseThrow().soLuongTon());
+    assertEquals(tonMoiBanDau + 1, dongSanPhamDao.findById(dongMoi.maDongSP()).orElseThrow().soLuongTon());
   }
 
   @Test

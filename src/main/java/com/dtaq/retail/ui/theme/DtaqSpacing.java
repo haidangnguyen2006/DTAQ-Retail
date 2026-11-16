@@ -1,7 +1,7 @@
 package com.dtaq.retail.ui.theme;
 
 /**
- * Khoảng cách, kích thước, bo góc chuẩn (design tokens) theo thiết kế Figma DTAQ.
+ * Khoảng cách, kích thước, bo góc chuẩn (design tokens) của giao diện DTAQ Azure.
  */
 public final class DtaqSpacing {
 
@@ -9,12 +9,12 @@ public final class DtaqSpacing {
   }
 
   // --- Corner Radii ---
-  public static final int RADIUS_S = 6;
-  public static final int RADIUS_M = 8;
-  public static final int RADIUS_TABLE = 10;
-  public static final int RADIUS_CARD_SM = 10;
-  public static final int RADIUS_L = 12;
-  public static final int RADIUS_DIALOG = 16;
+  public static final int RADIUS_S = 4;
+  public static final int RADIUS_M = 6;
+  public static final int RADIUS_TABLE = 8;
+  public static final int RADIUS_CARD_SM = 8;
+  public static final int RADIUS_L = 10;
+  public static final int RADIUS_DIALOG = 14;
   public static final int RADIUS_PILL = 100;
 
   // --- Heights & Dimensions ---
@@ -49,6 +49,8 @@ public final class DtaqSpacing {
   public static final int TABLE_ROW_H_TWO_LINE = 52;
   public static final int CONTENT_MAX_W = 1680;
   public static final int DIALOG_MARGIN = 24;
+  /** Phần FormField chừa dưới ô nhập (4px khoảng cách + 16px dòng thông báo); dùng để căn nút đứng cạnh. */
+  public static final int FIELD_MESSAGE_H = 20;
 
   /** Đường kính cung bo của FlatLaf ({@code arc}) ứng với bán kính {@code radius}. */
   public static int arc(int radius) {

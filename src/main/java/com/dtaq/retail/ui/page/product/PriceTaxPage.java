@@ -81,7 +81,8 @@ public final class PriceTaxPage implements Page {
     searchField.getTextField().addActionListener(e -> timKiem());
     searchButton.addActionListener(e -> timKiem());
     filterRow.add(searchField, "growx");
-    filterRow.add(searchButton);
+    // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
+    filterRow.add(searchButton, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
 
     Card listCard = Card.standard();
     listCard.add(filterRow, "growx, wrap");

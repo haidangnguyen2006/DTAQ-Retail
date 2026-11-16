@@ -2,6 +2,7 @@ package com.dtaq.retail.ui.component;
 
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
+import com.dtaq.retail.ui.theme.DtaqIcons;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -15,15 +16,16 @@ public class KpiCard extends Card {
 
   /** Xu hướng so với kỳ trước; quyết định màu và mũi tên của chú thích. */
   public enum Trend {
-    UP("↑ ", DtaqColors.SUCCESS),
-    DOWN("↓ ", DtaqColors.DANGER),
-    NEUTRAL("", DtaqColors.TEXT_MUTED);
+    UP("trending-up", DtaqColors.SUCCESS),
+    DOWN("trending-down", DtaqColors.DANGER),
+    NEUTRAL(null, DtaqColors.TEXT_MUTED);
 
-    private final String prefix;
+    /** Tên icon Lucide (thay cho ký tự mũi tên); null nếu không có icon. */
+    private final String iconName;
     private final Color color;
 
-    Trend(String prefix, Color color) {
-      this.prefix = prefix;
+    Trend(String iconName, Color color) {
+      this.iconName = iconName;
       this.color = color;
     }
   }
@@ -51,23 +53,29 @@ public class KpiCard extends Card {
 
     captionLabel.setFont(DtaqFonts.CAPTION);
     setCaption(captionText);
-    add(captionLabel, "wrap");
+    // Luôn giữ chỗ một dòng chú thích để thẻ không chú thích cao bằng thẻ bên cạnh.
+    add(captionLabel, "wrap, hmin 16");
   }
 
   public void setValue(String value) {
     valueLabel.setText(value == null || value.isBlank() ? EMPTY_VALUE : value);
     // Giá trị dài thì hạ cỡ chữ theo bậc để không bị cắt số.
     int len = valueLabel.getText().length();
-    valueLabel.setFont(len > 22 ? DtaqFonts.DIALOG_TITLE : len > 16 ? DtaqFonts.semibold(22f, -0.4f) : DtaqFonts.KPI_VALUE);
+    valueLabel.setFont(len > 22 ? DtaqFonts.numeric(true, 18f, -0.2f)
+        : len > 16 ? DtaqFonts.numeric(true, 22f, -0.4f) : DtaqFonts.KPI_VALUE);
   }
 
   public void setCaption(String caption) {
-    captionLabel.setText(caption != null ? caption : "");
+    // Chú thích rỗng vẫn giữ một dấu cách để dòng không co về 0.
+    captionLabel.setText(caption == null || caption.isEmpty() ? " " : caption);
+    captionLabel.setIcon(null);
     captionLabel.setForeground(Trend.NEUTRAL.color);
   }
 
   public void setTrend(Trend trend, String text) {
-    captionLabel.setText(trend.prefix + (text != null ? text : ""));
+    captionLabel.setText(text != null ? text : "");
+    captionLabel.setIcon(trend.iconName == null ? null : DtaqIcons.icon(trend.iconName, 14, trend.color));
+    captionLabel.setIconTextGap(4);
     captionLabel.setForeground(trend.color);
   }
 
@@ -75,6 +83,7 @@ public class KpiCard extends Card {
   public void setLoading() {
     valueLabel.setText(EMPTY_VALUE);
     captionLabel.setText("Đang tải…");
+    captionLabel.setIcon(null);
     captionLabel.setForeground(Trend.NEUTRAL.color);
   }
 }

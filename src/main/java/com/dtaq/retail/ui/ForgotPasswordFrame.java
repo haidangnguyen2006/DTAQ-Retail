@@ -119,7 +119,7 @@ public final class ForgotPasswordFrame extends JFrame {
     greeting.setOpaque(false);
     JLabel eyebrow = new JLabel("QUÊN MẬT KHẨU");
     eyebrow.setFont(DtaqFonts.EYEBROW);
-    eyebrow.setForeground(DtaqColors.PRIMARY);
+    eyebrow.setForeground(DtaqColors.TEXT_MUTED);
     greeting.add(eyebrow, "wrap");
     JLabel title = new JLabel("Cập nhật mật khẩu");
     title.setFont(DtaqFonts.DISPLAY);

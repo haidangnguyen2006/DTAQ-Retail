@@ -160,7 +160,8 @@ public class ManagerHomePage implements Page {
     Card card = new Card(DtaqSpacing.CARD_PADDING_COMPACT, 10, DtaqSpacing.RADIUS_L);
     JPanel row = new JPanel(new MigLayout("insets 0, gapx 12", "[][]", "[center]"));
     row.setOpaque(false);
-    clockLabel.setFont(DtaqFonts.BODY_14);
+    // Đồng hồ cập nhật mỗi giây: chữ số đều cột để chữ không "nhảy" bề rộng.
+    clockLabel.setFont(DtaqFonts.numeric(false, 14f, 0f));
     clockLabel.setForeground(DtaqColors.TEXT);
     row.add(new ActivityItem("clock", false, "Thời gian hiện tại", null));
     row.add(clockLabel);

@@ -103,7 +103,7 @@ public final class LoginFrame extends JFrame {
     greeting.setOpaque(false);
     JLabel eyebrow = new JLabel("CHÀO MỪNG TRỞ LẠI");
     eyebrow.setFont(DtaqFonts.EYEBROW);
-    eyebrow.setForeground(DtaqColors.PRIMARY);
+    eyebrow.setForeground(DtaqColors.TEXT_MUTED);
     greeting.add(eyebrow, "wrap");
     JLabel title = new JLabel("Đăng nhập DTAQ");
     title.setFont(DtaqFonts.DISPLAY);

@@ -124,12 +124,12 @@ public class DonutChartPanel extends JPanel {
       legendPanel.add(nameLbl);
 
       JLabel amtLbl = new JLabel(dinhDang(s.amount()));
-      amtLbl.setFont(DtaqFonts.BUTTON);
+      amtLbl.setFont(DtaqFonts.MONEY_TABLE);
       amtLbl.setForeground(DtaqColors.TEXT);
       legendPanel.add(amtLbl, "align right");
 
       JLabel pctLbl = new JLabel(String.format(VI, "%.1f%%", percent));
-      pctLbl.setFont(DtaqFonts.BODY_13);
+      pctLbl.setFont(DtaqFonts.NUMERIC_13);
       pctLbl.setForeground(DtaqColors.TEXT_MUTED);
       legendPanel.add(pctLbl, "align right, wrap");
     }

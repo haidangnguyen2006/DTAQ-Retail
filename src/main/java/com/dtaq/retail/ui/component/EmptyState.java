@@ -1,6 +1,7 @@
 package com.dtaq.retail.ui.component;
 
 import com.dtaq.retail.ui.theme.DtaqColors;
+import com.dtaq.retail.ui.theme.DtaqSpacing;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -20,7 +21,7 @@ public class EmptyState extends JPanel {
     super(new MigLayout("insets 28 32 28 32, align 50% 50%", "[center]", "[]12[]4[]"));
     setOpaque(false);
 
-    add(Tile.icon(iconName, 23, DtaqColors.TEXT_SUBTLE, DtaqColors.BG_APP, 46, Tile.OVAL), "center, wrap");
+    add(Tile.icon(iconName, 23, DtaqColors.TEXT_MUTED, DtaqColors.DISABLED_BG, 46, DtaqSpacing.RADIUS_L), "center, wrap");
 
     JLabel title = new JLabel(titleText);
     title.setFont(DtaqFonts.EMPTY_TITLE);

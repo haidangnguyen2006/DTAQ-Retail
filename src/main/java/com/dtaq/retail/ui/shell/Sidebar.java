@@ -111,9 +111,12 @@ public class Sidebar extends JPanel {
 
   private JPanel buildBrandBlock() {
     JPanel panel = new JPanel(new MigLayout("fill, insets 0 16 0 12, hidemode 3", "[]10[grow]", "[center]"));
-    panel.setOpaque(false);
+    // Ô logo nền trắng nối liền với topbar thành một dải trên cùng: logo vốn có nền trắng
+    // nên nằm tự nhiên, không còn hiệu ứng "miếng dán" trên nền navy.
+    panel.setOpaque(true);
+    panel.setBackground(DtaqColors.SURFACE);
     panel.setPreferredSize(new Dimension(0, DtaqSpacing.TOPBAR_H));
-    panel.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, DtaqColors.SIDEBAR_DIVIDER));
+    panel.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, DtaqColors.BORDER));
 
     logoLabel.setIcon(DtaqTheme.logo(LOGO_H));
     logoLabel.setToolTipText("DTAQ Điện máy");
@@ -177,7 +180,8 @@ public class Sidebar extends JPanel {
     scroll.getViewport().setOpaque(false);
     scroll.getVerticalScrollBar().setUnitIncrement(16);
     scroll.getVerticalScrollBar().putClientProperty(
-        com.formdev.flatlaf.FlatClientProperties.STYLE, "thumb: #323B4B; hoverThumbColor: #465062");
+        com.formdev.flatlaf.FlatClientProperties.STYLE, "thumb: " + com.dtaq.retail.ui.theme.DtaqStyles.hex(DtaqColors.SIDEBAR_SCROLL_THUMB)
+            + "; hoverThumbColor: " + com.dtaq.retail.ui.theme.DtaqStyles.hex(DtaqColors.SIDEBAR_SCROLL_THUMB_HOVER));
     return scroll;
   }
 }

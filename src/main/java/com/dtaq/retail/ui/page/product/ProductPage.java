@@ -9,8 +9,8 @@ import com.dtaq.retail.entity.NhaCungCap;
 import com.dtaq.retail.entity.SanPham;
 import com.dtaq.retail.entity.TrangThaiSanPham;
 import com.dtaq.retail.ui.component.Card;
-import com.dtaq.retail.ui.component.DatePicker;
 import com.dtaq.retail.ui.component.DataTable;
+import com.dtaq.retail.ui.component.DatePicker;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
 import com.dtaq.retail.ui.component.PageHeader;
@@ -135,7 +135,8 @@ public final class ProductPage implements Page {
     searchField.getTextField().addActionListener(e -> timKiem());
     searchButton.addActionListener(e -> timKiem());
     filterRow.add(searchField, "growx");
-    filterRow.add(searchButton);
+    // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
+    filterRow.add(searchButton, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
 
     Card tableCard = Card.standard();
     tableCard.add(filterRow, "growx, wrap");

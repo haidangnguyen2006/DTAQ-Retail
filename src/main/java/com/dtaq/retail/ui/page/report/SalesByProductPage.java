@@ -13,6 +13,8 @@ import com.dtaq.retail.ui.component.KyBaoCaoFilter;
 import com.dtaq.retail.ui.component.ModalDialog;
 import com.dtaq.retail.ui.component.PageHeader;
 import com.dtaq.retail.ui.component.StatefulView;
+import com.dtaq.retail.ui.component.StatusPill;
+import com.dtaq.retail.ui.component.table.TableRenderers;
 import com.dtaq.retail.ui.format.DateFormats;
 import com.dtaq.retail.ui.format.MoneyFormat;
 import com.dtaq.retail.ui.shell.Page;
@@ -38,10 +40,8 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTable;
-import javax.swing.SwingConstants;
 import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
 
@@ -314,22 +314,23 @@ public final class SalesByProductPage implements Page {
     return ten == null || ten.length() <= 14 ? ten : ten.substring(0, 13) + "…";
   }
 
-  private static final class RecommendationBadgeRenderer extends DefaultTableCellRenderer {
-    @Override
-    public Component getTableCellRendererComponent(
-        JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-      super.getTableCellRendererComponent(table, value, isSelected, false, row, column);
-      String raw = value == null ? "" : value.toString();
-      setHorizontalAlignment(SwingConstants.LEFT);
-      setToolTipText(raw);
-      setText("<html><body style='white-space:nowrap'>" + escapeHtml(raw) + "</body></html>");
-      return this;
+  /**
+   * Ô khuyến nghị: model giữ nguyên chuỗi có emoji (test và sắp xếp dựa vào đó); khi vẽ tách emoji
+   * đầu chuỗi thành loại {@link StatusPill} vì emoji hiển thị không ổn định trong Swing.
+   */
+  private static final class RecommendationBadgeRenderer extends TableRenderers.PillRenderer {
+    RecommendationBadgeRenderer() {
+      super(RecommendationBadgeRenderer::tachEmoji);
     }
 
-    private String escapeHtml(String raw) {
-      return raw.replace("&", "&amp;")
-          .replace("<", "&lt;")
-          .replace(">", "&gt;");
+    static Pill tachEmoji(String raw) {
+      String[][] bang = {{"🟢", "SUCCESS"}, {"🔵", "INFO"}, {"🟡", "WARNING"}, {"🔴", "DANGER"}};
+      for (String[] cap : bang) {
+        if (raw.startsWith(cap[0])) {
+          return new Pill(raw.substring(cap[0].length()).strip(), StatusPill.Type.valueOf(cap[1]));
+        }
+      }
+      return new Pill(raw, StatusPill.Type.NEUTRAL);
     }
   }
 

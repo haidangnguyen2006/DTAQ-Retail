@@ -189,7 +189,8 @@ public class InvoiceReceiptDialog extends ModalDialog {
     l.setFont(strong ? DtaqFonts.BUTTON : DtaqFonts.BODY_13);
     panel.add(l);
     JLabel v = new JLabel(value);
-    v.setFont(strong ? DtaqFonts.BUTTON : DtaqFonts.BODY_13);
+    // Số tiền dùng chữ số đều cột để các dòng tổng thẳng hàng đơn vị.
+    v.setFont(strong ? DtaqFonts.MONEY_TABLE : DtaqFonts.NUMERIC_13);
     v.setForeground(strong ? DtaqColors.PRIMARY_STRONG : DtaqColors.TEXT);
     panel.add(v, "align right, wrap");
   }

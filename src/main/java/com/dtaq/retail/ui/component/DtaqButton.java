@@ -160,7 +160,7 @@ public class DtaqButton extends JButton {
       case SEGMENTED_ACTIVE -> setStyle(
           "background: " + DtaqStyles.hex(DtaqColors.PRIMARY_SOFT)
               + "; foreground: " + DtaqStyles.hex(DtaqColors.PRIMARY_STRONG)
-              + "; borderWidth: 0; arc: 6" + extra);
+              + "; borderWidth: 0; arc: 12" + extra);
       case SEGMENTED_INACTIVE -> setStyle(DtaqStyles.BUTTON_SECONDARY
           + "; foreground: " + DtaqStyles.hex(DtaqColors.TEXT_MUTED) + extra);
       case LINK -> {
@@ -215,7 +215,7 @@ public class DtaqButton extends JButton {
     int boxH = fm.getHeight() + 2;
     int x = getWidth() - boxW - KBD_GAP;
     int y = (getHeight() - boxH) / 2;
-    g2.setColor(new Color(keyColor.getRed(), keyColor.getGreen(), keyColor.getBlue(), 110));
+    g2.setColor(DtaqColors.alpha(keyColor, 0.43f));
     g2.draw(new RoundRectangle2D.Float(x + 0.5f, y + 0.5f, boxW - 1, boxH - 1, 6, 6));
     g2.setColor(keyColor);
     g2.drawString(shortcutKey, x + KBD_PADDING, y + 1 + fm.getAscent());
