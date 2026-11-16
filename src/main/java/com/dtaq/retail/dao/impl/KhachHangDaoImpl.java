@@ -60,6 +60,28 @@ public final class KhachHangDaoImpl implements KhachHangDao {
   }
 
   @Override
+  public com.dtaq.retail.dao.Trang<KhachHang> findTrang(int boQua, int gioiHan) {
+    String sql = "SELECT COUNT(*) OVER() AS tong_so, \"maKH\", \"hoTen\", \"soDienThoai\", \"diaChi\""
+        + " FROM \"KhachHang\" ORDER BY \"maKH\" LIMIT ? OFFSET ?";
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, gioiHan);
+      statement.setInt(2, boQua);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<KhachHang> ketQua = new ArrayList<>();
+        int tongSo = 0;
+        while (resultSet.next()) {
+          tongSo = resultSet.getInt("tong_so");
+          ketQua.add(mapKhachHang(resultSet));
+        }
+        return new com.dtaq.retail.dao.Trang<>(ketQua, tongSo);
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tải danh sách khách hàng", e);
+    }
+  }
+
+  @Override
   public List<KhachHang> findAll() {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(SELECT_ALL);

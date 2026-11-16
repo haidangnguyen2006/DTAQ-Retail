@@ -299,13 +299,14 @@ public final class EmployeePage implements Page {
 
   @Override
   public void onShow() {
-    // Không tự tải: bảng chỉ nạp khi người dùng tìm kiếm.
+    // Lần đầu mở trang nạp sẵn danh sách; các lần sau giữ nguyên dữ liệu đã nạp trong phiên.
+    if (!daTimKiem) {
+      daTimKiem = true;
+      loadEmployees();
+    }
   }
 
   private void timKiem() {
-    if (searchField.getText().isBlank()) {
-      return;
-    }
     daTimKiem = true;
     loadEmployees();
   }

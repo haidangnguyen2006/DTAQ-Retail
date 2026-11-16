@@ -68,6 +68,26 @@ public interface SanPhamLoiDao {
   List<SanPhamLoi> findByTinhTrang(TrangThaiXuLyLoi tinhTrangXuLy);
 
   /**
+   * Một trang hồ sơ lỗi theo trạng thái và từ khóa (mã lỗi, số serial, tên dòng), mới nhất trước.
+   *
+   * @param tinhTrangXuLy trạng thái cần lọc; {@code null} thì lấy mọi trạng thái
+   * @param tuKhoa từ khóa; rỗng thì không lọc
+   * @param boQua số dòng bỏ qua
+   * @param gioiHan số dòng của trang
+   */
+  default Trang<SanPhamLoi> timTrang(
+      TrangThaiXuLyLoi tinhTrangXuLy, String tuKhoa, int boQua, int gioiHan) {
+    String khoa = tuKhoa == null ? "" : tuKhoa.trim().toLowerCase();
+    List<SanPhamLoi> nguon = tinhTrangXuLy == null ? findAll() : findByTinhTrang(tinhTrangXuLy);
+    return Trang.cat(nguon.stream()
+        .filter(spl -> spl.maLoi().toLowerCase().contains(khoa)
+            || spl.sanPham().soSerial().toLowerCase().contains(khoa)
+            || (spl.sanPham().dongSanPham() != null
+                && spl.sanPham().dongSanPham().tenDongSP().toLowerCase().contains(khoa)))
+        .toList(), boQua, gioiHan);
+  }
+
+  /**
    * Cập nhật tình trạng xử lý và ghi chú xử lý của hồ sơ lỗi trong giao dịch do bên gọi quản lý.
    *
    * @param ketNoi kết nối CSDL đang mở do bên gọi quản lý; không được {@code null}

@@ -43,6 +43,12 @@ public class SanPhamLoiDaoImpl implements SanPhamLoiDao {
   private static final String SELECT_ALL =
       SELECT_BASE + " ORDER BY spl.\"ngayGhiNhan\" DESC, spl.\"maLoi\" DESC";
 
+  private static final String SELECT_TRANG =
+      SELECT_BASE.replaceFirst("SELECT", "SELECT COUNT(*) OVER() AS tong_so,")
+          + " WHERE (CAST(? AS VARCHAR) IS NULL OR spl.\"tinhTrangXuLy\" = ?)"
+          + " AND (spl.\"maLoi\" ILIKE ? OR spl.\"soSerial\" ILIKE ? OR dsp.\"tenDongSP\" ILIKE ?)"
+          + " ORDER BY spl.\"ngayGhiNhan\" DESC, spl.\"maLoi\" DESC LIMIT ? OFFSET ?";
+
   private static final String SELECT_BY_ID =
       SELECT_BASE + " WHERE spl.\"maLoi\" = ?";
 
@@ -301,5 +307,33 @@ public class SanPhamLoiDaoImpl implements SanPhamLoiDao {
       throw new DataAccessException("Chứng từ đổi/trả không chứa số serial của máy lỗi này", e);
     }
     throw new DataAccessException(defaultMessage, e);
+  }
+
+  @Override
+  public com.dtaq.retail.dao.Trang<SanPhamLoi> timTrang(
+      TrangThaiXuLyLoi tinhTrangXuLy, String tuKhoa, int boQua, int gioiHan) {
+    String trangThai = tinhTrangXuLy == null ? null : tinhTrangXuLy.name();
+    String mau = MauLike.chua(tuKhoa);
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(SELECT_TRANG)) {
+      statement.setString(1, trangThai);
+      statement.setString(2, trangThai);
+      statement.setString(3, mau);
+      statement.setString(4, mau);
+      statement.setString(5, mau);
+      statement.setInt(6, gioiHan);
+      statement.setInt(7, boQua);
+      try (ResultSet rs = statement.executeQuery()) {
+        List<SanPhamLoi> ketQua = new java.util.ArrayList<>();
+        int tongSo = 0;
+        while (rs.next()) {
+          tongSo = rs.getInt("tong_so");
+          ketQua.add(mapSanPhamLoi(rs));
+        }
+        return new com.dtaq.retail.dao.Trang<>(ketQua, tongSo);
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tìm kiếm hồ sơ sản phẩm lỗi", e);
+    }
   }
 }

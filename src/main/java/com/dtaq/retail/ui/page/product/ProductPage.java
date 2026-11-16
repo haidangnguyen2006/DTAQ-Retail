@@ -8,6 +8,9 @@ import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.NhaCungCap;
 import com.dtaq.retail.entity.SanPham;
 import com.dtaq.retail.entity.TrangThaiSanPham;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
+import com.dtaq.retail.ui.format.NhanHienThi;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DatePicker;
@@ -46,11 +49,11 @@ public final class ProductPage implements Page {
   private final DongSanPhamDao dongSanPhamDao;
   private final JPanel view;
 
-  private final JComboBox<String> supplierCombo = new JComboBox<>();
-  private final JComboBox<String> productLineCombo = new JComboBox<>();
+  private final JComboBox<NhaCungCap> supplierCombo = new JComboBox<>();
+  private final JComboBox<DongSanPham> productLineCombo = new JComboBox<>();
   private final FormField serialField = FormField.text("Số serial", "Nhập số serial", "package");
-  private final FormField supplierField = new FormField("Mã NCC", supplierCombo);
-  private final FormField productLineField = new FormField("Mã dòng SP", productLineCombo);
+  private final FormField supplierField = new FormField("Nhà cung cấp", supplierCombo);
+  private final FormField productLineField = new FormField("Dòng sản phẩm", productLineCombo);
   private final FormField priceField = FormField.money("Giá nhập", "0");
   private final DatePicker dateField = new DatePicker("Ngày nhập kho");
   private final JComboBox<TrangThaiSanPham> statusBox = new JComboBox<>(TrangThaiSanPham.values());
@@ -59,14 +62,17 @@ public final class ProductPage implements Page {
   private SanPham sanPhamDangSua;
 
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(
-      new String[] {"Số serial", "Dòng SP", "NCC", "Tình trạng", "Giá nhập", "Thao tác"}, 5);
+      new String[] {"Số serial", "Dòng sản phẩm", "Nhà cung cấp", "Tình trạng", "Giá nhập", "Thao tác"}, 5);
   private final DataTable dataTable = new DataTable(tableModel, 36);
   private final StatefulView tableState;
   private final List<SanPham> cachedProducts = new ArrayList<>();
   private final FormField searchField =
-      FormField.search("Tìm máy", "Nhập số serial, mã dòng SP hoặc mã NCC");
+      FormField.search("Tìm máy", "Nhập số serial, tên dòng sản phẩm hoặc nhà cung cấp");
   private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
-  private static final int SO_MAY_TOI_DA = 200;
+  private static final int KICH_THUOC_TRANG = 20;
+  private final Pagination pagination = new Pagination();
+  private final PagedLoader<SanPham> trang =
+      new PagedLoader<>(pagination, KICH_THUOC_TRANG, "máy", this::veBang);
   private boolean daTimKiem;
 
   public ProductPage(SanPhamController controller, SanPhamDao sanPhamDao) {
@@ -87,8 +93,9 @@ public final class ProductPage implements Page {
         "[grow]",
         "[][grow]"));
 
-    supplierCombo.setEditable(true);
-    productLineCombo.setEditable(true);
+    NhanHienThi.datNhan(supplierCombo, NhaCungCap::tenNCC, "Chọn nhà cung cấp");
+    NhanHienThi.datNhan(productLineCombo, DongSanPham::tenDongSP, "Chọn dòng sản phẩm");
+    NhanHienThi.datNhan(statusBox, NhanHienThi::trangThaiSanPham, "");
 
     PageHeader header = new PageHeader(
         "Quản lý sản phẩm",
@@ -127,7 +134,7 @@ public final class ProductPage implements Page {
       return List.of(RowAction.secondary("Sửa", this::chonSua));
     });
     dataTable.setOnRowDoubleClick(this::chonSua);
-    dataTable.setColumnWidths(160, 180, 120, 140, 130, 160);
+    dataTable.setColumnWidths(160, 260, 180, 150, 130, 160);
     tableState = new StatefulView(dataTable, "package", "Chưa có máy", "Bấm lưu để thêm máy mới vào kho.");
     tableState.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
 
@@ -142,34 +149,35 @@ public final class ProductPage implements Page {
     Card tableCard = Card.standard();
     tableCard.add(filterRow, "growx, wrap");
     tableCard.setBody(tableState);
+    tableCard.add(pagination, "growx");
     view.add(tableCard, "grow, push");
   }
 
+  /** Tìm theo từ khóa đang nhập (rỗng thì duyệt toàn bộ) và nạp trang đầu. */
   private void timKiem() {
-    if (searchField.getText().isBlank()) {
-      return;
-    }
     daTimKiem = true;
-    taiDanhSach();
+    String tuKhoa = searchField.getText();
+    trang.datNguon((boQua, gioiHan) -> sanPhamDao.timTrang(tuKhoa, boQua, gioiHan));
   }
 
-  /** Bảng chỉ nạp sau khi người dùng tìm kiếm; lọc theo serial, mã dòng SP hoặc mã NCC. */
+  /** Dữ liệu vừa thay đổi: nạp lại trang đang xem. Bảng chưa từng nạp thì giữ nguyên. */
   private void taiDanhSach() {
-    if (!daTimKiem) {
-      return;
+    if (daTimKiem) {
+      trang.lamMoiDongBo();
     }
+  }
+
+  /** Vẽ một trang; chỉ số dòng của bảng trùng với {@link #cachedProducts}. */
+  private void veBang(List<SanPham> dong) {
     cachedProducts.clear();
-    // Lọc và giới hạn tại CSDL: bảng máy tăng mãi theo thời gian, không nạp toàn bộ lên bảng.
-    cachedProducts.addAll(sanPhamDao.timKiem(searchField.getText(), SO_MAY_TOI_DA));
-    searchField.setHint(cachedProducts.size() < SO_MAY_TOI_DA ? null
-        : "Chỉ hiển thị " + SO_MAY_TOI_DA + " máy đầu tiên, hãy thu hẹp từ khóa");
+    cachedProducts.addAll(dong);
     tableModel.setRowCount(0);
     for (SanPham sanPham : cachedProducts) {
       tableModel.addRow(new Object[] {
           sanPham.soSerial(),
-          sanPham.dongSanPham().maDongSP(),
-          sanPham.nhaCungCap().maNCC(),
-          sanPham.trangThai().name(),
+          sanPham.dongSanPham().tenDongSP(),
+          sanPham.nhaCungCap().tenNCC(),
+          NhanHienThi.trangThaiSanPham(sanPham.trangThai()),
           sanPham.giaNhap()
       });
     }
@@ -180,28 +188,50 @@ public final class ProductPage implements Page {
     }
   }
 
+  /** Lần đầu mở trang: nạp sẵn trang đầu ở luồng nền; các lần sau giữ nguyên dữ liệu đã nạp. */
+  @Override
+  public void onShow() {
+    trang.chayNen(tableState::showLoading,
+        loi -> tableState.showError("Không thể tải danh sách máy. Vui lòng thử lại."));
+    if (!daTimKiem) {
+      timKiem();
+    }
+  }
+
   private void taiDuLieuThamChieu() {
     if (nhaCungCapDao != null) {
       supplierCombo.removeAllItems();
-      supplierCombo.addItem("");
+      supplierCombo.addItem(null);
       nhaCungCapDao.findAll().stream()
-          .map(NhaCungCap::maNCC)
-          .sorted()
+          .sorted(java.util.Comparator.comparing(NhaCungCap::tenNCC))
           .forEach(supplierCombo::addItem);
     }
     if (dongSanPhamDao != null) {
       productLineCombo.removeAllItems();
-      productLineCombo.addItem("");
+      productLineCombo.addItem(null);
       dongSanPhamDao.findAll().stream()
-          .map(DongSanPham::maDongSP)
-          .sorted()
+          .sorted(java.util.Comparator.comparing(DongSanPham::tenDongSP))
           .forEach(productLineCombo::addItem);
     }
   }
 
-  private String getComboText(JComboBox<String> comboBox) {
-    Object value = comboBox.getSelectedItem();
-    return value == null ? "" : String.valueOf(value).trim();
+  /** Mã của lựa chọn hiện tại; rỗng nếu chưa chọn. */
+  private static <T> String maCua(JComboBox<T> combo, java.util.function.Function<T, String> ma) {
+    @SuppressWarnings("unchecked")
+    T chon = (T) combo.getSelectedItem();
+    return chon == null ? "" : ma.apply(chon);
+  }
+
+  private static <T> void chonTheoMa(
+      JComboBox<T> combo, java.util.function.Function<T, String> ma, String maCanChon) {
+    for (int i = 0; i < combo.getItemCount(); i++) {
+      T item = combo.getItemAt(i);
+      if (item != null && ma.apply(item).equals(maCanChon)) {
+        combo.setSelectedIndex(i);
+        return;
+      }
+    }
+    combo.setSelectedItem(null);
   }
 
   private void chonSua(int rowIndex) {
@@ -211,8 +241,8 @@ public final class ProductPage implements Page {
     SanPham sp = cachedProducts.get(rowIndex);
     sanPhamDangSua = sp;
     serialField.setText(sp.soSerial());
-    supplierCombo.setSelectedItem(sp.nhaCungCap().maNCC());
-    productLineCombo.setSelectedItem(sp.dongSanPham().maDongSP());
+    chonTheoMa(supplierCombo, NhaCungCap::maNCC, sp.nhaCungCap().maNCC());
+    chonTheoMa(productLineCombo, DongSanPham::maDongSP, sp.dongSanPham().maDongSP());
     priceField.setText(sp.giaNhap().toPlainString());
     dateField.setDate(sp.ngayNhapKhoBanDau() == null ? LocalDate.now() : sp.ngayNhapKhoBanDau());
     statusBox.setSelectedItem(sp.trangThai());
@@ -231,8 +261,8 @@ public final class ProductPage implements Page {
   private void resetForm() {
     sanPhamDangSua = null;
     serialField.setText("");
-    supplierCombo.setSelectedItem("");
-    productLineCombo.setSelectedItem("");
+    supplierCombo.setSelectedItem(null);
+    productLineCombo.setSelectedItem(null);
     priceField.setText("");
     dateField.setDate(LocalDate.now());
     statusBox.setSelectedItem(TrangThaiSanPham.SAN_SANG_BAN);
@@ -308,16 +338,16 @@ public final class ProductPage implements Page {
     if (sanPhamDangSua != null) {
       ketQua = controller.capNhat(
           sanPhamDangSua.soSerial(),
-          getComboText(supplierCombo),
-          getComboText(productLineCombo),
+          maCua(supplierCombo, NhaCungCap::maNCC),
+          maCua(productLineCombo, DongSanPham::maDongSP),
           BigDecimal.valueOf(priceField.getMoney()),
           ngayNhap,
           (TrangThaiSanPham) statusBox.getSelectedItem());
     } else {
       ketQua = controller.themMay(
           serialField.getText(),
-          getComboText(supplierCombo),
-          getComboText(productLineCombo),
+          maCua(supplierCombo, NhaCungCap::maNCC),
+          maCua(productLineCombo, DongSanPham::maDongSP),
           BigDecimal.valueOf(priceField.getMoney()),
           ngayNhap,
           (TrangThaiSanPham) statusBox.getSelectedItem());

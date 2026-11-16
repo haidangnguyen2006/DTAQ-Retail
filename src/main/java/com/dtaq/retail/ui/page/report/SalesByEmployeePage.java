@@ -10,6 +10,8 @@ import com.dtaq.retail.dao.ThongKeNhanVienDao.DieuChinhDoiChieu;
 import com.dtaq.retail.dao.ThongKeNhanVienDao.DongThongKeNhanVien;
 import com.dtaq.retail.dao.ThongKeNhanVienDao.HoaDonDoiChieu;
 import com.dtaq.retail.entity.NhanVien;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.BarChartPanel;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
@@ -93,6 +95,9 @@ public final class SalesByEmployeePage implements Page {
       "Mã nhân viên", "Họ và tên", "Số hóa đơn", "Doanh số trước thuế (VND)",
       "Điều chỉnh đổi/trả (VND)", "Sau điều chỉnh (VND)", "TB/hóa đơn (VND)", "Tỉ lệ trả",
       "Tỉ trọng", "Thao tác"}, 9);
+  private final Pagination trangPagination = new Pagination();
+  private final PagedLoader<DongThongKeNhanVien> trang =
+      new PagedLoader<>(trangPagination, 20, "nhân viên", this::veTrang);
   private final DataTable dataTable = new DataTable(tableModel, 52);
   private final StatefulView tableState;
   /** Dòng đang hiển thị, sắp theo doanh số thực giảm dần; chỉ số dòng bảng tham chiếu danh sách này. */
@@ -175,7 +180,8 @@ public final class SalesByEmployeePage implements Page {
 
     Card tableCard = Card.section("Chi tiết theo nhân viên",
         "Sắp theo doanh số thực giảm dần • nhấp đúp một dòng để đối chiếu hóa đơn", null);
-    tableCard.add(tableState, "growx");
+    tableCard.add(tableState, "growx, wrap");
+    tableCard.add(trangPagination, "growx");
     view.add(tableCard, "growx");
   }
 
@@ -249,7 +255,7 @@ public final class SalesByEmployeePage implements Page {
     BaoCao ketQua = phanTich.hienTai();
     BaoCao truoc = phanTich.kyTruoc();
     baoCao = ketQua;
-    tableModel.setRowCount(0);
+    trang.datDanhSach(List.of());
     dongHienThi.clear();
     renderInsights(phanTich.nhanXet());
     if (ketQua.dong().isEmpty()) {
@@ -262,16 +268,7 @@ public final class SalesByEmployeePage implements Page {
     dongHienThi.addAll(ketQua.dong().stream()
         .sorted(Comparator.comparing(DongThongKeNhanVien::sauDieuChinh).reversed()).toList());
     BigDecimal tong = ketQua.tongSauDieuChinh();
-    for (DongThongKeNhanVien d : dongHienThi) {
-      tableModel.addRow(new Object[] {
-          d.maNV(), d.dangHoatDong() ? d.hoTen() : d.hoTen() + " (đã khóa)", d.soHoaDon(),
-          d.doanhSo(), d.dieuChinh(), d.sauDieuChinh(),
-          ThongKeNhanVienController.trungBinhHoaDon(d.sauDieuChinh(), d.soHoaDon()),
-          ThongKeNhanVienController.dinhDangPhanTram(ThongKeNhanVienController.phanTram(d.dieuChinh(), d.doanhSo())),
-          ThongKeNhanVienController.dinhDangPhanTram(ThongKeNhanVienController.phanTram(d.sauDieuChinh(), tong)),
-          ""
-      });
-    }
+    trang.datDanhSach(dongHienThi);
     chart.setData(dongHienThi.stream().limit(SO_COT_BIEU_DO)
         .map(d -> new BarChartPanel.BarPoint(PersonNames.shortName(d.hoTen()),
             d.sauDieuChinh().doubleValue() / 1_000_000d))
@@ -335,11 +332,28 @@ public final class SalesByEmployeePage implements Page {
 
   // ---------------------------------------------------------------- đối chiếu (10.a)
 
+  /** Vẽ một trang của bảng thống kê (đã sắp theo doanh số thực giảm dần). */
+  private void veTrang(List<DongThongKeNhanVien> dong) {
+    tableModel.setRowCount(0);
+    BigDecimal tong = baoCao == null ? BigDecimal.ZERO : baoCao.tongSauDieuChinh();
+    for (DongThongKeNhanVien d : dong) {
+      tableModel.addRow(new Object[] {
+          d.maNV(), d.dangHoatDong() ? d.hoTen() : d.hoTen() + " (đã khóa)", d.soHoaDon(),
+          d.doanhSo(), d.dieuChinh(), d.sauDieuChinh(),
+          ThongKeNhanVienController.trungBinhHoaDon(d.sauDieuChinh(), d.soHoaDon()),
+          ThongKeNhanVienController.dinhDangPhanTram(ThongKeNhanVienController.phanTram(d.dieuChinh(), d.doanhSo())),
+          ThongKeNhanVienController.dinhDangPhanTram(ThongKeNhanVienController.phanTram(d.sauDieuChinh(), tong)),
+          ""
+      });
+    }
+  }
+
   private void openDoiChieu(int modelRow) {
-    if (baoCao == null || modelRow < 0 || modelRow >= baoCao.dong().size()) {
+    // Lấy đúng dòng đang hiển thị: bảng đã sắp lại nên không trùng thứ tự của báo cáo gốc.
+    DongThongKeNhanVien dong = trang.dong(modelRow);
+    if (baoCao == null || dong == null) {
       return;
     }
-    DongThongKeNhanVien dong = baoCao.dong().get(modelRow);
     DateRange ky = baoCao.ky();
     run(() -> controller.doiChieu(ky, dong.maNV()),
         doiChieu -> new DoiChieuDialog(ConfirmDialog.frameOf(view), dong, ky, doiChieu).setVisible(true),

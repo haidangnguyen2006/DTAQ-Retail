@@ -7,6 +7,8 @@ import com.dtaq.retail.entity.DongSanPham;
 import com.dtaq.retail.entity.LoaiQuyen;
 import com.dtaq.retail.session.CurrentSession;
 import com.dtaq.retail.util.TienUtil;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -66,6 +68,10 @@ public final class ProductLinesPage implements Page {
   private final FormField searchField =
       FormField.search("Tìm dòng sản phẩm", "Nhập mã, tên dòng hoặc tên danh mục");
   private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private static final int KICH_THUOC_TRANG = 20;
+  private final Pagination pagination = new Pagination();
+  private final PagedLoader<DongSanPham> trang =
+      new PagedLoader<>(pagination, KICH_THUOC_TRANG, "dòng sản phẩm", this::veBang);
   private boolean daTimKiem;
   private DongSanPham dongDangChon;
 
@@ -95,7 +101,7 @@ public final class ProductLinesPage implements Page {
           boolean cellHasFocus) {
         super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
         if (value instanceof DanhMucSanPham danhMuc) {
-          setText(formatDanhMucDisplay(danhMuc));
+          setText(danhMuc.tenDanhMuc());
         } else {
           setText("");
         }
@@ -142,16 +148,8 @@ public final class ProductLinesPage implements Page {
 
     JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[bottom]"));
     filterRow.setOpaque(false);
-    searchField.getTextField().addActionListener(e -> {
-      if (!searchField.getText().isBlank()) {
-        timKiem();
-      }
-    });
-    searchButton.addActionListener(e -> {
-      if (!searchField.getText().isBlank()) {
-        timKiem();
-      }
-    });
+    searchField.getTextField().addActionListener(e -> timKiem());
+    searchButton.addActionListener(e -> timKiem());
     filterRow.add(searchField, "growx");
     // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
     filterRow.add(searchButton, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
@@ -159,6 +157,7 @@ public final class ProductLinesPage implements Page {
     Card listCard = Card.standard();
     listCard.add(filterRow, "growx, wrap");
     listCard.setBody(statefulView);
+    listCard.add(pagination, "growx");
     view.add(listCard, "grow, push");
 
     taiDanhSach();
@@ -167,7 +166,18 @@ public final class ProductLinesPage implements Page {
   /** Tìm theo từ khóa đang nhập; dùng chung cho nút Tìm kiếm và kiểm thử. */
   void timKiem() {
     daTimKiem = true;
-    taiDanhSach();
+    String tuKhoa = searchField.getText();
+    trang.datNguon((boQua, gioiHan) -> controller.timTrang(tuKhoa, boQua, gioiHan));
+  }
+
+  /** Lần đầu mở trang: nạp sẵn trang đầu ở luồng nền; các lần sau giữ nguyên dữ liệu đã nạp. */
+  @Override
+  public void onShow() {
+    trang.chayNen(statefulView::showLoading,
+        loi -> statefulView.showError("Không thể tải danh sách dòng sản phẩm. Vui lòng thử lại."));
+    if (!daTimKiem) {
+      timKiem();
+    }
   }
 
   public ProductLinesPage(DongSanPhamController controller) {
@@ -206,32 +216,33 @@ public final class ProductLinesPage implements Page {
       categoryBox.addItem(item);
     }
 
-    dongDangChon = null;
-    danhSachDong.clear();
-    tableModel.setRowCount(0);
-    // Danh mục ở trên là lựa chọn của form; bảng chỉ nạp sau khi người dùng tìm kiếm.
+    // Danh mục ở trên là lựa chọn của form; bảng nạp theo trang khi mở trang hoặc khi tìm kiếm.
     if (!daTimKiem) {
+      dongDangChon = null;
+      danhSachDong.clear();
+      tableModel.setRowCount(0);
       capNhatLuaChon();
       statefulView.showEmpty("search", "Chưa tra cứu", "Nhập từ khóa rồi nhấn Tìm kiếm.");
       return;
     }
-    String tuKhoa = searchField.getText().trim().toLowerCase();
-    for (DongSanPham dong : controller.layDanhSach()) {
-      if (!tuKhoa.isEmpty()
-          && !dong.maDongSP().toLowerCase().contains(tuKhoa)
-          && !dong.tenDongSP().toLowerCase().contains(tuKhoa)
-          && !dong.danhMucSanPham().tenDanhMuc().toLowerCase().contains(tuKhoa)) {
-        continue;
-      }
-      danhSachDong.add(dong);
+    trang.lamMoiDongBo();
+  }
+
+  /** Vẽ một trang; chỉ số dòng của bảng trùng với {@link #danhSachDong}. */
+  private void veBang(List<DongSanPham> dong) {
+    dongDangChon = null;
+    danhSachDong.clear();
+    danhSachDong.addAll(dong);
+    tableModel.setRowCount(0);
+    for (DongSanPham dongSanPham : danhSachDong) {
       tableModel.addRow(new Object[] {
-          dong.maDongSP(),
-          dong.tenDongSP(),
-          dong.danhMucSanPham().tenDanhMuc(),
-          dong.donViTinh(),
-          dong.donGiaBanTruocThue(),
-          dong.thue(),
-          dong.trangThaiKinhDoanh() ? "Đang kinh doanh" : "Ngừng kinh doanh",
+          dongSanPham.maDongSP(),
+          dongSanPham.tenDongSP(),
+          dongSanPham.danhMucSanPham().tenDanhMuc(),
+          dongSanPham.donViTinh(),
+          dongSanPham.donGiaBanTruocThue(),
+          dongSanPham.thue(),
+          dongSanPham.trangThaiKinhDoanh() ? "Đang kinh doanh" : "Ngừng kinh doanh",
           ""
       });
     }

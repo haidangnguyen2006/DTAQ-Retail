@@ -3,6 +3,9 @@ package com.dtaq.retail.ui.page.defective;
 import com.dtaq.retail.controller.SanPhamLoiController;
 import com.dtaq.retail.entity.SanPhamLoi;
 import com.dtaq.retail.entity.TrangThaiXuLyLoi;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
+import com.dtaq.retail.ui.format.DateFormats;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -59,6 +62,10 @@ public class DefectiveProductsPage implements Page {
   private TrangThaiXuLyLoi currentStatusFilter = null;
   private String currentSearchKeyword = "";
   /** Bảng chỉ nạp dữ liệu sau lần tìm kiếm đầu tiên của người dùng. */
+  private static final int KICH_THUOC_TRANG = 20;
+  private final Pagination pagination = new Pagination();
+  private final PagedLoader<SanPhamLoi> trang =
+      new PagedLoader<>(pagination, KICH_THUOC_TRANG, "hồ sơ lỗi", this::veBang);
   private boolean daTimKiem;
 
   /**
@@ -100,7 +107,17 @@ public class DefectiveProductsPage implements Page {
     Card tableCard = Card.standard();
     tableCard.add(buildFilterRow(), "growx, wrap");
     tableCard.setBody(tableState);
+    tableCard.add(pagination, "growx");
     view.add(tableCard, "grow, push");
+    trang.chayNen(
+        () -> {
+          tableState.showLoading();
+          refreshButton.setEnabled(false);
+        },
+        loi -> {
+          refreshButton.setEnabled(true);
+          tableState.showError("Không thể tải danh sách sản phẩm lỗi. Vui lòng thử lại.");
+        });
   }
 
   private JPanel buildFilterRow() {
@@ -115,7 +132,7 @@ public class DefectiveProductsPage implements Page {
         case 4 -> TrangThaiXuLyLoi.THANH_LY;
         default -> null;
       };
-      loadDefects();
+      timKiem();
     });
     // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
     filterRow.add(statusFilter, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
@@ -157,7 +174,10 @@ public class DefectiveProductsPage implements Page {
 
   @Override
   public void onShow() {
-    // Không tự tải: bảng chỉ nạp khi người dùng tìm kiếm.
+    // Lần đầu mở trang nạp sẵn trang đầu; các lần sau giữ nguyên dữ liệu đã nạp trong phiên.
+    if (!daTimKiem) {
+      timKiem();
+    }
   }
 
   @Override
@@ -187,69 +207,39 @@ public class DefectiveProductsPage implements Page {
     });
   }
 
-  /**
-   * Tải danh sách hồ sơ lỗi theo trạng thái lọc qua tiến trình nền.
-   */
+  /** Dữ liệu vừa thay đổi hoặc người dùng bấm làm mới: nạp lại trang đang xem. */
   public void loadDefects() {
     if (!daTimKiem) {
       return;
     }
-    tableState.showLoading();
-    refreshButton.setEnabled(false);
+    if (trang.daCoNguon()) {
+      trang.lamMoi();
+    } else {
+      timKiem();
+    }
+  }
 
-    new SwingWorker<List<SanPhamLoi>, Void>() {
-      @Override
-      protected List<SanPhamLoi> doInBackground() {
-        return controller.layDanhSach(currentStatusFilter);
-      }
-
-      @Override
-      protected void done() {
-        refreshButton.setEnabled(true);
-        try {
-          List<SanPhamLoi> list = get();
-          cachedList.clear();
-          if (list != null) {
-            cachedList.addAll(list);
-          }
-          renderFilteredList();
-        } catch (Exception e) {
-          tableState.showError("Không thể tải danh sách sản phẩm lỗi. Vui lòng thử lại.");
-        }
-      }
-    }.execute();
+  /** Tìm theo bộ lọc trạng thái và từ khóa hiện tại (rỗng thì duyệt toàn bộ), nạp trang đầu. */
+  private void timKiem() {
+    daTimKiem = true;
+    TrangThaiXuLyLoi trangThai = currentStatusFilter;
+    String tuKhoa = currentSearchKeyword;
+    trang.datNguon((boQua, gioiHan) -> controller.timTrang(trangThai, tuKhoa, boQua, gioiHan));
   }
 
   private void applySearchFilter() {
     this.currentSearchKeyword = searchField.getText().trim().toLowerCase();
-    if (currentSearchKeyword.isEmpty()) {
-      return;
-    }
-    daTimKiem = true;
-    loadDefects();
+    timKiem();
   }
 
-  private void renderFilteredList() {
+  /** Vẽ một trang hồ sơ lỗi; {@link #cachedList} giữ đúng các dòng đang hiển thị. */
+  private void veBang(List<SanPhamLoi> dong) {
+    refreshButton.setEnabled(true);
+    cachedList.clear();
+    cachedList.addAll(dong);
     tableModel.setRowCount(0);
-
-    List<SanPhamLoi> filtered = cachedList.stream()
-        .filter(spl -> {
-          if (currentSearchKeyword.isEmpty()) {
-            return true;
-          }
-          String ma = spl.maLoi().toLowerCase();
-          String serial = spl.sanPham().soSerial().toLowerCase();
-          String dongSp = (spl.sanPham().dongSanPham() != null)
-              ? spl.sanPham().dongSanPham().tenDongSP().toLowerCase()
-              : "";
-          return ma.contains(currentSearchKeyword)
-              || serial.contains(currentSearchKeyword)
-              || dongSp.contains(currentSearchKeyword);
-        })
-        .toList();
-
-    if (filtered.isEmpty()) {
-      countPill.setText("0 máy lỗi");
+    countPill.setText(trang.tongSo() + " máy lỗi");
+    if (dong.isEmpty()) {
       if (currentSearchKeyword.isEmpty()) {
         tableState.showEmpty();
       } else {
@@ -257,9 +247,7 @@ public class DefectiveProductsPage implements Page {
       }
       return;
     }
-
-    countPill.setText(filtered.size() + " máy lỗi");
-    for (SanPhamLoi spl : filtered) {
+    for (SanPhamLoi spl : dong) {
       String tenDongSp = (spl.sanPham().dongSanPham() != null)
           ? spl.sanPham().dongSanPham().tenDongSP()
           : "—";
@@ -268,7 +256,7 @@ public class DefectiveProductsPage implements Page {
           spl.maLoi(),
           spl.sanPham().soSerial(),
           tenDongSp,
-          spl.ngayGhiNhan() != null ? spl.ngayGhiNhan().toString() : "—",
+          spl.ngayGhiNhan() != null ? DateFormats.formatDate(spl.ngayGhiNhan()) : "—",
           dinhDangTrangThai(spl.tinhTrangXuLy()),
           spl.moTaLoi(),
           ""

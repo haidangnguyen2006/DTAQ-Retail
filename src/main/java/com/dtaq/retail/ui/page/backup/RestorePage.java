@@ -4,6 +4,8 @@ import com.dtaq.retail.controller.BackupController;
 import com.dtaq.retail.entity.BackupRecord;
 import com.dtaq.retail.exception.BackupException;
 import com.dtaq.retail.notify.NotificationService;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -56,6 +58,9 @@ public final class RestorePage implements Page {
   private final DtaqButton restoreBtn = DtaqButton.dangerSoft("Phục hồi");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {
       "Tệp", "Thời điểm", "Kích thước", "Kiểm tra", "Trạng thái"});
+  private final Pagination trangPagination = new Pagination();
+  private final PagedLoader<BackupRecord> trang =
+      new PagedLoader<>(trangPagination, 20, "bản sao lưu", this::veTrang);
   private final DataTable dataTable = new DataTable(tableModel, 48);
   private final StatefulView tableState;
   private final List<BackupRecord> rows = new ArrayList<>();
@@ -106,6 +111,7 @@ public final class RestorePage implements Page {
     Card listCard = Card.section(
         "Bản sao lưu khả dụng", "Chọn một dòng để kiểm tra hoặc phục hồi.", null);
     listCard.setBody(tableState);
+    listCard.add(trangPagination, "growx");
     view.add(listCard, "grow, push");
   }
 
@@ -148,6 +154,11 @@ public final class RestorePage implements Page {
   }
 
   private void renderDanhSach(List<BackupRecord> danhSach) {
+    trang.datDanhSach(danhSach == null ? List.of() : danhSach);
+  }
+
+  /** Vẽ một trang; {@link #rows} giữ đúng các dòng đang hiển thị. */
+  private void veTrang(List<BackupRecord> danhSach) {
     rows.clear();
     tableModel.setRowCount(0);
 

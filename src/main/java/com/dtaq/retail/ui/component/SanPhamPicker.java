@@ -2,6 +2,8 @@ package com.dtaq.retail.ui.component;
 
 import com.dtaq.retail.dao.SanPhamDao;
 import com.dtaq.retail.entity.SanPham;
+import com.dtaq.retail.ui.format.DateFormats;
+import com.dtaq.retail.ui.format.NhanHienThi;
 import com.dtaq.retail.ui.theme.DtaqColors;
 import com.dtaq.retail.ui.theme.DtaqFonts;
 import java.awt.Component;
@@ -112,8 +114,8 @@ public final class SanPhamPicker {
       for (SanPham sp : rows) {
         tableModel.addRow(new Object[] {
             sp.soSerial(),
-            sp.trangThai() == null ? "" : sp.trangThai().name(),
-            sp.ngayNhapKhoBanDau() == null ? "" : sp.ngayNhapKhoBanDau().toString()
+            NhanHienThi.trangThaiSanPham(sp.trangThai()),
+            sp.ngayNhapKhoBanDau() == null ? "" : DateFormats.formatDate(sp.ngayNhapKhoBanDau())
         });
       }
       chonButton.setEnabled(true);

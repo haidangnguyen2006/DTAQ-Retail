@@ -2,6 +2,8 @@ package com.dtaq.retail.ui.page.category;
 
 import com.dtaq.retail.controller.DanhMucController;
 import com.dtaq.retail.entity.DanhMucSanPham;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
 import com.dtaq.retail.ui.component.DataTable;
@@ -53,6 +55,10 @@ public class CategoriesPage implements Page {
 
   private final List<DanhMucSanPham> cachedList = new ArrayList<>();
   /** Bảng chỉ nạp dữ liệu sau lần tìm kiếm đầu tiên của người dùng. */
+  private static final int KICH_THUOC_TRANG = 20;
+  private final Pagination pagination = new Pagination();
+  private final PagedLoader<DanhMucSanPham> trang =
+      new PagedLoader<>(pagination, KICH_THUOC_TRANG, "danh mục", this::veBang);
   private boolean daTimKiem;
   private String currentFilter = "";
 
@@ -96,6 +102,7 @@ public class CategoriesPage implements Page {
     Card tableCard = Card.standard();
     tableCard.add(buildFilterRow(), "growx, wrap");
     tableCard.setBody(tableState);
+    tableCard.add(pagination, "growx");
     view.add(tableCard, "grow, push");
   }
 
@@ -141,7 +148,11 @@ public class CategoriesPage implements Page {
 
   @Override
   public void onShow() {
-    // Không tự tải: bảng chỉ nạp khi người dùng tìm kiếm.
+    // Lần đầu mở trang nạp sẵn danh sách; các lần sau giữ nguyên dữ liệu đã nạp trong phiên.
+    if (!daTimKiem) {
+      daTimKiem = true;
+      loadCategories();
+    }
   }
 
   @Override
@@ -206,9 +217,6 @@ public class CategoriesPage implements Page {
 
   private void applyFilter() {
     this.currentFilter = searchField.getText().trim().toLowerCase();
-    if (currentFilter.isEmpty()) {
-      return;
-    }
     daTimKiem = true;
     loadCategories();
   }
@@ -221,8 +229,14 @@ public class CategoriesPage implements Page {
             || dm.tenDanhMuc().toLowerCase().contains(currentFilter))
         .toList();
 
-    if (filtered.isEmpty()) {
-      countPill.setText("0 danh mục");
+    countPill.setText(filtered.size() + " danh mục");
+    trang.datDanhSach(filtered);
+  }
+
+  /** Vẽ một trang của danh sách đã lọc. */
+  private void veBang(List<DanhMucSanPham> dong) {
+    tableModel.setRowCount(0);
+    if (dong.isEmpty()) {
       if (currentFilter.isEmpty()) {
         tableState.showEmpty();
       } else {
@@ -230,9 +244,7 @@ public class CategoriesPage implements Page {
       }
       return;
     }
-
-    countPill.setText(filtered.size() + " danh mục");
-    for (DanhMucSanPham dm : filtered) {
+    for (DanhMucSanPham dm : dong) {
       tableModel.addRow(new Object[] {
           dm.maDanhMuc(),
           dm.tenDanhMuc(),

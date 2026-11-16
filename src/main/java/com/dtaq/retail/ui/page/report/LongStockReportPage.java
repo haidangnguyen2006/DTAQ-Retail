@@ -2,6 +2,9 @@ package com.dtaq.retail.ui.page.report;
 
 import com.dtaq.retail.controller.BaoCaoTonKhoController;
 import com.dtaq.retail.dao.BaoCaoTonKhoDao.DongTonLau;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
+import com.dtaq.retail.ui.format.NhanHienThi;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DtaqButton;
@@ -57,6 +60,9 @@ public class LongStockReportPage implements Page {
   private final StatusPill resultCountPill = StatusPill.neutral("0 máy");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {
       "Mã dòng SP", "Tên dòng sản phẩm", "Danh mục", "Số serial", "Ngày nhập kho", "Trạng thái", "Số ngày tồn"});
+  private final Pagination trangPagination = new Pagination();
+  private final PagedLoader<DongTonLau> trang =
+      new PagedLoader<>(trangPagination, 20, "máy", this::veTrang);
   private final DataTable dataTable = new DataTable(tableModel, 52);
   private final StatefulView tableState;
   private List<DongTonLau> reportRows = List.of();
@@ -101,6 +107,7 @@ public class LongStockReportPage implements Page {
     Card contentCard = Card.standard();
     contentCard.add(buildFilterRow(), "growx, wrap");
     contentCard.setBody(tableState);
+    contentCard.add(trangPagination, "growx, wrap");
     contentCard.add(buildTableFooter(), "growx");
     view.add(contentCard, "grow, push");
 
@@ -230,11 +237,7 @@ public class LongStockReportPage implements Page {
 
   private void renderRows() {
     List<DongTonLau> rows = visibleRows();
-    tableModel.setRowCount(0);
-    for (DongTonLau row : rows) {
-      tableModel.addRow(new Object[] {row.maDongSP(), row.tenDongSP(), row.tenDanhMuc(), row.soSerial(),
-          DateFormats.formatDate(row.ngayNhapKhoBanDau()), row.trangThai().name(), row.soNgayTon()});
-    }
+    trang.datDanhSach(rows);
     resultCountPill.setText(rows.size() + " máy");
     kpiMachines.setValue(String.valueOf(rows.size()));
     kpiMachines.setCaption("Máy đang hiển thị");
@@ -250,10 +253,19 @@ public class LongStockReportPage implements Page {
     }
   }
 
+  /** Vẽ một trang của kết quả đã lọc. */
+  private void veTrang(List<DongTonLau> rows) {
+    tableModel.setRowCount(0);
+    for (DongTonLau row : rows) {
+      tableModel.addRow(new Object[] {row.maDongSP(), row.tenDongSP(), row.tenDanhMuc(), row.soSerial(),
+          DateFormats.formatDate(row.ngayNhapKhoBanDau()), NhanHienThi.trangThaiSanPham(row.trangThai()), row.soNgayTon()});
+    }
+  }
+
   private void drillDown(int modelRow) {
-    List<DongTonLau> rows = visibleRows();
-    if (modelRow < 0 || modelRow >= rows.size()) return;
-    String line = rows.get(modelRow).maDongSP();
+    DongTonLau dong = trang.dong(modelRow);
+    if (dong == null) return;
+    String line = dong.maDongSP();
     selectedProductLine = line.equals(selectedProductLine) ? null : line;
     renderRows();
   }

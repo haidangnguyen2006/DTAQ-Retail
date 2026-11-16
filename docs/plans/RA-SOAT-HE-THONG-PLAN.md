@@ -8,7 +8,7 @@
 
 ## 0. Trạng thái thực hiện (hoàn tất 2026-11-16)
 
-Baseline trước khi sửa: 692 test pass, 0 fail, 0 skip (có PostgreSQL). Sau khi sửa: **701 pass** với `mvn -B clean package` (đúng lệnh CI cộng đóng gói).
+Baseline trước khi sửa: 692 test pass, 0 fail, 0 skip (có PostgreSQL). Sau khi sửa: **707 pass** với `mvn -B clean package` (đúng lệnh CI cộng đóng gói).
 
 | ID | Trạng thái | Ghi chú so với mô tả ở §4–§6 |
 |---|---|---|
@@ -33,7 +33,8 @@ Baseline trước khi sửa: 692 test pass, 0 fail, 0 skip (có PostgreSQL). Sau
 | UX-09 | Xong | |
 | UX-01, UX-02 | **Bỏ** | Test của nhóm (`RetailInvoicePageTest`) khẳng định thao tác giỏ/lưu tạm chạy đồng bộ, và `BanHangController` không an toàn đa luồng. Sau DB-02/DB-05 mỗi thao tác chỉ còn 1–2 truy vấn có chỉ mục |
 | UX-05 | **Chuyển sang §7** | UC003 và tài liệu phạm vi không nêu bước in hóa đơn |
-| UX-07 | **Không làm** | Bảng khuyến mãi, sản phẩm lỗi, dòng sản phẩm có quy mô vài trăm dòng và đã nằm trong vùng cuộn; phân trang phía client phải đổi cách ánh xạ chỉ số dòng của các nút thao tác, rủi ro lớn hơn lợi ích. Bảng lớn thật sự (máy) đã giới hạn tại CSDL (DB-06) |
+| UX-07 | Xong (yêu cầu bổ sung 2026-11-16) | Mọi bảng danh sách có phân trang qua `ui/component/PagedLoader`. **Nạp dần tại CSDL** (`LIMIT/OFFSET` + `COUNT(*) OVER()`, mỗi trang một truy vấn, trang đã nạp giữ trong phiên): máy, dòng sản phẩm (2 màn), hồ sơ lỗi, khách hàng khi không có từ khóa. **Phân trang trên kết quả đã nạp một lần:** danh mục, khuyến mãi, nhân viên, phê duyệt, phiếu chờ hoàn tất, hóa đơn/phiếu của khách, tra cứu tồn kho, ba báo cáo, sao lưu, phục hồi. Trang đầu được nạp sẵn khi mở màn hình (`onShow`), tìm kiếm rỗng = duyệt toàn bộ. Không phân trang: giỏ hàng, bảng chi tiết của một chứng từ, hộp thoại, bảng tóm tắt ở trang chủ |
+| Nhãn hiển thị | Xong (yêu cầu bổ sung 2026-11-16) | `ui/format/NhanHienThi`: trạng thái máy hiện tiếng Việt ở mọi bảng/ô chọn; ô chọn danh mục, dòng sản phẩm, nhà cung cấp chỉ hiện tên; cột "Dòng sản phẩm"/"Nhà cung cấp" của bảng máy hiện tên thay cho mã |
 | Kiểm thử trên ứng dụng thật | Đã chạy 2026-11-16 | 27/27 bước pass: bán hàng (tìm dòng, giỏ, tổng lệch, sai vai trò, thanh toán qua giao diện, FIFO, `DA_BAN`, tồn kho), khóa ô giá/ô trạng thái, danh mục, vòng đời hồ sơ lỗi, hồ sơ lỗi của máy đã bán giữ `DA_BAN`, tổng chi tiêu ròng. Dữ liệu thử đã được dọn. Chưa thử tay: đổi/trả, nhập Excel (có test tự động) |
 | Q-01…Q-09 | **Đã chốt 2026-11-16** | Xem §7; 4 mục đổi code (Q-03, Q-04, Q-06, Q-08), 5 mục ghi nhận quyết định |
 

@@ -63,6 +63,12 @@ public final class SanPhamImpl implements SanPhamDao {
           + " WHERE sp.\"soSerial\" ILIKE ? OR sp.\"maDongSP\" ILIKE ? OR sp.\"maNCC\" ILIKE ?"
           + " ORDER BY sp.\"soSerial\" LIMIT ?";
 
+  private static final String SELECT_TRANG =
+      SELECT_CO_JOIN.replaceFirst("SELECT", "SELECT COUNT(*) OVER() AS tong_so,")
+          + " WHERE sp.\"soSerial\" ILIKE ? OR sp.\"maDongSP\" ILIKE ? OR dsp.\"tenDongSP\" ILIKE ?"
+          + " OR sp.\"maNCC\" ILIKE ? OR ncc.\"tenNCC\" ILIKE ?"
+          + " ORDER BY sp.\"soSerial\" LIMIT ? OFFSET ?";
+
   private static final String SELECT_BY_DONG_IN =
       SELECT_CO_JOIN + " WHERE sp.\"maDongSP\" = ANY (?) ORDER BY sp.\"soSerial\"";
 
@@ -245,9 +251,7 @@ public final class SanPhamImpl implements SanPhamDao {
 
   @Override
   public List<SanPham> timKiem(String tuKhoa, int gioiHan) {
-    String khoa = tuKhoa == null ? "" : tuKhoa.trim();
-    // Thoát ký tự đại diện của LIKE để từ khóa chỉ được so khớp theo nghĩa đen.
-    String mau = "%" + khoa.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    String mau = MauLike.chua(tuKhoa);
     try (Connection connection = dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(SELECT_TIM_KIEM)) {
       statement.setString(1, mau);
@@ -260,6 +264,30 @@ public final class SanPhamImpl implements SanPhamDao {
           ketQua.add(mapSanPham(resultSet));
         }
         return ketQua;
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Không thể tìm kiếm sản phẩm", e);
+    }
+  }
+
+  @Override
+  public com.dtaq.retail.dao.Trang<SanPham> timTrang(String tuKhoa, int boQua, int gioiHan) {
+    String mau = MauLike.chua(tuKhoa);
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(SELECT_TRANG)) {
+      for (int i = 1; i <= 5; i++) {
+        statement.setString(i, mau);
+      }
+      statement.setInt(6, gioiHan);
+      statement.setInt(7, boQua);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<SanPham> ketQua = new ArrayList<>();
+        int tongSo = 0;
+        while (resultSet.next()) {
+          tongSo = resultSet.getInt("tong_so");
+          ketQua.add(mapSanPham(resultSet));
+        }
+        return new com.dtaq.retail.dao.Trang<>(ketQua, tongSo);
       }
     } catch (SQLException e) {
       throw new DataAccessException("Không thể tìm kiếm sản phẩm", e);

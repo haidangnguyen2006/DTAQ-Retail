@@ -21,6 +21,16 @@ public interface KhachHangDao {
   Optional<KhachHang> findBySdt(String soDienThoai);
 
   /**
+   * Một trang khách hàng sắp theo mã, không lọc.
+   *
+   * @param boQua số dòng bỏ qua
+   * @param gioiHan số dòng của trang
+   */
+  default Trang<KhachHang> findTrang(int boQua, int gioiHan) {
+    return Trang.cat(findAll(), boQua, gioiHan);
+  }
+
+  /**
    * Liệt kê toàn bộ khách hàng, sắp xếp theo mã khách hàng.
    *
    * @return danh sách khách hàng, có thể rỗng

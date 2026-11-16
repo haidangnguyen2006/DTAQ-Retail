@@ -51,6 +51,11 @@ public final class DongSanPhamController {
     return dongSanPhamDao.findAll();
   }
 
+  /** Một trang dòng sản phẩm khớp từ khóa (mã, tên dòng hoặc tên danh mục). */
+  public com.dtaq.retail.dao.Trang<DongSanPham> timTrang(String tuKhoa, int boQua, int gioiHan) {
+    return dongSanPhamDao.timTrang(tuKhoa, boQua, gioiHan);
+  }
+
   public Optional<DongSanPham> timTheoMa(String maDongSP) {
     if (maDongSP == null || maDongSP.isBlank()) {
       return Optional.empty();

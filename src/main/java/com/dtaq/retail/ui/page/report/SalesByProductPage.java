@@ -2,6 +2,8 @@ package com.dtaq.retail.ui.page.report;
 
 import com.dtaq.retail.controller.ThongKeSanPhamController;
 import com.dtaq.retail.dao.ThongKeSanPhamDao;
+import com.dtaq.retail.ui.component.Pagination;
+import com.dtaq.retail.ui.component.PagedLoader;
 import com.dtaq.retail.ui.component.BarChartPanel;
 import com.dtaq.retail.ui.component.Card;
 import com.dtaq.retail.ui.component.ConfirmDialog;
@@ -64,6 +66,9 @@ public final class SalesByProductPage implements Page {
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {
       "Mã dòng SP", "Tên dòng sản phẩm", "Danh mục", "SL bán",
       "Tiền trước thuế", "SL trả", "Doanh số sau điều chỉnh", "Khuyến nghị nhập kho"});
+  private final Pagination trangPagination = new Pagination();
+  private final PagedLoader<ThongKeSanPhamDao.DongThongKe> trang =
+      new PagedLoader<>(trangPagination, 20, "dòng sản phẩm", this::veTrang);
   private final DataTable dataTable = new DataTable(tableModel, 52);
   private final StatefulView tableState;
   private final KyBaoCaoFilter filter = new KyBaoCaoFilter();
@@ -129,6 +134,7 @@ public final class SalesByProductPage implements Page {
     Card contentCard = Card.standard();
     contentCard.add(buildFilterBar(), "growx, wrap");
     contentCard.setBody(tableState);
+    contentCard.add(trangPagination, "growx");
     view.add(contentCard, "grow, push");
 
     filter.setDateRange(DEFAULT_FROM_DATE, DEFAULT_TO_DATE);
@@ -196,8 +202,25 @@ public final class SalesByProductPage implements Page {
     }.execute();
   }
 
-  private void renderRows() {
+  /** Vẽ một trang của bảng thống kê (đã sắp theo doanh số giảm dần). */
+  private void veTrang(List<ThongKeSanPhamDao.DongThongKe> dong) {
     tableModel.setRowCount(0);
+    for (ThongKeSanPhamDao.DongThongKe row : dong) {
+      tableModel.addRow(new Object[] {
+          row.maDongSP(),
+          row.tenDongSP(),
+          row.tenDanhMuc(),
+          row.soLuongBan(),
+          MoneyFormat.format(row.tienTruocThue()),
+          row.soLuongTra(),
+          MoneyFormat.format(row.doanhSoSauDieuChinh()),
+          recommendationBadge(row.soLuongTon(), row.soLuongBan(), row.soLuongTra(), row.doanhSoSauDieuChinh(), currentRange)
+      });
+    }
+  }
+
+  private void renderRows() {
+    trang.datDanhSach(List.of());
     // DAO liệt kê mọi dòng sản phẩm (kể cả dòng bằng 0), nên "không phát sinh" là không dòng nào có
     // bán hoặc trả trong kỳ (6.a).
     if (rows.stream().allMatch(r -> r.soLuongBan() == 0 && r.soLuongTra() == 0)) {
@@ -227,17 +250,8 @@ public final class SalesByProductPage implements Page {
         .findFirst()
         .orElse(sortedRows.getFirst());
 
+    trang.datDanhSach(sortedRows);
     for (ThongKeSanPhamDao.DongThongKe row : sortedRows) {
-      tableModel.addRow(new Object[] {
-          row.maDongSP(),
-          row.tenDongSP(),
-          row.tenDanhMuc(),
-          row.soLuongBan(),
-          MoneyFormat.format(row.tienTruocThue()),
-          row.soLuongTra(),
-          MoneyFormat.format(row.doanhSoSauDieuChinh()),
-          recommendationBadge(row.soLuongTon(), row.soLuongBan(), row.soLuongTra(), row.doanhSoSauDieuChinh(), currentRange)
-      });
       tongSoLuongBan += row.soLuongBan();
       tongSoLuongTra += row.soLuongTra();
       tongDoanhSo += row.doanhSoSauDieuChinh().longValue();

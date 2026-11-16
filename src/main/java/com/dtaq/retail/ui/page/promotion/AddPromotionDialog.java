@@ -64,7 +64,7 @@ public final class AddPromotionDialog extends ModalDialog {
           JList<?> list, Object value, int index, boolean selected, boolean focused) {
         super.getListCellRendererComponent(list, value, index, selected, focused);
         setText(value instanceof DongSanPham dsp
-            ? dsp.tenDongSP() + " (" + dsp.maDongSP() + ")"
+            ? dsp.tenDongSP()
             : "Không chọn dòng cụ thể");
         return this;
       }
