@@ -88,4 +88,13 @@ page: "Chưa xác minh"
 - Đã đối chiếu toàn bộ 32 dòng của bảng gốc: 1 dòng “Use case”, 5 trường thông tin chung, 4 dòng tiêu đề luồng, 11 bước luồng chính và 11 bước luồng phụ.
 - Không có sơ đồ riêng cho UC009 trong DOCX.
 
+## Quyết định implementation (2026-11-16)
+
+> Chốt ngày **2026-11-16** khi khép lại đợt rà soát `bug-smell`; nhóm ủy quyền quyết định. Mục này **bổ sung** quyết định implementation, bảng đặc tả phía trên giữ nguyên văn nguồn DOCX. Chi tiết: [`docs/plans/RA-SOAT-HE-THONG-PLAN.md`](../../plans/RA-SOAT-HE-THONG-PLAN.md) §7.
+
+| Mã | Nội dung |
+|---|---|
+| D29 | **Giá và thuế ban đầu được nhập khi tạo dòng sản phẩm** bởi người tạo (kể cả Nhân viên bán hàng, theo quyết định 2026-11-04). Sau khi tạo, chỉ Quản lý đổi được giá/thuế (C-08): `DongSanPhamController.capNhat` từ chối và form khóa hai ô này với vai trò khác. Giá phải là số nguyên VND (C-11). |
+
+
 Trước: [UC008 – Thêm sản phẩm](UC008-product-management.md) — Sau: [UC010 – Thêm danh mục sản phẩm](UC010-product-category-management.md) — Nguồn: [DOCX](../../source/v12_Nhom04_9_REPORT_ApplicationDevelopment.docx)
