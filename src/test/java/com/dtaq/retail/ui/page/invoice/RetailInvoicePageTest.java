@@ -23,6 +23,7 @@ import com.dtaq.retail.entity.TrangThaiSanPham;
 import com.dtaq.retail.ui.component.FormField;
 import com.dtaq.retail.ui.page.customer.KhachHangPicker;
 import com.dtaq.retail.ui.shell.PageId;
+import java.awt.Component;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -33,6 +34,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,6 +43,7 @@ import java.util.stream.Stream;
 import javax.sql.DataSource;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import org.junit.jupiter.api.DisplayName;
@@ -174,6 +177,45 @@ class RetailInvoicePageTest {
     JLabel giamGiaLabel = (JLabel) truong(page, "giamGiaLabel");
 
     assertEquals("100.000 VNĐ", giamGiaLabel.getText());
+  }
+
+  @Test
+  @DisplayName("Gợi ý tiền khách đưa điền tiền và cập nhật tiền thừa")
+  void goiYtienKhachDuaDienTienVaCapNhatTienThua() {
+    RetailInvoicePage page = new RetailInvoicePage(nhanVienGia());
+
+    page.setCart(
+        List.of(new RetailInvoicePage.CartItem(
+            "DSP-01", "Máy giặt", 1, 31_818, "10%", 35_000, 5)),
+        new InvoiceTotals(31_818, 3_182, 35_000));
+
+    JPanel panel = (JPanel) truong(page, "cashSuggestionPanel");
+    assertTrue(panel.isVisible());
+
+    List<JButton> chips = new ArrayList<>();
+    for (Component con : panel.getComponents()) {
+      if (con instanceof JButton nut) {
+        chips.add(nut);
+      }
+    }
+    assertEquals(
+        List.of("35.000", "40.000", "50.000", "100.000", "200.000", "500.000"),
+        chips.stream().map(JButton::getText).toList());
+
+    chips.get(1).doClick();
+
+    assertEquals("40.000", truongForm(page, "cashField").getText());
+    assertEquals("5.000 VNĐ", ((JLabel) truong(page, "changeLabel")).getText());
+  }
+
+  @Test
+  @DisplayName("Trang mới chưa có sản phẩm thì hàng gợi ý tiền khách đưa bị ẩn")
+  void chuaCoGioThiAnGoiY() {
+    RetailInvoicePage page = new RetailInvoicePage(nhanVienGia());
+
+    JPanel panel = (JPanel) truong(page, "cashSuggestionPanel");
+
+    assertFalse(panel.isVisible());
   }
 
   private static FormField truongForm(RetailInvoicePage page, String tenTruong) {

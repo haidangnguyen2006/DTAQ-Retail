@@ -125,6 +125,10 @@ public class RetailInvoicePage implements Page {
   private final JLabel totalAmountLabel = new JLabel("0");
   private final FormField cashField = FormField.money("Tiền khách đưa (VNĐ)", "0");
   private final JLabel changeLabel = new JLabel("0 VNĐ");
+  private final JPanel cashSuggestionPanel = new JPanel(
+      new MigLayout(
+          "insets 0, gapy 4, wrap 3", "[grow,fill]6[grow,fill]6[grow,fill]", "[]"));
+  private long suggestionTotal = Long.MIN_VALUE;
   private final DtaqButton payButton = DtaqButton.primary(PAY_TEXT);
   private final DtaqButton saveDraftBtn = DtaqButton.secondary("Lưu hóa đơn tạm");
   private final DtaqButton openDraftBtn = DtaqButton.secondary("Mở hóa đơn tạm");
@@ -463,8 +467,10 @@ public class RetailInvoicePage implements Page {
     Card card = new Card(12, 8);
     card.add(Card.buildHeader("Thanh toán", null, null), "growx, wrap");
 
+    cashSuggestionPanel.setOpaque(false);
+
     JPanel totalsPanel = new JPanel(new MigLayout(
-        "fillx, insets 0, gapy 6", "[grow][]", "[]"));
+        "fillx, insets 0, gapy 6, hidemode 3", "[grow][]", "[]"));
     totalsPanel.setOpaque(false);
 
     addAmountRow(totalsPanel, "Tổng trước thuế:", subtotalLabel);
@@ -508,6 +514,7 @@ public class RetailInvoicePage implements Page {
     });
     cashField.getTextField().addActionListener(e -> executePayment());
     totalsPanel.add(cashField, "growx, span, wrap");
+    totalsPanel.add(cashSuggestionPanel, "growx, span, wrap");
 
     addAmountRow(totalsPanel, "Tiền trả lại khách:", changeLabel);
 
@@ -931,7 +938,11 @@ public class RetailInvoicePage implements Page {
     productSearchField.getInputComponent().setEnabled(canSearch && !locked);
     productSearchField.getInputComponent().setToolTipText(canSearch ? null : NOT_CONNECTED_TIP);
 
-    cashField.getInputComponent().setEnabled(!locked && !cartItems.isEmpty());
+    boolean cashEnabled = !locked && !cartItems.isEmpty();
+    cashField.getInputComponent().setEnabled(cashEnabled);
+    for (java.awt.Component chip : cashSuggestionPanel.getComponents()) {
+      chip.setEnabled(cashEnabled);
+    }
 
     boolean canDraft = banHangController != null && !locked;
     saveDraftBtn.setEnabled(canDraft);
@@ -1017,6 +1028,7 @@ public class RetailInvoicePage implements Page {
 
   private void updatePayment() {
     long total = totals.tongThanhToan();
+    updateCashSuggestions(total);
     subtotalLabel.setText(MoneyFormat.formatVnd(totals.tongTruocThue()));
     giamGiaLabel.setText(MoneyFormat.formatVnd(totals.tongGiamGia()));
     taxLabel.setText(MoneyFormat.formatVnd(totals.tongThue()));
@@ -1064,6 +1076,51 @@ public class RetailInvoicePage implements Page {
     }
     conditionLabel.setText(wrap(message));
     conditionLabel.setForeground(color);
+  }
+
+  /** Dựng lại hàng chip gợi ý tiền khách đưa; bỏ qua khi tổng thanh toán chưa đổi. */
+  private void updateCashSuggestions(long total) {
+    if (total == suggestionTotal) {
+      return;
+    }
+    suggestionTotal = total;
+    cashSuggestionPanel.removeAll();
+
+    List<Long> amounts = CashSuggestions.forTotal(total);
+    if (amounts.isEmpty()) {
+      cashSuggestionPanel.setVisible(false);
+      cashSuggestionPanel.revalidate();
+      cashSuggestionPanel.repaint();
+      return;
+    }
+
+    JLabel caption = new JLabel("Gợi ý nhanh:");
+    caption.setFont(DtaqFonts.HINT);
+    caption.setForeground(DtaqColors.TEXT_SUBTLE);
+    cashSuggestionPanel.add(caption, "span 3, wrap");
+
+    for (long amount : amounts) {
+      DtaqButton chip = DtaqButton.secondarySmall(MoneyFormat.format(amount));
+      chip.setToolTipText("Phân rã: " + CashSuggestions.describe(amount));
+      chip.addActionListener(e -> applyCashSuggestion(amount));
+      cashSuggestionPanel.add(chip, "growx, h 30!");
+    }
+
+    cashSuggestionPanel.setVisible(true);
+    cashSuggestionPanel.revalidate();
+    cashSuggestionPanel.repaint();
+  }
+
+  /**
+   * Điền số tiền gợi ý vào ô tiền khách đưa. Không gọi lại phần tính toán thanh toán vì
+   * {@code DocumentListener} của ô nhập đã tự cập nhật tiền thừa và trạng thái nút thanh toán.
+   */
+  private void applyCashSuggestion(long amount) {
+    if (isLocked() || cartItems.isEmpty()) {
+      return;
+    }
+    cashField.setText(Long.toString(amount));
+    cashField.getTextField().requestFocusInWindow();
   }
 
   private void renderResultRows() {
