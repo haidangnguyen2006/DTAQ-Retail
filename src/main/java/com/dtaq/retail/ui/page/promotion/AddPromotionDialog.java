@@ -8,6 +8,10 @@ import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.FormField;
 import com.dtaq.retail.ui.component.InfoCallout;
 import com.dtaq.retail.ui.component.ModalDialog;
+import com.dtaq.retail.ui.theme.DtaqFonts;
+import com.dtaq.retail.ui.theme.DtaqColors;
+import com.dtaq.retail.ui.theme.DtaqSpacing;
+import com.formdev.flatlaf.FlatClientProperties;
 import java.awt.Frame;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -58,6 +62,16 @@ public final class AddPromotionDialog extends ModalDialog {
 
   public AddPromotionDialog(Frame parent, List<DongSanPham> dongSanPham, List<DanhMucSanPham> danhMuc) {
     super(parent, "Thêm khuyến mãi", "Chọn dòng sản phẩm hoặc lọc theo danh mục và tuổi tồn.", 740);
+    dongSanPhamCombo.setFont(DtaqFonts.BODY_14);
+    dongSanPhamCombo.setForeground(DtaqColors.TEXT);
+    dongSanPhamCombo.setBackground(DtaqColors.SURFACE);
+    dongSanPhamCombo.putClientProperty(FlatClientProperties.STYLE,
+        com.dtaq.retail.ui.theme.DtaqStyles.TEXT_FIELD + "; padding: 4,10,4,10");
+    danhMucList.setFont(DtaqFonts.BODY_14);
+    danhMucList.setForeground(DtaqColors.TEXT);
+    danhMucList.setBackground(DtaqColors.SURFACE);
+    danhMucList.setFixedCellHeight(DtaqSpacing.CONTROL_H);
+    danhMucList.putClientProperty(FlatClientProperties.STYLE, "cellMargins: 4,10,4,10");
     dongSanPhamCombo.setRenderer(new DefaultListCellRenderer() {
       @Override
       public java.awt.Component getListCellRendererComponent(
@@ -102,8 +116,13 @@ public final class AddPromotionDialog extends ModalDialog {
     getBody().add(ngayBatDauField, "growx, wrap, gapbottom 12");
     getBody().add(ngayKetThucField, "growx, wrap, gapbottom 12");
     getBody().add(dongSanPhamField, "growx, wrap, gapbottom 12");
-    getBody().add(new FormField("Danh mục (Ctrl/Shift để chọn nhiều)",
-        new JScrollPane(danhMucList)), "growx, wrap, gapbottom 12");
+    JScrollPane danhMucScroll = new JScrollPane(danhMucList);
+    danhMucScroll.putClientProperty(FlatClientProperties.STYLE,
+        "borderColor: " + com.dtaq.retail.ui.theme.DtaqStyles.hex(DtaqColors.BORDER_STRONG)
+            + "; focusedBorderColor: " + com.dtaq.retail.ui.theme.DtaqStyles.hex(DtaqColors.PRIMARY));
+    FormField danhMucField = new FormField("Danh mục (Ctrl/Shift để chọn nhiều)", danhMucScroll);
+    danhMucScroll.setPreferredSize(new java.awt.Dimension(0, DtaqSpacing.CONTROL_H * 3 + 4));
+    getBody().add(danhMucField, "growx, wrap, gapbottom 12");
     getBody().add(ngayTonField, "growx, wrap, gapbottom 12");
     getBody().add(dangApDungCheck, "growx, wrap, gapbottom 12");
     getBody().add(new InfoCallout("Mỗi dòng sản phẩm chỉ có một chương trình đang áp dụng trong cùng khoảng ngày."), "growx, wrap");

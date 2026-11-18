@@ -75,6 +75,29 @@ class ThongKeSanPhamControllerTest {
     assertThrows(SecurityException.class, () -> controller.doiChieu(TU, DEN, "DSP-1"));
   }
 
+  @Test
+  void nhanXetDemNhomChongLapVaTraTuKyTruoc() {
+    var dong = List.of(
+        new ThongKeSanPhamDao.DongThongKe("A", "A", "DM", 3, 0, BigDecimal.ZERO, 1, new BigDecimal("-100")),
+        new ThongKeSanPhamDao.DongThongKe("B", "B", "DM", 0, 2, new BigDecimal("200"), 1, new BigDecimal("100")),
+        new ThongKeSanPhamDao.DongThongKe("C", "C", "DM", 4, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO),
+        new ThongKeSanPhamDao.DongThongKe("D", "D", "DM", 0, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO));
+    var nhanXet = ThongKeSanPhamController.nhanXet(dong);
+    assertTrue(nhanXet.contains("2 dòng có hàng trả hoàn tất trong kỳ, trong đó 1 dòng chỉ phát sinh hàng trả."));
+    assertTrue(nhanXet.contains("2 dòng hiện còn tồn kho nhưng chưa bán trong kỳ đã chọn."));
+    assertEquals(0, soLanGoiDao);
+  }
+
+  @Test
+  void nhanXetKhongPhatSinhVanDemTonHienTai() {
+    var dong = new ThongKeSanPhamDao.DongThongKe("A", "A", "DM", 3, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO);
+    var nhanXet = ThongKeSanPhamController.nhanXet(List.of(dong));
+    assertTrue(nhanXet.contains("Không phát sinh bán hoặc trả trong kỳ."));
+    assertTrue(nhanXet.contains("1 dòng hiện còn tồn kho nhưng chưa bán trong kỳ đã chọn."));
+    assertEquals(List.of("Chưa có dòng sản phẩm trong phạm vi báo cáo."),
+        ThongKeSanPhamController.nhanXet(List.of()));
+  }
+
   private static void dangNhap(LoaiQuyen quyen) {
     CurrentSession.set(new NhanVien("NV", "Nhân viên", "0900000000", null, LocalDate.of(2026, 1, 1),
         "nv", "hash", quyen, true));

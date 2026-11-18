@@ -120,6 +120,32 @@ public final class ThongKeSanPhamController {
     }
   }
 
+  /** Tóm tắt các nhóm trên toàn bộ kết quả đã tải, kể cả dòng không bán trong kỳ. */
+  public static List<String> nhanXet(List<ThongKeSanPhamDao.DongThongKe> chiTiet) {
+    if (chiTiet.isEmpty()) {
+      return List.of("Chưa có dòng sản phẩm trong phạm vi báo cáo.");
+    }
+    long coTra = 0;
+    long chiTra = 0;
+    long conTonChuaBan = 0;
+    boolean coPhatSinh = false;
+    for (var dong : chiTiet) {
+      coPhatSinh |= dong.soLuongBan() > 0 || dong.soLuongTra() > 0;
+      if (dong.soLuongTra() > 0) {
+        coTra++;
+        if (dong.soLuongBan() == 0) chiTra++;
+      }
+      if (dong.soLuongTon() > 0 && dong.soLuongBan() == 0) conTonChuaBan++;
+    }
+    List<String> nhanXet = new ArrayList<>();
+    if (!coPhatSinh) nhanXet.add("Không phát sinh bán hoặc trả trong kỳ.");
+    nhanXet.add(coTra + " dòng có hàng trả hoàn tất trong kỳ, trong đó " + chiTra
+        + " dòng chỉ phát sinh hàng trả.");
+    if (coTra > 0) nhanXet.add("Hàng trả trong kỳ có thể thuộc hóa đơn của kỳ trước.");
+    nhanXet.add(conTonChuaBan + " dòng hiện còn tồn kho nhưng chưa bán trong kỳ đã chọn.");
+    return List.copyOf(nhanXet);
+  }
+
   public record BaoCao(
       List<ThongKeSanPhamDao.DongThongKe> chiTiet,
       long tongSoLuongBan,
