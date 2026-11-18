@@ -11,6 +11,7 @@ import com.dtaq.retail.ui.component.DataTable;
 import com.dtaq.retail.ui.component.DonutChartPanel;
 import com.dtaq.retail.ui.component.DtaqButton;
 import com.dtaq.retail.ui.component.KpiCard;
+import com.dtaq.retail.ui.component.InfoCallout;
 import com.dtaq.retail.ui.component.KyBaoCaoFilter;
 import com.dtaq.retail.ui.component.ModalDialog;
 import com.dtaq.retail.ui.component.PageHeader;
@@ -26,7 +27,6 @@ import com.dtaq.retail.ui.theme.DtaqFonts;
 import com.dtaq.retail.ui.theme.DtaqSpacing;
 import com.dtaq.retail.util.DateRange;
 import com.dtaq.retail.util.TienUtil;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Frame;
 import java.io.File;
@@ -75,6 +75,8 @@ public final class SalesByProductPage implements Page {
   private final JLabel focusLabel = new JLabel();
   private final BarChartPanel salesChart = new BarChartPanel();
   private final DonutChartPanel revenueMixChart = new DonutChartPanel();
+  private final JPanel insightList = new JPanel(new MigLayout("fillx, insets 0, wrap 1", "[grow,fill]", "[]8[]"));
+  private int reportRequest;
   private List<ThongKeSanPhamDao.DongThongKe> rows = List.of();
   private DateRange currentRange = new DateRange(DEFAULT_FROM_DATE, DEFAULT_TO_DATE);
   private String selectedProductCode = DEFAULT_PRODUCT_CODE;
@@ -84,7 +86,7 @@ public final class SalesByProductPage implements Page {
     view = new JPanel(new MigLayout(
         "fill, insets " + DtaqSpacing.PAGE_PADDING,
         "[grow]",
-        "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[grow]"));
+        "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[]" + DtaqSpacing.SECTION_GAP + "[grow]"));
     view.setBackground(DtaqColors.BG_APP);
 
     PageHeader header = new PageHeader(REPORT_TITLE,
@@ -104,6 +106,11 @@ public final class SalesByProductPage implements Page {
     view.add(kpiRow, "growx, wrap");
 
     view.add(buildAnalyticsPanel(), "growx, wrap");
+    insightList.setOpaque(false);
+    Card insightCard = Card.section("Nhận xét nhanh",
+        "Toàn bộ dòng sản phẩm trong kỳ. Tồn kho là số hiện tại.", null);
+    insightCard.setBody(insightList);
+    view.add(insightCard, "growx, wrap");
 
     dataTable.setCodeColumn(0);
     dataTable.setNumberColumn(3);
@@ -126,7 +133,7 @@ public final class SalesByProductPage implements Page {
       String maDongSP = String.valueOf(tableModel.getValueAt(modelRow, 0));
       if (selectedProductCode == null || !selectedProductCode.equals(maDongSP)) {
         selectedProductCode = maDongSP;
-        renderRows();
+        renderFocus();
       }
     });
 
@@ -141,7 +148,6 @@ public final class SalesByProductPage implements Page {
     filter.setOnApply(range -> loadReport(range, null));
     exportBtn.addActionListener(e -> exportReport());
     loadReport(new DateRange(DEFAULT_FROM_DATE, DEFAULT_TO_DATE), null);
-    tableState.showEmpty("chart-no-axes-combined", EMPTY_TITLE, EMPTY_HINT);
   }
 
   private JPanel buildFilterBar() {
@@ -173,11 +179,20 @@ public final class SalesByProductPage implements Page {
     if (controller == null) {
       return;
     }
-    this.currentRange = ky;
+    int request = ++reportRequest;
     if (maDongSP != null && !maDongSP.isBlank()) {
       this.selectedProductCode = maDongSP;
     }
     exportBtn.setEnabled(false);
+    rows = List.of();
+    trang.datDanhSach(List.of());
+    kpiUnits.setValue("—");
+    kpiRevenue.setValue("—");
+    kpiReturned.setValue("—");
+    salesChart.setData(List.of());
+    revenueMixChart.setData(List.of());
+    focusLabel.setText("");
+    renderInsights(List.of("Đang tổng hợp nhận xét…"));
     tableState.showLoading();
     new SwingWorker<ThongKeSanPhamController.KetQua<ThongKeSanPhamController.BaoCao>, Void>() {
       @Override
@@ -187,15 +202,19 @@ public final class SalesByProductPage implements Page {
 
       @Override
       protected void done() {
+        if (request != reportRequest) return;
         try {
           ThongKeSanPhamController.KetQua<ThongKeSanPhamController.BaoCao> result = get();
           if (!result.thanhCong()) {
+            renderInsights(List.of("Không thể tổng hợp nhận xét khi tải báo cáo thất bại."));
             tableState.showError(result.thongBao());
             return;
           }
           rows = result.duLieu().chiTiet();
+          currentRange = ky;
           renderRows();
         } catch (Exception e) {
+          renderInsights(List.of("Không thể tổng hợp nhận xét khi tải báo cáo thất bại."));
           tableState.showError("Không thể tải báo cáo doanh số theo sản phẩm.");
         }
       }
@@ -221,6 +240,7 @@ public final class SalesByProductPage implements Page {
 
   private void renderRows() {
     trang.datDanhSach(List.of());
+    renderInsights(ThongKeSanPhamController.nhanXet(rows));
     // DAO liệt kê mọi dòng sản phẩm (kể cả dòng bằng 0), nên "không phát sinh" là không dòng nào có
     // bán hoặc trả trong kỳ (6.a).
     if (rows.stream().allMatch(r -> r.soLuongBan() == 0 && r.soLuongTra() == 0)) {
@@ -245,10 +265,6 @@ public final class SalesByProductPage implements Page {
     long tongSoLuongBan = 0L;
     long tongSoLuongTra = 0L;
     long tongDoanhSo = 0L;
-    var focusRow = sortedRows.stream()
-        .filter(row -> selectedProductCode.equals(row.maDongSP()))
-        .findFirst()
-        .orElse(sortedRows.getFirst());
 
     trang.datDanhSach(sortedRows);
     for (ThongKeSanPhamDao.DongThongKe row : sortedRows) {
@@ -261,38 +277,31 @@ public final class SalesByProductPage implements Page {
     kpiRevenue.setValue(MoneyFormat.format(tongDoanhSo));
     kpiReturned.setValue(String.valueOf(tongSoLuongTra));
 
-    if (focusRow != null) {
-      focusLabel.setText(focusRow.tenDongSP());
-    } else {
-      focusLabel.setText("Tất cả dòng SP");
-    }
-
     salesChart.setUnit("Triệu ₫", "tr");
     salesChart.setData(buildPeriodRevenueChart(sortedRows));
 
-    List<Color> palette = List.of(
-        DtaqColors.CHART_1,
-        DtaqColors.CHART_2,
-        DtaqColors.CHART_3,
-        DtaqColors.CHART_4,
-        DtaqColors.CHART_5);
-    List<DonutChartPanel.DonutSlice> slices = sortedRows.stream()
-        .limit(5)
-        .map(row -> new DonutChartPanel.DonutSlice(row.tenDongSP(), row.soLuongBan(), palette.get(Math.min(palette.size() - 1, sortedRows.indexOf(row)))))
-        .toList();
-    if (slices.isEmpty()) {
-      revenueMixChart.setData(List.of());
-    } else {
-      ThongKeSanPhamDao.DongThongKe active = focusRow;
-      long sold = active.soLuongBan();
-      int stock = active.soLuongTon();
-      revenueMixChart.setData(List.of(
-          new DonutChartPanel.DonutSlice("Đã bán", sold, DtaqColors.CHART_1),
-          new DonutChartPanel.DonutSlice("Tồn kho", Math.max(stock, 0), DtaqColors.CHART_2)));
-    }
+    renderFocus();
 
     exportBtn.setEnabled(true);
     tableState.showContent();
+  }
+
+  private void renderFocus() {
+    rows.stream().filter(row -> row.maDongSP().equals(selectedProductCode)).findFirst().ifPresent(row -> {
+      focusLabel.setText(row.tenDongSP());
+      revenueMixChart.setData(List.of(
+          new DonutChartPanel.DonutSlice("Đã bán", row.soLuongBan(), DtaqColors.CHART_1),
+          new DonutChartPanel.DonutSlice("Tồn kho", Math.max(row.soLuongTon(), 0), DtaqColors.CHART_2)));
+    });
+  }
+
+  private void renderInsights(List<String> nhanXet) {
+    insightList.removeAll();
+    for (String text : nhanXet) {
+      insightList.add(new InfoCallout(text), "growx");
+    }
+    insightList.revalidate();
+    insightList.repaint();
   }
 
   static String recommendationBadge(int soLuongTon, long soLuongBan, long soLuongTra, BigDecimal doanhSoSauDieuChinh, DateRange currentRange) {
