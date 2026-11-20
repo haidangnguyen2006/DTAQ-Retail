@@ -32,7 +32,8 @@ public class Card extends JPanel {
   private final int cornerRadius;
 
   public Card(int padding, int gap, int cornerRadius) {
-    super(new MigLayout("fillx, insets " + padding + ", hidemode 3", "[0:pref,grow]", "[]" + gap + "[]"));
+    // gapy thay cho "[]gap[]": hàng thứ hai rỗng không còn chừa khoảng cách thừa ở đáy thẻ một hàng.
+    super(new MigLayout("fillx, insets " + padding + ", gapy " + gap + ", hidemode 3", "[0:pref,grow]", "[]"));
     this.cornerRadius = cornerRadius;
     // Thẻ tự vẽ nền bo góc, viền mảnh và bóng mềm nhiều lớp để tách khỏi nền trang mà không nặng nề.
     setOpaque(false);

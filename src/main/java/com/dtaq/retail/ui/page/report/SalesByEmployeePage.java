@@ -190,7 +190,7 @@ public final class SalesByEmployeePage implements Page {
    * ô phạm vi nhân viên bên cạnh; vẫn có thể nhập tay từ ngày – đến ngày.
    */
   private FormField buildPresetField() {
-    JPanel row = new JPanel(new MigLayout("insets 0, gapx 8", "", "[]"));
+    JPanel row = new JPanel(new MigLayout("insets 0, gapx 8, aligny center", "", "[center]"));
     row.setOpaque(false);
     // Đặt sẵn style rỗng để FormField không gán style ô nhập văn bản cho JPanel.
     row.putClientProperty(com.formdev.flatlaf.FlatClientProperties.STYLE, "");
@@ -205,12 +205,13 @@ public final class SalesByEmployeePage implements Page {
   }
 
   private void addPreset(JPanel row, String nhan, LocalDate tu, LocalDate den) {
-    DtaqButton nut = DtaqButton.secondary(nhan);
+    // Dạng chip nhỏ, căn giữa theo chiều cao ô nhập bên cạnh.
+    DtaqButton nut = DtaqButton.secondarySmall(nhan);
     nut.addActionListener(e -> {
       kyFilter.setDateRange(tu, den);
       kyFilter.apply();
     });
-    row.add(nut, "h 36!");
+    row.add(nut);
   }
 
   // ---------------------------------------------------------------- tải dữ liệu
