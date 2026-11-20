@@ -12,3 +12,6 @@ backups/
 hoa-don-tam/
 plan.md
 docs/reference/plans/plan-tai-w6.md
+
+# Ảnh xuất cho plugin Figma (sinh lại bằng tools/figma-plugin/export-screens.*)
+tools/figma-plugin/screens/
