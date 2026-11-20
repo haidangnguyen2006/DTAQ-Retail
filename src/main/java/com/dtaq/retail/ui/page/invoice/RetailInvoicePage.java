@@ -105,7 +105,7 @@ public class RetailInvoicePage implements Page {
 
   private final FormField phoneLookupField =
       FormField.text("Tìm khách hàng theo số điện thoại", "Nhập số điện thoại khách hàng", "phone");
-  private final DtaqButton lookupCustomerBtn = DtaqButton.secondary("Tìm khách hàng");
+  private final DtaqButton lookupCustomerBtn = DtaqButton.secondary("Tìm khách hàng", "user-round-search");
   private final JPanel customerLookupStatusPanel = new JPanel(new MigLayout("insets 0, gapx 8", "[][]", "[center]"));
 
   private final FormField productSearchField = FormField.search("Tìm sản phẩm", "Nhập mã hoặc tên sản phẩm");
@@ -127,8 +127,8 @@ public class RetailInvoicePage implements Page {
   private final FormField cashField = FormField.money("Tiền khách đưa (VNĐ)", "0");
   private final JLabel changeLabel = new JLabel("0 VNĐ");
   private final DtaqButton payButton = DtaqButton.primary(PAY_TEXT);
-  private final DtaqButton saveDraftBtn = DtaqButton.secondary("Lưu hóa đơn tạm");
-  private final DtaqButton openDraftBtn = DtaqButton.secondary("Mở hóa đơn tạm");
+  private final DtaqButton saveDraftBtn = DtaqButton.secondary("Lưu hóa đơn tạm", "save");
+  private final DtaqButton openDraftBtn = DtaqButton.secondary("Mở hóa đơn tạm", "folder");
   private final JLabel conditionLabel = new JLabel();
 
   private CustomerInfo currentCustomer;
@@ -355,7 +355,8 @@ public class RetailInvoicePage implements Page {
   }
 
   private Card buildCustomerLookupCard() {
-    Card card = new Card(DtaqSpacing.CARD_PADDING_COMPACT, 12);
+    // Không thêm khoảng cách: FormField đã chừa dòng thông báo ngay dưới ô nhập.
+    Card card = new Card(DtaqSpacing.CARD_PADDING_COMPACT, 0);
     JPanel searchRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]12[]", "[bottom]"));
     searchRow.setOpaque(false);
 
@@ -453,6 +454,8 @@ public class RetailInvoicePage implements Page {
     rightCol.setOpaque(false);
 
     Card customerInfoCard = new Card(12, 8);
+    // Lề ngang bằng thẻ cột trái; lề dọc giữ gọn để nút thanh toán luôn thấy ở màn thấp.
+    ((MigLayout) customerInfoCard.getLayout()).setLayoutConstraints("fillx, insets 12 16 12 16, hidemode 3");
     customerInfoCard.add(Card.buildHeader("Thông tin khách hàng", null, null), "growx, wrap");
     customerInfoContent.setOpaque(false);
     customerInfoCard.add(customerInfoContent, "growx");
@@ -462,7 +465,9 @@ public class RetailInvoicePage implements Page {
   }
 
   private Card buildPaymentCard() {
+    // Lề ngang bằng thẻ cột trái; lề dọc giữ gọn để nút thanh toán luôn thấy ở màn thấp.
     Card card = new Card(12, 8);
+    ((MigLayout) card.getLayout()).setLayoutConstraints("fillx, insets 12 16 12 16, hidemode 3");
     card.add(Card.buildHeader("Thanh toán", null, null), "growx, wrap");
 
     JPanel totalsPanel = new JPanel(new MigLayout(

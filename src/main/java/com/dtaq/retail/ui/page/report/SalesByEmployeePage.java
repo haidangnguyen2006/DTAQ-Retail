@@ -84,11 +84,11 @@ public final class SalesByEmployeePage implements Page {
   private final JPanel view;
   private final KyBaoCaoFilter kyFilter = new KyBaoCaoFilter();
   private final FormField nhanVienField = FormField.combo("Phạm vi nhân viên", new LuaChon[] {TAT_CA});
-  private final DtaqButton exportBtn = DtaqButton.secondary("Xuất Excel");
-  private final KpiCard kpiSauDieuChinh = new KpiCard("Doanh số thực", "—", "Sau điều chỉnh đổi/trả");
-  private final KpiCard kpiHoaDon = new KpiCard("Số hóa đơn", "—", "Hóa đơn đã thanh toán trong kỳ");
-  private final KpiCard kpiTrungBinh = new KpiCard("TB mỗi hóa đơn", "—", "Doanh số thực / số hóa đơn");
-  private final KpiCard kpiDieuChinh = new KpiCard("Hàng trả trừ doanh số", "—", "Phiếu trả hoàn tất trong kỳ");
+  private final DtaqButton exportBtn = DtaqButton.secondary("Xuất Excel", "download");
+  private final KpiCard kpiSauDieuChinh = new KpiCard("Doanh số thực", "—", "Sau điều chỉnh đổi/trả").withIcon("trending-up", com.dtaq.retail.ui.theme.DtaqColors.CHART_1);
+  private final KpiCard kpiHoaDon = new KpiCard("Số hóa đơn", "—", "Hóa đơn đã thanh toán trong kỳ").withIcon("receipt-text", com.dtaq.retail.ui.theme.DtaqColors.CHART_5);
+  private final KpiCard kpiTrungBinh = new KpiCard("TB mỗi hóa đơn", "—", "Doanh số thực / số hóa đơn").withIcon("chart-column", com.dtaq.retail.ui.theme.DtaqColors.CHART_3);
+  private final KpiCard kpiDieuChinh = new KpiCard("Hàng trả trừ doanh số", "—", "Phiếu trả hoàn tất trong kỳ").withIcon("corner-down-left", com.dtaq.retail.ui.theme.DtaqColors.CHART_2);
   private final BarChartPanel chart = new BarChartPanel();
   private final JPanel insightList = new JPanel(new MigLayout("fillx, insets 0, wrap 1", "[grow,fill]", "[]8[]"));
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {

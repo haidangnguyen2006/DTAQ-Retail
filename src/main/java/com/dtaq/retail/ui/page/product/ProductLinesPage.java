@@ -56,8 +56,8 @@ public final class ProductLinesPage implements Page {
   private final FormField taxField = FormField.money("Thuế suất %", "0");
   private final DtaqButton importButton = DtaqButton.secondary("Import Excel", "upload");
   private final DtaqButton saveButton = DtaqButton.primary("Lưu", "save");
-  private final DtaqButton ngungButton = DtaqButton.secondary("Ngừng kinh doanh");
-  private final DtaqButton kinhDoanhLaiButton = DtaqButton.secondary("Kinh doanh lại");
+  private final DtaqButton ngungButton = DtaqButton.secondary("Ngừng kinh doanh", "circle-x");
+  private final DtaqButton kinhDoanhLaiButton = DtaqButton.secondary("Kinh doanh lại", "circle-check");
   private DongSanPham dongDangSua;
 
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(
@@ -67,7 +67,7 @@ public final class ProductLinesPage implements Page {
   private final List<DongSanPham> danhSachDong = new ArrayList<>();
   private final FormField searchField =
       FormField.search("Tìm dòng sản phẩm", "Nhập mã, tên dòng hoặc tên danh mục");
-  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
   private static final int KICH_THUOC_TRANG = 20;
   private final Pagination pagination = new Pagination();
   private final PagedLoader<DongSanPham> trang =
@@ -109,13 +109,14 @@ public final class ProductLinesPage implements Page {
       }
     });
 
-    JPanel form = new JPanel(new MigLayout("fillx, insets 0", "[grow][grow]", "[]16[]16[]"));
+    // Lưới 3 cột bằng nhau; FormField đã chừa dòng thông báo nên khoảng cách hàng chỉ cần nhỏ.
+    JPanel form = new JPanel(new MigLayout("fillx, insets 0, gapy 8", "[0:0,grow,fill]16[0:0,grow,fill]16[0:0,grow,fill]", "[]"));
     form.setOpaque(false);
-    form.add(tenField, "growx");
-    form.add(categoryField, "growx, wrap");
-    form.add(unitField, "growx");
-    form.add(priceField, "growx, wrap");
-    form.add(taxField, "growx");
+    form.add(tenField);
+    form.add(categoryField);
+    form.add(unitField, "wrap");
+    form.add(priceField);
+    form.add(taxField);
 
     Card formCard = Card.standard();
     formCard.setBody(form);

@@ -86,6 +86,6 @@ public final class DtaqStyles {
         + "; hoverBackground: " + hex(active ? DtaqColors.SIDEBAR_ACTIVE_BG : DtaqColors.SIDEBAR_HOVER)
         + "; pressedBackground: " + hex(DtaqColors.SIDEBAR_ACTIVE_BG)
         + "; focusedBorderColor: " + hex(DtaqColors.SIDEBAR_ACCENT)
-        + "; borderWidth: 0; arc: 12; minimumWidth: 0; margin: 0,12,0,8";
+        + "; borderWidth: 0; arc: 12; minimumWidth: 0; margin: 5,12,5,8";
   }
 }

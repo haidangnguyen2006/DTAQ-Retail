@@ -46,7 +46,7 @@ public final class PriceTaxPage implements Page {
   private final DtaqButton saveButton = DtaqButton.primary("Lưu cập nhật", "save");
   private final FormField searchField =
       FormField.search("Tìm dòng sản phẩm", "Nhập mã hoặc tên dòng sản phẩm");
-  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
   private static final int KICH_THUOC_TRANG = 20;
   private final Pagination pagination = new Pagination();
   private final PagedLoader<DongSanPham> trang =
@@ -67,12 +67,12 @@ public final class PriceTaxPage implements Page {
     header.setTrailing(saveButton);
     view.add(header, "growx, wrap");
 
-    JPanel form = new JPanel(new MigLayout("fillx, insets 0", "[grow][grow]", "[]16[]"));
+    JPanel form = new JPanel(new MigLayout("fillx, insets 0", "[0:0,grow 2,fill]16[0:0,grow,fill]16[0:0,grow,fill]", "[]"));
     form.setOpaque(false);
     productField.setRequired(true);
-    form.add(productField, "growx");
-    form.add(priceField, "growx, wrap");
-    form.add(taxField, "growx");
+    form.add(productField);
+    form.add(priceField);
+    form.add(taxField);
 
     Card formCard = Card.standard();
     formCard.setBody(form);

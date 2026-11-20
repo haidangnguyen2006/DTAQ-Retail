@@ -71,7 +71,7 @@ public final class CustomerLookupPage implements Page {
   private final JPanel view;
   private final FormField sdtField = FormField.search(null,
       "Số điện thoại, họ tên (có dấu hoặc không) hoặc mã khách hàng");
-  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
   private final StatefulView resultState;
 
   /** Danh sách chọn khi từ khóa khớp nhiều khách (ví dụ tìm theo tên). */
@@ -83,10 +83,10 @@ public final class CustomerLookupPage implements Page {
   private final List<KhachHang> matches = new ArrayList<>();
   private int currentMatchPage = 1;
 
-  private final KpiCard kpiChiTieu = new KpiCard("Tổng chi tiêu", "—", "");
-  private final KpiCard kpiHoaDon = new KpiCard("Số hóa đơn", "—", "");
-  private final KpiCard kpiGanNhat = new KpiCard("Lần mua gần nhất", "—", "");
-  private final KpiCard kpiPhieu = new KpiCard("Phiếu đổi/trả", "—", "");
+  private final KpiCard kpiChiTieu = new KpiCard("Tổng chi tiêu", "—", "").withIcon("banknote", com.dtaq.retail.ui.theme.DtaqColors.CHART_3);
+  private final KpiCard kpiHoaDon = new KpiCard("Số hóa đơn", "—", "").withIcon("receipt-text", com.dtaq.retail.ui.theme.DtaqColors.CHART_1);
+  private final KpiCard kpiGanNhat = new KpiCard("Lần mua gần nhất", "—", "").withIcon("calendar-days", com.dtaq.retail.ui.theme.DtaqColors.CHART_5);
+  private final KpiCard kpiPhieu = new KpiCard("Phiếu đổi/trả", "—", "").withIcon("arrow-left-right", com.dtaq.retail.ui.theme.DtaqColors.CHART_2);
 
   private final JLabel tenKhachLabel = new JLabel();
   private final JLabel thongTinKhachLabel = new JLabel();

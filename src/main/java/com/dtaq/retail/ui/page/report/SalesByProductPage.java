@@ -59,9 +59,9 @@ public final class SalesByProductPage implements Page {
 
   private final JPanel view;
   private final ThongKeSanPhamController controller;
-  private final KpiCard kpiUnits = new KpiCard("Tổng số lượng bán", "—", "Đã trừ hàng trả");
-  private final KpiCard kpiRevenue = new KpiCard("Doanh số sau điều chỉnh", "—", "Tổng tiền trước thuế");
-  private final KpiCard kpiReturned = new KpiCard("Tổng số lượng trả", "—", "Hàng hoàn tất");
+  private final KpiCard kpiUnits = new KpiCard("Tổng số lượng bán", "—", "Đã trừ hàng trả").withIcon("shopping-cart", com.dtaq.retail.ui.theme.DtaqColors.CHART_1);
+  private final KpiCard kpiRevenue = new KpiCard("Doanh số sau điều chỉnh", "—", "Tổng tiền trước thuế").withIcon("banknote", com.dtaq.retail.ui.theme.DtaqColors.CHART_3);
+  private final KpiCard kpiReturned = new KpiCard("Tổng số lượng trả", "—", "Hàng hoàn tất").withIcon("corner-down-left", com.dtaq.retail.ui.theme.DtaqColors.CHART_2);
   private final DtaqButton exportBtn = DtaqButton.secondary("Xuất Excel", "download");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {
       "Mã dòng SP", "Tên dòng sản phẩm", "Danh mục", "SL bán",

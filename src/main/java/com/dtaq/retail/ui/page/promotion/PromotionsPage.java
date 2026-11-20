@@ -69,7 +69,7 @@ public final class PromotionsPage implements Page {
   private final DtaqButton addButton = DtaqButton.primary("Thêm khuyến mãi", "plus");
   private final DtaqButton toggleButton = DtaqButton.secondary("Bật / Dừng áp dụng");
   private final DtaqButton templateButton = DtaqButton.secondary("Tải mẫu", "download");
-  private final DtaqButton importButton = DtaqButton.secondary("Nhập Excel");
+  private final DtaqButton importButton = DtaqButton.secondary("Nhập Excel", "upload");
   private final StatusPill countPill = StatusPill.neutral("0 chương trình");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {
       "Mã khuyến mãi", "Tên chương trình", "Số dòng áp dụng", "% Giảm",
@@ -115,6 +115,10 @@ public final class PromotionsPage implements Page {
     view.add(header, "growx, wrap");
 
     dataTable.setCodeColumn(0);
+    dataTable.setNumberColumn(2);
+    dataTable.setNumberColumn(3);
+    dataTable.setCustomRenderer(6, new com.dtaq.retail.ui.component.table.TableRenderers.PillRenderer(
+        PromotionsPage::pillTrangThai));
     dataTable.setColumnWidths(150, 240, 125, 80, 120, 120, 150);
     dataTable.setOnRowDoubleClick(row -> toggleSelectedPromotion());
     tableState = new StatefulView(dataTable, "badge-percent", "Chưa có khuyến mãi",
@@ -123,7 +127,6 @@ public final class PromotionsPage implements Page {
 
     Card tableCard = Card.standard();
     tableCard.add(buildFilterRow(), "growx, wrap");
-    tableCard.add(toggleButton, "right, wrap, gapbottom 8");
     tableCard.setBody(tableState);
     tableCard.add(pagination, "growx");
     view.add(tableCard, "grow, push");
@@ -133,18 +136,19 @@ public final class PromotionsPage implements Page {
   }
 
   private JPanel buildFilterRow() {
-    JPanel row = new JPanel(new MigLayout("fillx, insets 0", "[][grow]16[][grow]16[]push[]", "[bottom]"));
+    JPanel row = new JPanel(new MigLayout(
+        "fillx, insets 0, hidemode 3", "[grow 2,fill]16[grow 1,fill]12[]12[]16[]", "[bottom]"));
     row.setOpaque(false);
-    row.add(new javax.swing.JLabel("Dòng sản phẩm"));
-    row.add(lineFilter, "growx");
-    row.add(new javax.swing.JLabel("Trạng thái"));
-    row.add(statusFilter, "growx");
+    row.add(new com.dtaq.retail.ui.component.FormField("Dòng sản phẩm", lineFilter), "wmin 0");
+    row.add(new com.dtaq.retail.ui.component.FormField("Trạng thái", statusFilter), "wmin 0");
     searchButton.addActionListener(e -> {
       daTimKiem = true;
       loadData();
     });
-    row.add(searchButton);
-    row.add(countPill, "align right, aligny center");
+    // Căn nút và pill với ô nhập: FormField chừa dòng thông báo dưới ô nhập.
+    row.add(searchButton, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
+    row.add(countPill, "gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + (DtaqSpacing.CONTROL_H - DtaqSpacing.PILL_H) / 2));
+    row.add(toggleButton, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
     return row;
   }
 
@@ -261,6 +265,17 @@ public final class PromotionsPage implements Page {
       });
     }
     tableState.showContent();
+  }
+
+  /** Màu pill theo trạng thái hiệu lực; chữ giữ nguyên như trong bảng. */
+  static com.dtaq.retail.ui.component.table.TableRenderers.PillRenderer.Pill pillTrangThai(String raw) {
+    StatusPill.Type type = switch (raw) {
+      case "Đang áp dụng" -> StatusPill.Type.SUCCESS;
+      case "Sắp áp dụng" -> StatusPill.Type.INFO;
+      case "Đã dừng" -> StatusPill.Type.WARNING;
+      default -> StatusPill.Type.NEUTRAL;
+    };
+    return new com.dtaq.retail.ui.component.table.TableRenderers.PillRenderer.Pill(raw, type);
   }
 
   private static boolean dangHieuLuc(KhuyenMai km, LocalDate today) {

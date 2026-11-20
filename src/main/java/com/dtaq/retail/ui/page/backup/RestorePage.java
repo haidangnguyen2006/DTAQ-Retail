@@ -97,6 +97,11 @@ public final class RestorePage implements Page {
             + "Dữ liệu sau mốc backup sẽ bị mất."), "growx, wrap");
 
     dataTable.setCodeColumn(0);
+    dataTable.setNumberColumn(2);
+    dataTable.setCustomRenderer(4, new com.dtaq.retail.ui.component.table.TableRenderers.PillRenderer(raw -> new com.dtaq.retail.ui.component.table.TableRenderers.PillRenderer.Pill(raw,
+        "Thành công".equals(raw) ? com.dtaq.retail.ui.component.StatusPill.Type.SUCCESS
+            : "Thất bại".equals(raw) ? com.dtaq.retail.ui.component.StatusPill.Type.DANGER
+            : com.dtaq.retail.ui.component.StatusPill.Type.NEUTRAL)));
     dataTable.setColumnWidths(260, 170, 110, 130, 120);
     dataTable.getTable().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     dataTable.getTable().getSelectionModel().addListSelectionListener(e -> updateActions());

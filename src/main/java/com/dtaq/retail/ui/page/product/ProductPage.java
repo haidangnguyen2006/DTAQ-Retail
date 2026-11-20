@@ -68,7 +68,7 @@ public final class ProductPage implements Page {
   private final List<SanPham> cachedProducts = new ArrayList<>();
   private final FormField searchField =
       FormField.search("Tìm máy", "Nhập số serial, tên dòng sản phẩm hoặc nhà cung cấp");
-  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
   private static final int KICH_THUOC_TRANG = 20;
   private final Pagination pagination = new Pagination();
   private final PagedLoader<SanPham> trang =
@@ -108,14 +108,15 @@ public final class ProductPage implements Page {
     FormField statusField = new FormField("Trạng thái", statusBox);
     statusField.setRequired(true);
 
-    JPanel form = new JPanel(new MigLayout("fillx, insets 0", "[grow][grow]", "[]16[]16[]"));
+    // Lưới 3 cột bằng nhau; FormField đã chừa dòng thông báo nên khoảng cách hàng chỉ cần nhỏ.
+    JPanel form = new JPanel(new MigLayout("fillx, insets 0, gapy 8", "[0:0,grow,fill]16[0:0,grow,fill]16[0:0,grow,fill]", "[]"));
     form.setOpaque(false);
-    form.add(serialField, "growx");
-    form.add(supplierField, "growx, wrap");
-    form.add(productLineField, "growx");
-    form.add(priceField, "growx, wrap");
-    form.add(dateField.field(), "growx");
-    form.add(statusField, "growx");
+    form.add(serialField);
+    form.add(supplierField);
+    form.add(productLineField, "wrap");
+    form.add(priceField);
+    form.add(dateField.field());
+    form.add(statusField);
 
     Card formCard = Card.standard();
     formCard.setBody(form);

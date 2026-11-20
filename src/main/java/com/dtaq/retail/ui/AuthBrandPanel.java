@@ -52,7 +52,7 @@ final class AuthBrandPanel extends JPanel {
 
   /**
    * "Quỹ đạo DTAQ": hai cung elip mảnh nghiêng, lấy từ nét vòng cung trong logo, nằm sau logo.
-   * Chỉ xuất hiện ở panel thương hiệu này — không gradient, không lưới chấm, không đường mạch.
+   * Chỉ xuất hiện ở panel thương hiệu này, kèm một quầng sáng mềm sau logo; không lưới chấm, không đường mạch.
    */
   private static BufferedImage render(int w, int h) {
     BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
@@ -61,6 +61,13 @@ final class AuthBrandPanel extends JPanel {
     g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
     double cx = w / 2.0;
     double cy = h * 0.52;
+    // Quầng sáng xanh mềm sau logo tạo chiều sâu, tắt dần trước khi chạm mép panel.
+    float radius = (float) (Math.max(w, h) * 0.55);
+    g2.setPaint(new java.awt.RadialGradientPaint(
+        new java.awt.geom.Point2D.Double(cx, cy), radius, new float[] {0f, 0.55f, 1f},
+        new java.awt.Color[] {DtaqColors.alpha(DtaqColors.BRAND, 0.30f),
+            DtaqColors.alpha(DtaqColors.BRAND, 0.08f), DtaqColors.alpha(DtaqColors.BRAND, 0f)}));
+    g2.fillRect(0, 0, w, h);
     g2.rotate(Math.toRadians(-12), cx, cy);
     g2.setColor(DtaqColors.alpha(DtaqColors.BRAND, 0.55f));
     g2.setStroke(new java.awt.BasicStroke(2f));

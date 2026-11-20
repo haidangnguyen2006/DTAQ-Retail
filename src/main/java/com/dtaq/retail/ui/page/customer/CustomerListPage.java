@@ -69,7 +69,7 @@ public class CustomerListPage implements Page {
 
   private final JPanel view;
   private final FormField searchField = FormField.search(null, "Họ tên (gõ có dấu hoặc không), số điện thoại hoặc mã khách hàng");
-  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
   private final DtaqButton addCustomerBtn = DtaqButton.primary("Thêm khách hàng", "plus");
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(
       new String[] {"Mã khách hàng", "Họ và tên", "Số điện thoại", "Địa chỉ", "Ngày tạo", "Thao tác"}, 5);

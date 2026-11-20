@@ -51,7 +51,6 @@ public class DtaqButton extends JButton {
     super(text);
     this.variant = variant;
     this.small = small
-        || variant == Variant.DANGER_SOFT
         || variant == Variant.SEGMENTED_ACTIVE
         || variant == Variant.SEGMENTED_INACTIVE;
     setFocusPainted(false);
@@ -117,10 +116,10 @@ public class DtaqButton extends JButton {
 
   public void setShortcutKey(String key) {
     this.shortcutKey = key;
-    // Chừa lề phải cho nhãn phím tắt để chữ của nút không bị đè
+    // Chỉ chừa lề phải cho nhãn phím tắt (không chừa đối xứng) để nút không thừa khoảng trống bên trái.
     int reserved = (key == null || key.isEmpty())
         ? 0 : getFontMetrics(DtaqFonts.KBD).stringWidth(key) + KBD_PADDING * 2 + KBD_GAP;
-    setMargin(new Insets(2, 14 + reserved, 2, 14 + reserved));
+    setMargin(new Insets(2, 14, 2, 14 + reserved));
     revalidate();
     repaint();
   }

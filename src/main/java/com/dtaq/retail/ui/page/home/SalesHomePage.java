@@ -44,11 +44,11 @@ public class SalesHomePage implements Page {
   private final NhanVien nhanVien;
   private final JPanel view;
   private final KpiCard kpiInvoices =
-      new KpiCard("Hóa đơn hôm nay", "—", "Hóa đơn đã thanh toán đủ");
+      new KpiCard("Hóa đơn hôm nay", "—", "Hóa đơn đã thanh toán đủ").withIcon("receipt-text", com.dtaq.retail.ui.theme.DtaqColors.CHART_1);
   private final KpiCard kpiCash =
-      new KpiCard("Tiền mặt đã thu hôm nay", "—", "Bao gồm tiền thuế");
+      new KpiCard("Tiền mặt đã thu hôm nay", "—", "Bao gồm tiền thuế").withIcon("banknote", com.dtaq.retail.ui.theme.DtaqColors.CHART_3);
   private final KpiCard kpiCustomers =
-      new KpiCard("Khách đã phục vụ hôm nay", "—", "Khách hàng có hóa đơn hôm nay");
+      new KpiCard("Khách đã phục vụ hôm nay", "—", "Khách hàng có hóa đơn hôm nay").withIcon("users", com.dtaq.retail.ui.theme.DtaqColors.CHART_5);
   private final DefaultTableModel tableModel =
       DataTable.readOnlyModel(new String[] {"Hóa đơn", "Khách hàng", "Tổng thanh toán", "Trạng thái"});
   private final DataTable dataTable = new DataTable(tableModel, 48);

@@ -66,6 +66,8 @@ public final class ProductLookupPage implements Page {
     view.add(header, "growx, wrap");
 
     resultTable.setCodeColumn(0);
+    resultTable.setNumberColumn(3);
+    resultTable.setNumberColumn(4);
     resultTable.setColumnWidths(140, 220, 170, 90, 110);
     resultTable.setOnRowDoubleClick(this::renderDetailForRow);
     resultTable.getTable().getSelectionModel().addListSelectionListener(event -> {
@@ -75,6 +77,8 @@ public final class ProductLookupPage implements Page {
     });
 
     detailTable.setCodeColumn(0);
+    detailTable.setCodeColumn(1);
+    detailTable.setMoneyColumn(3);
     detailTable.setColumnWidths(150, 180, 150, 150, 160);
 
     tableState = new StatefulView(resultTable, "search", "Chưa có dữ liệu", "Nhập từ khóa để tra cứu sản phẩm.");
@@ -86,8 +90,11 @@ public final class ProductLookupPage implements Page {
     card.add(ketQuaTrangPagination, "growx");
 
     view.add(card, "grow, push, wrap");
-    view.add(detailState, "grow, push, wrap");
-    view.add(chiTietTrangPagination, "growx");
+    // Danh sách máy cũng nằm trong thẻ để hai khối cùng một nhịp với nhau.
+    Card detailCard = Card.standard();
+    detailCard.setBody(detailState);
+    detailCard.add(chiTietTrangPagination, "growx");
+    view.add(detailCard, "grow, push");
 
     criteria.setOnSelectionChange(index -> {
       updateKeywordPlaceholder();
@@ -114,11 +121,12 @@ public final class ProductLookupPage implements Page {
   }
 
   private JPanel buildFilterRow() {
-    JPanel row = new JPanel(new MigLayout("fillx, insets 0", "[][grow]12[]push[]", "[]"));
+    JPanel row = new JPanel(new MigLayout("fillx, insets 0", "[]12[grow]16[]", "[bottom]"));
     row.setOpaque(false);
-    row.add(criteria, "growx");
+    // Căn nhóm tiêu chí và pill theo ô nhập (FormField chừa dòng thông báo dưới ô nhập).
+    row.add(criteria, "gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + (DtaqSpacing.CONTROL_H - DtaqSpacing.BUTTON_H_SM) / 2));
     row.add(keywordField, "growx");
-    row.add(countPill, "align right");
+    row.add(countPill, "gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + (DtaqSpacing.CONTROL_H - DtaqSpacing.PILL_H) / 2));
     return row;
   }
 

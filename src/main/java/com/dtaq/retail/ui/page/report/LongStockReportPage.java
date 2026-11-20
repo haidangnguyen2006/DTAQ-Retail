@@ -47,9 +47,9 @@ public class LongStockReportPage implements Page {
 
   private final JPanel view;
   private final BaoCaoTonKhoController controller;
-  private final KpiCard kpiMachines = new KpiCard("Tổng số máy tồn lâu", "—", "Chưa có dữ liệu");
-  private final KpiCard kpiProductLines = new KpiCard("Dòng sản phẩm ảnh hưởng", "—", "Chưa có dữ liệu");
-  private final KpiCard kpiMaxDays = new KpiCard("Số ngày tồn lâu nhất", "—", "Chưa có dữ liệu");
+  private final KpiCard kpiMachines = new KpiCard("Tổng số máy tồn lâu", "—", "Chưa có dữ liệu").withIcon("package", com.dtaq.retail.ui.theme.DtaqColors.CHART_1);
+  private final KpiCard kpiProductLines = new KpiCard("Dòng sản phẩm ảnh hưởng", "—", "Chưa có dữ liệu").withIcon("layers", com.dtaq.retail.ui.theme.DtaqColors.CHART_5);
+  private final KpiCard kpiMaxDays = new KpiCard("Số ngày tồn lâu nhất", "—", "Chưa có dữ liệu").withIcon("hourglass", com.dtaq.retail.ui.theme.DtaqColors.CHART_2);
   private final FormField searchField = FormField.search("Tìm sản phẩm", "Mã hoặc tên dòng sản phẩm");
   private final JComboBox<String> categoryCombo = new JComboBox<>(new String[] {ALL_CATEGORIES});
   private final FormField categoryField = new FormField("Ngành hàng", categoryCombo);
@@ -122,7 +122,7 @@ public class LongStockReportPage implements Page {
   }
 
   private JPanel buildFilterRow() {
-    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]16[180!]16[180!]16[]16[]push[]", "[bottom]")) {
+    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[grow]16[180!]16[180!]16[]16[]12[]", "[bottom]")) {
       @Override
       public java.awt.Dimension getMinimumSize() {
         return new java.awt.Dimension(0, getPreferredSize().height);
@@ -133,20 +133,21 @@ public class LongStockReportPage implements Page {
     filterRow.add(categoryField, "growx");
     filterRow.add(thresholdField, "growx");
     // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
-    filterRow.add(readyOnly, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
+    filterRow.add(readyOnly, "gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + 8));
     filterRow.add(applyBtn, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
-    filterRow.add(resultCountPill, "align right, aligny center");
+    filterRow.add(resultCountPill, "gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + (DtaqSpacing.CONTROL_H - DtaqSpacing.PILL_H) / 2));
     com.dtaq.retail.ui.component.Responsive.onSizeChange(filterRow, size -> {
       MigLayout layout = (MigLayout) filterRow.getLayout();
       boolean narrow = size == com.dtaq.retail.ui.component.Responsive.Size.S;
       layout.setColumnConstraints(narrow ? "[0:pref,grow]16[180!]16[180!]"
-          : "[grow]16[180!]16[180!]16[]16[]push[]");
+          : "[grow]16[180!]16[180!]16[]16[]12[]");
       for (int i = 0; i < filterRow.getComponentCount(); i++) {
         layout.setComponentConstraints(filterRow.getComponent(i), "cell "
             + (narrow ? i % 3 : i) + " " + (narrow ? i / 3 : 0)
             + (i < 3 ? ", growx" : ", align right, aligny bottom")
             // Hàng rộng: ô kiểm và nút đứng cạnh FormField nên chừa phần dòng thông báo.
-            + (!narrow && (i == 3 || i == 4) ? ", gapbottom " + DtaqSpacing.FIELD_MESSAGE_H : "")
+            + (!narrow && i == 3 ? ", gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + 8) : "")
+            + (!narrow && i == 4 ? ", gapbottom " + DtaqSpacing.FIELD_MESSAGE_H : "")
             // Pill đếm kết quả: canh giữa theo chiều cao nút thay vì rơi xuống dòng thông báo.
             + (!narrow && i == 5
                 ? ", gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + (DtaqSpacing.BUTTON_H - DtaqSpacing.PILL_H) / 2)

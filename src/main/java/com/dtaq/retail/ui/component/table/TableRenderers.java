@@ -29,10 +29,10 @@ public final class TableRenderers {
   /** Khóa client property của {@link JTable} lưu chỉ số dòng đang được rê chuột (Integer). */
   public static final String HOVER_ROW_KEY = "dtaq.hoverRow";
 
-  /** Khóa client property của {@link JTable} lưu lề ngang của ô (Integer, mặc định 16). */
+  /** Khóa client property của {@link JTable} lưu lề ngang của ô (Integer, mặc định 12). */
   public static final String CELL_PAD_KEY = "dtaq.cellPad";
 
-  private static final int CELL_PAD = 16;
+  private static final int CELL_PAD = 12;
 
   /** Lề ngang của ô theo cấu hình của bảng. */
   public static int cellPad(JTable table) {
@@ -72,7 +72,14 @@ public final class TableRenderers {
       return this;
     }
 
+    /** Ngày giờ hiển thị theo định dạng chung dd/MM/yyyy; model vẫn giữ kiểu gốc để sắp xếp đúng. */
     protected Object format(Object value) {
+      if (value instanceof java.time.LocalDate date) {
+        return com.dtaq.retail.ui.format.DateFormats.formatDate(date);
+      }
+      if (value instanceof java.time.LocalDateTime dateTime) {
+        return com.dtaq.retail.ui.format.DateFormats.formatDateTime(dateTime);
+      }
       return value;
     }
   }
@@ -220,7 +227,8 @@ public final class TableRenderers {
     }
 
     private JPanel buildPanel(boolean live, int rowIndex) {
-      JPanel panel = new JPanel(new MigLayout("insets 0 12 0 12, gapx 6, fill", "[]", "[center]"));
+      // "filly" (không "fill"): nút xếp sát nhau bên trái thay vì bị dàn đều theo bề rộng cột.
+      JPanel panel = new JPanel(new MigLayout("insets 0 12 0 12, gapx 6, filly", "[]", "[center]"));
       panel.setOpaque(true);
       int modelRow = rowIndex;
       for (RowAction action : actionProvider.apply(modelRow)) {
@@ -243,9 +251,10 @@ public final class TableRenderers {
                   + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.DANGER_SOFT)
                   + "; borderWidth: 1";
               case SECONDARY -> "background: " + DtaqStyles.hex(DtaqColors.SURFACE)
-                  + "; foreground: " + DtaqStyles.hex(DtaqColors.TEXT_MUTED)
+                  + "; foreground: " + DtaqStyles.hex(DtaqColors.TEXT)
                   + "; borderColor: " + DtaqStyles.hex(DtaqColors.BORDER)
-                  + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.DISABLED_BG)
+                  + "; hoverBackground: " + DtaqStyles.hex(DtaqColors.BG_APP)
+                  + "; hoverBorderColor: " + DtaqStyles.hex(DtaqColors.BORDER_STRONG)
                   + "; borderWidth: 1";
             } + DtaqStyles.SMALL_BUTTON_EXTRA);
         if (live) {

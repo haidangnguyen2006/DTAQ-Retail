@@ -107,6 +107,11 @@ public final class BackupPage implements Page {
     view.add(buildConfigCard(), "growx, wrap");
 
     dataTable.setCodeColumn(0);
+    dataTable.setNumberColumn(2);
+    dataTable.setCustomRenderer(4, new com.dtaq.retail.ui.component.table.TableRenderers.PillRenderer(raw -> new com.dtaq.retail.ui.component.table.TableRenderers.PillRenderer.Pill(raw,
+        "Thành công".equals(raw) ? com.dtaq.retail.ui.component.StatusPill.Type.SUCCESS
+            : "Thất bại".equals(raw) ? com.dtaq.retail.ui.component.StatusPill.Type.DANGER
+            : com.dtaq.retail.ui.component.StatusPill.Type.NEUTRAL)));
     dataTable.setColumnWidths(260, 170, 110, 130, 120);
     tableState = new StatefulView(
         dataTable,
@@ -117,6 +122,8 @@ public final class BackupPage implements Page {
 
     Card historyCard = Card.section(
         "Lịch sử sao lưu", "Các tệp sao lưu trên đĩa, mới nhất trước.", countPill);
+    // Luôn chừa tối thiểu vài dòng cho bảng; cửa sổ thấp hơn thì trang cuộn thay vì ép mất bảng.
+    tableState.setMinimumSize(new java.awt.Dimension(0, 4 * DtaqSpacing.TABLE_ROW_H + DtaqSpacing.TABLE_HEADER_H));
     historyCard.setBody(tableState);
     historyCard.add(trangPagination, "growx");
     view.add(historyCard, "grow, push");
@@ -134,26 +141,27 @@ public final class BackupPage implements Page {
     InputFilters.chiChoSo(intervalField.getTextField(), 3);
     napLaiCauHinh();
 
+    // Ba trường cấu hình cùng một hàng, nút lưu cạnh ô cuối để thẻ gọn và bảng lịch sử còn chỗ.
     JPanel body = new JPanel(new MigLayout(
-        "fillx, insets 0, gapy " + DtaqSpacing.FORM_FIELD_GAP, "[grow][grow]", "[]"));
+        "fillx, insets 0, gapy 8", "[grow,fill]16[grow,fill]16[grow,fill]16[]", "[]"));
     body.setOpaque(false);
-    body.add(folderField, "growx, span 2, wrap");
-    body.add(keepDaysField, "growx");
-    body.add(runTimeField, "growx, wrap");
-    body.add(intervalField, "growx, span 2, wrap");
+    body.add(folderField, "span 4, wmin 0, wrap");
+    body.add(keepDaysField, "wmin 0");
+    body.add(runTimeField, "wmin 0");
+    body.add(intervalField, "wmin 0");
+    body.add(saveConfigBtn, "aligny bottom, gapbottom " + DtaqSpacing.FIELD_MESSAGE_H + ", wrap");
 
     if (BackupConfig.biGhiDeBoiMoiTruong()) {
       body.add(new InfoCallout(InfoCallout.Kind.WARNING,
           "Giờ chạy/chu kỳ đang bị ghi đè bởi biến môi trường hoặc -D; thay đổi trên giao diện "
               + "sẽ được lưu nhưng không có hiệu lực."),
-          "growx, span 2, wrap");
+          "growx, span 4, wrap");
     }
 
-    body.add(saveConfigBtn, "align right, span 2, wrap");
     body.add(new InfoCallout(InfoCallout.Kind.INFO,
         "Bản sao lưu chứa toàn bộ cơ sở dữ liệu, bao gồm mã băm mật khẩu BCrypt của tài khoản. "
             + "Không chia sẻ tệp sao lưu cho người khác hoặc ra ngoài hệ thống."),
-        "growx, span 2");
+        "growx, span 4");
 
     Card card = Card.section(
         "Cấu hình sao lưu",

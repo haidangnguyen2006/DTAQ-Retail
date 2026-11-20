@@ -57,6 +57,17 @@ public class KpiCard extends Card {
     add(captionLabel, "wrap, hmin 16");
   }
 
+  /**
+   * Gắn icon nhận diện ở góc phải thẻ (ô bo góc nền nhạt cùng tông). Chỉ là trang trí, không đổi số liệu.
+   *
+   * @return chính thẻ này để viết liền khi khởi tạo
+   */
+  public KpiCard withIcon(String iconName, Color tint) {
+    add(Tile.icon(iconName, 18, tint, DtaqColors.alpha(tint, 0.11f), 36, DtaqSpacing.RADIUS_L),
+        "cell 1 0 1 2, aligny top, gapleft 8");
+    return this;
+  }
+
   public void setValue(String value) {
     valueLabel.setText(value == null || value.isBlank() ? EMPTY_VALUE : value);
     // Giá trị dài thì hạ cỡ chữ theo bậc để không bị cắt số.

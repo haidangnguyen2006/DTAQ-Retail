@@ -37,14 +37,35 @@ public class DataTable extends JPanel {
 
   private static final int DEFAULT_MIN_VISIBLE_ROWS = 3;
   private static final int DEFAULT_MAX_VISIBLE_ROWS = 8;
+  /** Số dòng tối đa được đo khi tính bề rộng cột (bảng đã phân trang nên đủ đại diện). */
+  private static final int MAX_SAMPLE_ROWS = 60;
+  /** Nội dung hẹp hơn mức này (ngày, đơn vị, trạng thái ngắn) được giữ trọn như cột cố định. */
+  private static final int SHORT_CONTENT_MAX = 150;
+  /** Bề rộng tối thiểu của cột chữ dài trước khi chữ bị rút gọn bằng "…". */
+  private static final int FLEX_MIN = 140;
+  /** Mức co thêm của cột chữ dài khi bảng chật, để tránh cuộn ngang. */
+  private static final int FLEX_HARD_MIN = 84;
+  /** Giới hạn bề rộng tối thiểu của cột cố định để một giá trị bất thường không chiếm cả bảng. */
+  private static final int RIGID_MAX = 320;
 
   private final JTable table;
   private final JScrollPane scrollPane;
   private final Set<Integer> rightAlignedColumns = new HashSet<>();
   private int minVisibleRows = DEFAULT_MIN_VISIBLE_ROWS;
   private int maxVisibleRows = DEFAULT_MAX_VISIBLE_ROWS;
-  private int cellPadding = 16;
-  private int preferredTableWidth;
+  private int cellPadding = 12;
+  /** Cột (theo model) có nội dung cố định không được cắt: mã, số, tiền, trạng thái, thao tác. */
+  private final Set<Integer> rigidColumns = new HashSet<>();
+  /** Bề rộng trang yêu cầu cho từng cột (theo model), dùng làm tỉ lệ khi còn dư chỗ. */
+  private final java.util.Map<Integer, Integer> requestedWidths = new java.util.HashMap<>();
+  private final java.util.Map<Integer, Integer> comfortMins = new java.util.HashMap<>();
+  private final java.util.Map<Integer, Integer> hardMins = new java.util.HashMap<>();
+  private final Set<Integer> flexibleColumns = new HashSet<>();
+  private int comfortWidth;
+  private int hardWidth;
+  /** Mức co đang áp dụng: 0 thoải mái, 1 co cột chữ, 2 cuộn ngang; -1 buộc tính lại. */
+  private int lastTier = -1;
+  private boolean fitScheduled;
 
   /** Tạo model chỉ đọc; các cột trong {@code editableColumns} (ví dụ cột thao tác) vẫn bấm được. */
   public static DefaultTableModel readOnlyModel(String[] columns, int... editableColumns) {
@@ -117,7 +138,7 @@ public class DataTable extends JPanel {
     scrollPane.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
       @Override
       public void componentResized(java.awt.event.ComponentEvent e) {
-        updateColumnResizeMode();
+        applyColumnLayout();
       }
     });
     updateViewportHeight();
@@ -152,6 +173,103 @@ public class DataTable extends JPanel {
 
   private void onModelChanged(TableModelEvent event) {
     updateViewportHeight();
+    scheduleFit();
+  }
+
+  /** Gom nhiều thay đổi dữ liệu liên tiếp thành một lần đo cột. */
+  private void scheduleFit() {
+    if (fitScheduled) {
+      return;
+    }
+    fitScheduled = true;
+    javax.swing.SwingUtilities.invokeLater(() -> {
+      fitScheduled = false;
+      fitColumns();
+    });
+  }
+
+  /**
+   * Đo tiêu đề và nội dung để đặt bề rộng tối thiểu từng cột: tiêu đề không bao giờ bị cắt; cột cố định
+   * (mã, số, tiền, ngày, trạng thái, thao tác) giữ trọn nội dung; cột chữ dài co dần (rút gọn "…" kèm
+   * tooltip) trước khi bảng phải cuộn ngang. Chỗ dư được dồn cho cột chữ dài.
+   */
+  private void fitColumns() {
+    TableColumnModel cm = table.getColumnModel();
+    int n = cm.getColumnCount();
+    int rows = Math.min(table.getRowCount(), MAX_SAMPLE_ROWS);
+    comfortMins.clear();
+    hardMins.clear();
+    flexibleColumns.clear();
+    comfortWidth = 0;
+    hardWidth = 0;
+    for (int c = 0; c < n; c++) {
+      javax.swing.table.TableColumn column = cm.getColumn(c);
+      int model = column.getModelIndex();
+      requestedWidths.computeIfAbsent(model, k -> column.getPreferredWidth());
+      int header = headerWidth(column, c);
+      int content = -1;
+      for (int r = 0; r < rows; r++) {
+        Component cell = table.prepareRenderer(table.getCellRenderer(r, c), r, c);
+        content = Math.max(content, cell.getPreferredSize().width + 2);
+      }
+      boolean rigid = rigidColumns.contains(model) || (content >= 0 && content <= SHORT_CONTENT_MAX);
+      int comfort;
+      int hard;
+      if (rigid) {
+        comfort = Math.max(header, Math.min(content, RIGID_MAX));
+        hard = comfort;
+      } else {
+        int text = content < 0 ? FLEX_MIN : content;
+        comfort = Math.max(header, Math.min(text, FLEX_MIN));
+        hard = Math.max(header, Math.min(text, FLEX_HARD_MIN));
+        flexibleColumns.add(model);
+      }
+      comfortMins.put(model, comfort);
+      hardMins.put(model, hard);
+      comfortWidth += comfort;
+      hardWidth += hard;
+    }
+    lastTier = -1;
+    applyColumnLayout();
+  }
+
+  /** Chọn mức co theo bề rộng vùng nhìn: thoải mái, co cột chữ, hoặc cuộn ngang. */
+  private void applyColumnLayout() {
+    int viewport = scrollPane.getViewport().getWidth();
+    int tier = viewport <= 0 || viewport >= comfortWidth ? 0 : viewport >= hardWidth ? 1 : 2;
+    if (tier == lastTier) {
+      return;
+    }
+    lastTier = tier;
+    boolean anyFlexible = !flexibleColumns.isEmpty();
+    TableColumnModel cm = table.getColumnModel();
+    for (int c = 0; c < cm.getColumnCount(); c++) {
+      javax.swing.table.TableColumn column = cm.getColumn(c);
+      int model = column.getModelIndex();
+      Integer comfort = comfortMins.get(model);
+      if (comfort == null) {
+        continue;
+      }
+      // Đã phải cuộn ngang thì giữ bề rộng thoải mái cho dễ đọc thay vì vừa cuộn vừa rút gọn chữ.
+      int min = tier == 1 ? hardMins.get(model) : comfort;
+      int requested = requestedWidths.getOrDefault(model, column.getPreferredWidth());
+      // Bỏ trần cũ trước: TableColumn kẹp minWidth theo maxWidth hiện tại.
+      column.setMaxWidth(Integer.MAX_VALUE);
+      column.setMinWidth(min);
+      // Cột cố định chỉ rộng tới mức trang yêu cầu; phần dư thuộc về cột chữ dài.
+      if (anyFlexible && !flexibleColumns.contains(model)) {
+        column.setMaxWidth(Math.max(min, requested));
+      }
+      column.setPreferredWidth(tier == 2 ? min : Math.max(min, requested));
+    }
+    table.setAutoResizeMode(tier == 2 ? JTable.AUTO_RESIZE_OFF : JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
+  }
+
+  private int headerWidth(javax.swing.table.TableColumn column, int viewIndex) {
+    TableCellRenderer renderer = column.getHeaderRenderer() != null
+        ? column.getHeaderRenderer() : table.getTableHeader().getDefaultRenderer();
+    return renderer.getTableCellRendererComponent(table, column.getHeaderValue(), false, false, -1, viewIndex)
+        .getPreferredSize().width + 2;
   }
 
   /** Chiều cao vùng nhìn theo số dòng hiện có, giới hạn trong [min, max] dòng. */
@@ -168,7 +286,7 @@ public class DataTable extends JPanel {
     updateViewportHeight();
   }
 
-  /** Lề ngang của ô và tiêu đề (mặc định 16); dùng giá trị nhỏ hơn cho bảng hẹp như giỏ hàng. */
+  /** Lề ngang của ô và tiêu đề (mặc định 12); dùng giá trị nhỏ hơn cho bảng hẹp như giỏ hàng. */
   public void setCellPadding(int padding) {
     this.cellPadding = padding;
     table.putClientProperty(TableRenderers.CELL_PAD_KEY, padding);
@@ -190,36 +308,31 @@ public class DataTable extends JPanel {
       int w = widths[i];
       if (w > 0) {
         colModel.getColumn(i).setPreferredWidth(w);
+        requestedWidths.put(colModel.getColumn(i).getModelIndex(), w);
       }
     }
-    preferredTableWidth = 0;
-    for (int i = 0; i < colModel.getColumnCount(); i++) {
-      preferredTableWidth += colModel.getColumn(i).getPreferredWidth();
-    }
-    updateColumnResizeMode();
-  }
-
-  private void updateColumnResizeMode() {
-    int mode = scrollPane.getViewport().getWidth() < preferredTableWidth
-        ? JTable.AUTO_RESIZE_OFF : JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS;
-    if (table.getAutoResizeMode() != mode) {
-      table.setAutoResizeMode(mode);
-    }
+    fitColumns();
   }
 
   public void setCodeColumn(int colIndex) {
+    rigidColumns.add(colIndex);
     table.getColumnModel().getColumn(colIndex).setCellRenderer(new TableRenderers.CodeRenderer());
+    scheduleFit();
   }
 
   public void setMoneyColumn(int colIndex) {
     rightAlignedColumns.add(colIndex);
+    rigidColumns.add(colIndex);
     table.getColumnModel().getColumn(colIndex).setCellRenderer(new TableRenderers.MoneyRenderer());
+    scheduleFit();
   }
 
   /** Cột số thường (số lượng, số ngày…): căn phải cả nội dung và tiêu đề. */
   public void setNumberColumn(int colIndex) {
     rightAlignedColumns.add(colIndex);
+    rigidColumns.add(colIndex);
     table.getColumnModel().getColumn(colIndex).setCellRenderer(new TableRenderers.NumberRenderer());
+    scheduleFit();
   }
 
   public void setTwoLineColumn(int colIndex) {
@@ -227,7 +340,11 @@ public class DataTable extends JPanel {
   }
 
   public void setCustomRenderer(int colIndex, TableCellRenderer renderer) {
+    if (renderer instanceof TableRenderers.PillRenderer) {
+      rigidColumns.add(colIndex);
+    }
     table.getColumnModel().getColumn(colIndex).setCellRenderer(renderer);
+    scheduleFit();
   }
 
   /**
@@ -244,7 +361,9 @@ public class DataTable extends JPanel {
     table.getColumnModel().getColumn(colIndex).setCellRenderer(cell);
     table.getColumnModel().getColumn(colIndex).setCellEditor(cell);
     // Bảng tự co cột theo chiều rộng còn lại; không cho cột thao tác co đến mức cắt mất nút.
+    rigidColumns.add(colIndex);
     table.getColumnModel().getColumn(colIndex).setMinWidth(cell.doRongToiThieu());
+    scheduleFit();
   }
 
   /** Cho phép bấm tiêu đề cột để sắp xếp. */

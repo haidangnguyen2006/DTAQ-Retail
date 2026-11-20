@@ -73,13 +73,13 @@ public class RevenueStatisticsPage implements Page {
   private final DtaqButton exportButton = DtaqButton.secondary("Xuất Excel", "download");
   private final JPanel alertBanner;
   private final JLabel alertCountLabel = new JLabel();
-  private final KpiCard kpiRevenue = new KpiCard("Tổng doanh thu trong kỳ", "—", null);
+  private final KpiCard kpiRevenue = new KpiCard("Tổng doanh thu trong kỳ", "—", null).withIcon("trending-up", com.dtaq.retail.ui.theme.DtaqColors.CHART_1);
   private static final String CAPTION_PRETAX = "Đã trừ hoàn trả và đổi hàng";
   private static final String CAPTION_TAX = "Thuế VAT theo từng nhóm hàng";
   private static final String KHONG_PHAT_SINH = "Không có phát sinh trong kỳ";
-  private final KpiCard kpiPretax = new KpiCard("Tổng tiền hàng trước thuế", "—", CAPTION_PRETAX);
-  private final KpiCard kpiTax = new KpiCard("Tổng tiền thuế phát sinh", "—", CAPTION_TAX);
-  private final KpiCard kpiOrders = new KpiCard("Hóa đơn bán lẻ thành công", "—", null);
+  private final KpiCard kpiPretax = new KpiCard("Tổng tiền hàng trước thuế", "—", CAPTION_PRETAX).withIcon("banknote", com.dtaq.retail.ui.theme.DtaqColors.CHART_3);
+  private final KpiCard kpiTax = new KpiCard("Tổng tiền thuế phát sinh", "—", CAPTION_TAX).withIcon("badge-percent", com.dtaq.retail.ui.theme.DtaqColors.CHART_4);
+  private final KpiCard kpiOrders = new KpiCard("Hóa đơn bán lẻ thành công", "—", null).withIcon("receipt-text", com.dtaq.retail.ui.theme.DtaqColors.CHART_5);
   private final JLabel barTitle = new JLabel(GRANULARITY_TITLES[0]);
   private final BarChartPanel barChart = new BarChartPanel();
   private final JLabel donutPeriod = new JLabel();

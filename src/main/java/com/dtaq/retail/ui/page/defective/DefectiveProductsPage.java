@@ -45,7 +45,7 @@ public class DefectiveProductsPage implements Page {
   private final JPanel view;
 
   private final FormField searchField = FormField.search("Tìm kiếm", "Nhập mã lỗi, số serial hoặc tên máy");
-  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
   private final DtaqButton refreshButton = DtaqButton.secondary("Làm mới", "refresh-cw");
   private final DtaqButton addDefectButton = DtaqButton.primary("Ghi nhận máy lỗi", "plus");
   private final StatusPill countPill = StatusPill.neutral("0 máy lỗi");
@@ -121,7 +121,7 @@ public class DefectiveProductsPage implements Page {
   }
 
   private JPanel buildFilterRow() {
-    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[][]16[grow]12[]push[]", "[bottom]"));
+    JPanel filterRow = new JPanel(new MigLayout("fillx, insets 0", "[]16[grow]12[]16[]", "[bottom]"));
     filterRow.setOpaque(false);
 
     statusFilter.setOnSelectionChange(index -> {
@@ -135,7 +135,7 @@ public class DefectiveProductsPage implements Page {
       timKiem();
     });
     // Căn nút với ô nhập: FormField chừa 20px (khoảng cách + dòng thông báo) dưới ô nhập.
-    filterRow.add(statusFilter, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
+    filterRow.add(statusFilter, "gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + (DtaqSpacing.CONTROL_H - DtaqSpacing.BUTTON_H_SM) / 2));
 
     searchField.setShortcut("F2");
     searchField.getTextField().addActionListener(e -> applySearchFilter());
@@ -143,7 +143,7 @@ public class DefectiveProductsPage implements Page {
 
     searchButton.addActionListener(e -> applySearchFilter());
     filterRow.add(searchButton, "gapbottom " + DtaqSpacing.FIELD_MESSAGE_H);
-    filterRow.add(countPill, "align right, aligny center");
+    filterRow.add(countPill, "gapbottom " + (DtaqSpacing.FIELD_MESSAGE_H + (DtaqSpacing.CONTROL_H - DtaqSpacing.PILL_H) / 2));
     return filterRow;
   }
 

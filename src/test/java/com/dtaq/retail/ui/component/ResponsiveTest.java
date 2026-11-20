@@ -49,13 +49,46 @@ class ResponsiveTest {
       DataTable data = new DataTable(DataTable.readOnlyModel(new String[] {"Mã", "Tên"}));
       data.setColumnWidths(200, 300);
       var viewport = data.getScrollPane().getViewport();
-      viewport.setSize(300, 150);
+      // Hẹp hơn mức tối thiểu dễ đọc của các cột: cuộn ngang, không ép cột.
+      viewport.setSize(150, 150);
       viewport.dispatchEvent(new ComponentEvent(viewport, ComponentEvent.COMPONENT_RESIZED));
       assertEquals(JTable.AUTO_RESIZE_OFF, data.getTable().getAutoResizeMode());
+      for (int c = 0; c < 2; c++) {
+        assertTrue(data.getTable().getColumnModel().getColumn(c).getPreferredWidth() >= 120);
+      }
+      // Hẹp hơn bề rộng trang yêu cầu nhưng vẫn đủ mức tối thiểu: co cột, không cuộn.
+      viewport.setSize(300, 150);
+      viewport.dispatchEvent(new ComponentEvent(viewport, ComponentEvent.COMPONENT_RESIZED));
+      assertEquals(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS, data.getTable().getAutoResizeMode());
       viewport.setSize(800, 150);
       viewport.dispatchEvent(new ComponentEvent(viewport, ComponentEvent.COMPONENT_RESIZED));
       assertEquals(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS, data.getTable().getAutoResizeMode());
       assertTrue(data.getTable().isFocusable());
+    });
+  }
+
+  @Test
+  void codeAndActionColumnsKeepFullContentWhenTight() throws Exception {
+    SwingUtilities.invokeAndWait(() -> {
+      var model = DataTable.readOnlyModel(new String[] {"Mã", "Mô tả", "Thao tác"}, 2);
+      model.addRow(new Object[] {"NVBANHANG-2026-000001", "Một mô tả rất dài ".repeat(8), null});
+      DataTable data = new DataTable(model);
+      data.setCodeColumn(0);
+      data.setActionColumn(2, com.dtaq.retail.ui.component.table.RowAction.primary("Phê duyệt", r -> { }),
+          com.dtaq.retail.ui.component.table.RowAction.danger("Từ chối", r -> { }));
+      data.setColumnWidths(100, 400, 100);
+      var table = data.getTable();
+      int codeNeed = table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getPreferredSize().width;
+      int actionNeed = table.prepareRenderer(table.getCellRenderer(0, 2), 0, 2).getPreferredSize().width;
+      var viewport = data.getScrollPane().getViewport();
+      viewport.setSize(codeNeed + actionNeed + 200, 150);
+      viewport.dispatchEvent(new ComponentEvent(viewport, ComponentEvent.COMPONENT_RESIZED));
+      table.setSize(viewport.getWidth(), 150);
+      table.doLayout();
+      // Cột mã và cột thao tác giữ trọn nội dung; cột chữ dài chịu phần co.
+      assertTrue(table.getColumnModel().getColumn(0).getWidth() >= codeNeed);
+      assertTrue(table.getColumnModel().getColumn(2).getWidth() >= actionNeed);
+      assertTrue(table.getColumnModel().getColumn(1).getWidth() < 400);
     });
   }
 

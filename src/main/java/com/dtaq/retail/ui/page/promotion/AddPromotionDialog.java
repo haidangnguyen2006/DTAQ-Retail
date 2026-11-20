@@ -102,8 +102,15 @@ public final class AddPromotionDialog extends ModalDialog {
     getBody().add(ngayBatDauField, "growx, wrap, gapbottom 12");
     getBody().add(ngayKetThucField, "growx, wrap, gapbottom 12");
     getBody().add(dongSanPhamField, "growx, wrap, gapbottom 12");
-    getBody().add(new FormField("Danh mục (Ctrl/Shift để chọn nhiều)",
-        new JScrollPane(danhMucList)), "growx, wrap, gapbottom 12");
+    // Danh sách chọn nhiều cần viền và đủ cao (FormField mặc định ép 1 dòng ô nhập).
+    JScrollPane danhMucScroll = new JScrollPane(danhMucList);
+    danhMucScroll.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(
+        new java.awt.Insets(4, 4, 4, 4), com.dtaq.retail.ui.theme.DtaqColors.BORDER_STRONG, 1f, 24));
+    getBody().add(new FormField("Danh mục (Ctrl/Shift để chọn nhiều)", danhMucScroll),
+        "growx, wrap, gapbottom 12");
+    danhMucScroll.setPreferredSize(new java.awt.Dimension(0, 4 * 24 + 10));
+    danhMucScroll.setMinimumSize(new java.awt.Dimension(0, 4 * 24 + 10));
+    danhMucList.setFixedCellHeight(24);
     getBody().add(ngayTonField, "growx, wrap, gapbottom 12");
     getBody().add(dangApDungCheck, "growx, wrap, gapbottom 12");
     getBody().add(new InfoCallout("Mỗi dòng sản phẩm chỉ có một chương trình đang áp dụng trong cùng khoảng ngày."), "growx, wrap");

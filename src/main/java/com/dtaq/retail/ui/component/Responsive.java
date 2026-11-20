@@ -58,7 +58,9 @@ public final class Responsive {
         if (columns != lastColumns) {
           lastColumns = columns;
           layout.setLayoutConstraints("fillx, insets 0, gap 16, wrap " + columns);
-          layout.setColumnConstraints("[0:pref,grow,fill]".repeat(columns));
+          // Ô cùng vai trò rộng bằng nhau (pref 0, chia đều phần giãn) và cao bằng nhau theo hàng.
+          layout.setColumnConstraints("[0:0,grow,fill]".repeat(columns));
+          layout.setRowConstraints("[fill]");
           panel.revalidate();
           panel.repaint();
         }

@@ -63,7 +63,7 @@ public final class EmployeePage implements Page {
   private final DtaqButton addEmployeeBtn = DtaqButton.primary("Thêm nhân viên", "plus");
   private final FormField searchField = FormField.search(null,
       "Họ tên (có dấu hoặc không), mã, tên đăng nhập, email hoặc số điện thoại");
-  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm");
+  private final DtaqButton searchButton = DtaqButton.secondary("Tìm kiếm", "search");
   private final SegmentedControl filter = new SegmentedControl(BO_LOC, 0);
   private final DefaultTableModel tableModel = DataTable.readOnlyModel(new String[] {
       "Mã nhân viên", "Họ và tên", "Số điện thoại", "Email", "Ngày vào làm",
